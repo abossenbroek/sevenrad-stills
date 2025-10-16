@@ -15,6 +15,11 @@ dependencies = [
     "ffmpeg-python>=0.2.0",
     "pillow>=10.0.0",
     "scikit-image>=0.24.0",
+    "yt-dlp>=2024.0.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "pyyaml>=6.0.0",
+    "click>=8.1.0",
 ]
 
 [project.optional-dependencies]
@@ -23,7 +28,12 @@ dev = [
     "ruff>=0.8.0",
     "mypy>=1.13.0",
     "pre-commit>=4.0.0",
+    "types-click>=7.1.0",
+    "types-pyyaml>=6.0.0",
 ]
+
+[project.scripts]
+sevenrad = "sevenrad_stills.cli.commands:cli"
 
 [tool.ruff]
 target-version = "py312"
