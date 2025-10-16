@@ -1,0 +1,60 @@
+# Flexible Sequence with Repeat Parameter
+# Demonstrates flexible use of repeat to create elegant loops
+# showing how any operation can be repeated multiple times.
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"  # Replace with actual video URL
+
+segment:
+  start: 0.0
+  end: 5.0
+  interval: 1.0  # Extract 1 frame per second (5 total frames)
+
+pipeline:
+  steps:
+    # Sequence 1: Repeated downscaling (cascade effect)
+    - name: "cascade_downscale"
+      operation: "downscale"
+      repeat: 3                        # Apply 3 times
+      params:
+        scale: 0.8                     # Each iteration: 80% of previous
+        upscale: false                 # Don't upscale (compound effect)
+
+    # Upscale back to original with harsh pixelation
+    - name: "harsh_upscale"
+      operation: "downscale"
+      params:
+        scale: 1.95                    # Approximately restore original size
+        upscale: false
+        downscale_method: "nearest"
+
+    # Sequence 2: Repeated blur cycles
+    - name: "blur_cycles"
+      operation: "motion_blur"
+      repeat: 4                        # 4 blur applications
+      params:
+        kernel_size: 2                 # Minimal each time
+        angle: 0
+
+    # Sequence 3: Repeated compression at same quality
+    - name: "compression_cycles"
+      operation: "compression"
+      repeat: 6                        # 6 save/load cycles
+      params:
+        quality: 45
+        subsampling: 2
+
+    # Final: Single multi-compress for exponential decay
+    - name: "final_multi_compress"
+      operation: "multi_compress"
+      params:
+        iterations: 5
+        quality_start: 40
+        quality_end: 15
+        decay: "exponential"
+        subsampling: 2
+
+output:
+  base_dir: "./pipeline_output/flexible_sequence"
+  intermediate_dir: "./pipeline_output/flexible_sequence/intermediate"
+  final_dir: "./pipeline_output/flexible_sequence/final"
