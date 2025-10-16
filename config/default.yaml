@@ -1,0 +1,57 @@
+# Default configuration for sevenrad-stills
+
+cache:
+  # Directory for caching downloaded videos and temporary files
+  cache_dir: ~/.cache/sevenrad_stills
+
+  # When to clear the cache: on_start, on_exit, manual, never
+  clear_strategy: on_exit
+
+  # Maximum cache size in gigabytes
+  max_size_gb: 10
+
+  # Number of days to retain cached files
+  retention_days: 7
+
+download:
+  # Video format: mp4, webm, mkv
+  format: mp4
+
+  # Quality: best, worst, or specific resolution like 720p, 1080p
+  quality: best
+
+  # Directory for downloaded videos
+  output_dir: ./videos
+
+  # Temporary download directory (uses cache_dir if not specified)
+  temp_dir: null
+
+extraction:
+  # Frames per second to extract (null means use frame_interval instead)
+  fps: 1.0
+
+  # Extract every Nth frame (null means use fps instead)
+  frame_interval: null
+
+  # Output format for extracted frames: jpg, png
+  output_format: jpg
+
+  # Directory for extracted frames
+  output_dir: ./frames
+
+  # Naming pattern for extracted frames
+  # Available placeholders: {video_id}, {index}, {timestamp}, {ext}
+  naming_pattern: "{video_id}_frame_{index:06d}.{ext}"
+
+  # JPEG quality (1-100) when output_format is jpg
+  jpeg_quality: 95
+
+logging:
+  # Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: INFO
+
+  # Log file path (null means stdout only)
+  log_file: null
+
+  # Show progress bars
+  show_progress: true
