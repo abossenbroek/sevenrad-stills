@@ -1,0 +1,52 @@
+# Severe Degradation Pipeline
+# Demonstrates all compression and degradation filters to achieve extreme artifacts
+# including heavy blocking, pixelation, color banding, and motion blur.
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"  # Replace with actual video URL
+
+segment:
+  start: 10.0
+  end: 15.0
+  interval: 1.0  # Extract 1 frame per second (5 total frames)
+
+pipeline:
+  steps:
+    # Step 1: Initial downscaling to create pixelation
+    - name: "heavy_pixelation"
+      operation: "downscale"
+      params:
+        scale: 0.15                    # Reduce to 15% of original size
+        upscale: true                  # Scale back up
+        downscale_method: "bicubic"    # High-quality downscale
+        upscale_method: "nearest"      # Harsh, blocky upscale
+
+    # Step 2: Apply severe JPEG compression
+    - name: "severe_compression"
+      operation: "compression"
+      params:
+        quality: 10                    # Very low quality
+        subsampling: 2                 # 4:2:0 - maximum blocking (8x8 blocks)
+        optimize: false                # Disable optimization for heavier artifacts
+
+    # Step 3: Add minimal motion blur for camera shake
+    - name: "motion_blur_minimal"
+      operation: "motion_blur"
+      params:
+        kernel_size: 3                 # Minimal blur
+        angle: 45                      # Diagonal motion
+
+    # Step 4: Multi-generation compression for compound artifacts
+    - name: "multi_gen_compression"
+      operation: "multi_compress"
+      params:
+        iterations: 8                  # 8 compression cycles
+        quality_start: 40
+        quality_end: 5                 # Degrade to quality 5
+        decay: "exponential"           # Rapid initial degradation
+        subsampling: 2                 # Heavy subsampling each iteration
+
+output:
+  base_dir: "./pipeline_output/severe_degradation"
+  intermediate_dir: "./pipeline_output/severe_degradation/intermediate"
+  final_dir: "./pipeline_output/severe_degradation/final"
