@@ -1,0 +1,49 @@
+# Compression Block Size Demonstration
+# Shows how different subsampling modes create different block artifacts
+# and demonstrates the repeat parameter for elegant looping.
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"  # Replace with actual video URL
+
+segment:
+  start: 15.0
+  end: 18.0
+  interval: 1.0  # Extract 1 frame per second (3 total frames)
+
+pipeline:
+  steps:
+    # No subsampling - minimal artifacts
+    - name: "no_subsampling"
+      operation: "compression"
+      params:
+        quality: 50
+        subsampling: 0                 # 4:4:4 - no chroma subsampling
+        optimize: true
+
+    # Moderate subsampling
+    - name: "moderate_subsampling"
+      operation: "compression"
+      params:
+        quality: 50
+        subsampling: 1                 # 4:2:2 - moderate blocking
+
+    # Heavy subsampling - visible 8x8 blocks
+    - name: "heavy_subsampling"
+      operation: "compression"
+      repeat: 3                        # Apply 3 times for compound effect
+      params:
+        quality: 50
+        subsampling: 2                 # 4:2:0 - heavy blocking
+
+    # Severe compression with heavy subsampling
+    - name: "severe_blocking"
+      operation: "compression"
+      params:
+        quality: 5                     # Extreme compression
+        subsampling: 2                 # Maximum blocking
+        optimize: false
+
+output:
+  base_dir: "./pipeline_output/block_sizes"
+  intermediate_dir: "./pipeline_output/block_sizes/intermediate"
+  final_dir: "./pipeline_output/block_sizes/final"
