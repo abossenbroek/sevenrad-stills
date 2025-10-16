@@ -1,0 +1,39 @@
+# Example pipeline: Multi-step processing
+# This pipeline demonstrates chaining multiple saturation operations.
+# Each step's output becomes the input for the next step.
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"  # Replace with actual video URL
+
+segment:
+  start: 10.0
+  end: 20.0
+  interval: 0.5  # Extract 2 frames per second (20 total frames)
+
+pipeline:
+  steps:
+    # Step 1: Initial random saturation
+    - name: "initial_variation"
+      operation: "saturation"
+      params:
+        mode: "random"
+        range: [-0.3, 0.3]
+
+    # Step 2: Boost overall saturation
+    - name: "boost"
+      operation: "saturation"
+      params:
+        mode: "fixed"
+        value: 1.2
+
+    # Step 3: Final random variation
+    - name: "final_variation"
+      operation: "saturation"
+      params:
+        mode: "random"
+        range: [-0.2, 0.2]
+
+output:
+  base_dir: "./pipeline_output"
+  intermediate_dir: "./pipeline_output/intermediate"
+  final_dir: "./pipeline_output/final"
