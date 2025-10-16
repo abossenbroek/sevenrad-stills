@@ -147,14 +147,16 @@ class FrameExtractor:
         """
         if hasattr(strategy, "fps"):
             # FPS strategy
-            return int(video_info.duration * strategy.fps)  # type: ignore[attr-defined]
+            fps_val: float = strategy.fps
+            return int(video_info.duration * fps_val)
         if hasattr(strategy, "interval"):
             # Interval strategy
+            interval_val: int = strategy.interval
             if video_info.fps:
                 total_frames = int(video_info.duration * video_info.fps)
-                return total_frames // strategy.interval  # type: ignore[attr-defined]
+                return total_frames // interval_val
             # Fallback estimate (assume 30 fps if not known)
             total_frames = int(video_info.duration * 30)
-            return total_frames // strategy.interval  # type: ignore[attr-defined]
+            return total_frames // interval_val
 
         return 0

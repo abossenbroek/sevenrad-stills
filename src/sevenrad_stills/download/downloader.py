@@ -40,7 +40,7 @@ class VideoDownloader:
 
     def _progress_hook(self, d: dict[str, Any]) -> None:
         """
-        Internal progress hook for yt-dlp.
+        Handle progress updates from yt-dlp.
 
         Args:
             d: Progress dictionary from yt-dlp
@@ -128,17 +128,24 @@ class VideoDownloader:
 
         """
         if self.settings.quality == "best":
-            return f"bestvideo[ext={self.settings.format}]+bestaudio/best[ext={self.settings.format}]/best"
+            fmt = self.settings.format
+            return f"bestvideo[ext={fmt}]+bestaudio/best[ext={fmt}]/best"
         if self.settings.quality == "worst":
-            return f"worstvideo[ext={self.settings.format}]+worstaudio/worst[ext={self.settings.format}]/worst"
+            fmt = self.settings.format
+            return f"worstvideo[ext={fmt}]+worstaudio/worst[ext={fmt}]/worst"
 
         # Specific resolution like "720p"
         if self.settings.quality.endswith("p"):
             height = self.settings.quality[:-1]
-            return f"bestvideo[height<={height}][ext={self.settings.format}]+bestaudio/best[height<={height}]/best"
+            fmt = self.settings.format
+            return (
+                f"bestvideo[height<={height}][ext={fmt}]+bestaudio/"
+                f"best[height<={height}]/best"
+            )
 
         # Default to best
-        return f"bestvideo[ext={self.settings.format}]+bestaudio/best[ext={self.settings.format}]/best"
+        fmt = self.settings.format
+        return f"bestvideo[ext={fmt}]+bestaudio/best[ext={fmt}]/best"
 
     def _create_video_info(self, info: dict[str, Any], file_path: Path) -> VideoInfo:
         """
@@ -182,9 +189,6 @@ class VideoDownloader:
         try:
             # Quick check using yt-dlp's extractors
             extractors = yt_dlp.extractor.gen_extractors()
-            for extractor in extractors:
-                if extractor.suitable(url):
-                    return True
-            return False
+            return any(extractor.suitable(url) for extractor in extractors)
         except Exception:
             return False

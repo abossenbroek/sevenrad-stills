@@ -126,7 +126,7 @@ class ExtractionSettings(BaseModel):
 
     @field_validator("fps")
     @classmethod
-    def validate_extraction_mode(cls, v: float | None, info: dict) -> float | None:
+    def validate_extraction_mode(cls, v: float | None) -> float | None:
         """Validate that either fps or frame_interval is set, but not both."""
         # This validator runs before frame_interval is set, so we can't check here
         # The check will be done in the root model validator
