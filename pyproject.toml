@@ -15,6 +15,11 @@ dependencies = [
     "ffmpeg-python>=0.2.0",
     "pillow>=10.0.0",
     "scikit-image>=0.24.0",
+    "yt-dlp>=2024.0.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "pyyaml>=6.0.0",
+    "click>=8.1.0",
 ]
 
 [project.optional-dependencies]
@@ -23,7 +28,12 @@ dev = [
     "ruff>=0.8.0",
     "mypy>=1.13.0",
     "pre-commit>=4.0.0",
+    "types-click>=7.1.0",
+    "types-pyyaml>=6.0.0",
 ]
+
+[project.scripts]
+sevenrad = "sevenrad_stills.cli.commands:cli"
 
 [tool.ruff]
 target-version = "py312"
@@ -56,10 +66,13 @@ select = [
 ignore = [
     "D203",   # one-blank-line-before-class (conflicts with D211)
     "D212",   # multi-line-summary-first-line (conflicts with D213)
+    "ANN101", # missing-type-self (self annotations are redundant)
+    "ANN102", # missing-type-cls (cls annotations are redundant)
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "ANN"]  # Allow assert and missing annotations in tests
+"tests/*" = ["S101", "ANN", "PLR2004", "S108"]  # Allow assert, annotations, magic values, and /tmp in tests
+"src/sevenrad_stills/cli/commands.py" = ["PLR0913"]  # Click commands have many options
 
 [tool.mypy]
 python_version = "3.12"
@@ -74,3 +87,11 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 warn_no_return = true
 follow_imports = "normal"
+
+# Ignore missing type stubs for third-party libraries without stubs
+[[tool.mypy.overrides]]
+module = [
+    "yt_dlp.*",
+    "ffmpeg.*",
+]
+ignore_missing_imports = true
