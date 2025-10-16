@@ -1,0 +1,76 @@
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[project]
+name = "sevenrad-stills"
+version = "0.1.0"
+description = "A Python application for extracting movies from YouTube, taking stills and reworking these stills to create unique images as part of a book exploring poetic interpretations of digital media through algorithmic transformation."
+authors = [
+    {name = "Anton Bossenbroek"}
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "ffmpeg-python>=0.2.0",
+    "pillow>=10.0.0",
+    "scikit-image>=0.24.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+    "pre-commit>=4.0.0",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+src = ["src/sevenrad_stills", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "D",      # pydocstyle
+    "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107",
+    "S",      # flake8-bandit (security)
+    "B",      # flake8-bugbear
+    "F403",   # undefined local with import star
+    "ANN",    # flake8-annotations
+    "G",      # flake8-logging-format
+    "T20",    # flake8-print
+    "PT",     # flake8-pytest-style
+    "SIM",    # flake8-simplify
+    "ARG",    # flake8-unused-arguments
+    "I",      # isort
+    "C90",    # mccabe complexity
+    "PD",     # pandas-vet
+    "N",      # pep8-naming
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "PLE",    # pylint errors
+    "PLR",    # pylint refactor
+    "RUF",    # ruff-specific rules
+]
+ignore = [
+    "D203",   # one-blank-line-before-class (conflicts with D211)
+    "D212",   # multi-line-summary-first-line (conflicts with D213)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "ANN"]  # Allow assert and missing annotations in tests
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+follow_imports = "normal"
