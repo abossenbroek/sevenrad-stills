@@ -1,0 +1,112 @@
+# Tutorial 03: VHS/Analog Video Degradation
+#
+# GOAL: Simulate the characteristic degradation of VHS tapes and analog
+# video recordings for nostalgic, retro aesthetic.
+#
+# WHAT YOU'LL SEE:
+# - Horizontal blur resembling VHS scan lines
+# - Moderate pixelation and softness
+# - Compression artifacts typical of analog-to-digital conversion
+# - "Tracking issues" appearance from motion blur
+# - Nostalgic 90s VHS tape playback aesthetic
+#
+# FRAMES: 60 (6 seconds at 10 fps)
+# OPERATIONS: 3 (motion_blur → compression → downscale)
+# DIFFICULTY: Intermediate
+
+source:
+  # Replace with your actual YouTube video URL
+  youtube_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
+segment:
+  start: 192.0    # 3 minutes 12 seconds (3m12s)
+  end: 198.0      # 3 minutes 18 seconds (3m18s)
+  interval: 0.1   # 10 frames per second = 60 total frames
+
+pipeline:
+  steps:
+    # STEP 1: Horizontal Motion Blur (Scan Lines Effect)
+    # Creates horizontal blur characteristic of VHS scan line bleeding
+    - name: "scanline_blur"
+      operation: "motion_blur"
+      params:
+        # Moderate blur strength
+        # Not too heavy - VHS blur is noticeable but not extreme
+        kernel_size: 7
+
+        # 0 degrees = pure horizontal motion (left-right)
+        # This simulates horizontal scan line bleeding
+        # 90° would be vertical, 45° diagonal, etc.
+        angle: 0
+
+    # STEP 2: Moderate JPEG Compression
+    # Simulates analog-to-digital conversion artifacts
+    - name: "analog_compression"
+      operation: "compression"
+      params:
+        # Medium-low quality typical of VHS captures
+        # Not as extreme as glitch art, but noticeable
+        quality: 35
+
+        # Heavy chroma subsampling (4:2:0)
+        # VHS has very poor color resolution compared to luminance
+        subsampling: 2
+
+    # STEP 3: Resolution Reduction
+    # VHS has significantly lower resolution than modern HD
+    - name: "resolution_reduction"
+      operation: "downscale"
+      params:
+        # Reduce to 50% of original size
+        # Example: 1920x1080 → 960x540 → 1920x1080
+        # Simulates VHS ~480-line resolution upscaled to HD
+        scale: 0.5
+
+        # Scale back up to original size
+        upscale: true
+
+        # Bilinear for softer, more "analog" downscaling
+        # Avoids sharp digital edges
+        downscale_method: "bilinear"
+
+        # Bilinear upscaling for soft, smooth result
+        # VHS never had sharp pixels - everything was soft
+        upscale_method: "bilinear"
+
+output:
+  base_dir: "./tutorials/03-vhs-analog"
+  intermediate_dir: "./tutorials/03-vhs-analog/intermediate"
+  final_dir: "./tutorials/03-vhs-analog/final"
+
+# HOW TO RUN:
+#   sevenrad pipeline docs/tutorials/compression-filters/03-vhs-analog.yaml
+#
+# OUTPUT:
+#   ./tutorials/03-vhs-analog/
+#     ├── intermediate/
+#     │   ├── scanline_blur/
+#     │   │   └── scanline_blur_*_step00.jpg (60 images)
+#     │   └── analog_compression/
+#     │       └── analog_compression_*_step01.jpg (60 images)
+#     └── final/
+#         └── resolution_reduction_*_step02.jpg (60 images)
+#
+# WHAT TO LOOK FOR:
+#   - Horizontal blur/smearing in intermediate/scanline_blur/
+#   - JPEG artifacts added in intermediate/analog_compression/
+#   - Overall soft, low-res appearance in final/
+#   - Lack of sharp edges characteristic of analog video
+#   - Color bleeding and reduced color detail
+#
+# TRY EXPERIMENTING:
+#   - Increase kernel_size to 10-15 for more pronounced scan lines
+#   - Try angle: 90 for vertical blur (different effect)
+#   - Adjust quality to 25-30 for heavier compression
+#   - Try scale: 0.4 for even lower resolution (more VHS-like)
+#   - Use downscale_method: "box" for different softness
+#   - Add saturation boost before blur for oversaturated VHS look
+#
+# HISTORICAL NOTE:
+#   VHS (Video Home System) had approximately 240-480 lines of resolution,
+#   poor color reproduction, and horizontal scan line artifacts. This
+#   pipeline simulates these characteristics when viewed on modern HD displays.

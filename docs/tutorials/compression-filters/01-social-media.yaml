@@ -1,0 +1,72 @@
+# Tutorial 01: Social Media Compression Simulation
+#
+# GOAL: Simulate how images degrade when shared multiple times across
+# social media platforms like WhatsApp, Instagram, or Facebook.
+#
+# WHAT YOU'LL SEE:
+# - Noticeable JPEG blocking patterns (8x8 pixel blocks)
+# - Color banding in gradients and smooth areas
+# - Loss of fine details and texture
+# - Overall "compressed" appearance familiar from social media
+#
+# FRAMES: 60 (6 seconds at 10 fps)
+# OPERATIONS: 1 (multi_compress)
+# DIFFICULTY: Beginner
+
+source:
+  # Replace with your actual YouTube video URL
+  youtube_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
+segment:
+  start: 192.0    # 3 minutes 12 seconds (3m12s)
+  end: 198.0      # 3 minutes 18 seconds (3m18s)
+  interval: 0.1   # 10 frames per second = 60 total frames
+
+pipeline:
+  steps:
+    # Simulate 4 social media sharing cycles
+    # Each share applies additional JPEG compression
+    - name: "social_media_compression"
+      operation: "multi_compress"
+      params:
+        # 4 iterations = simulating 4 sharing cycles
+        # (original → share 1 → share 2 → share 3 → share 4)
+        iterations: 4
+
+        # Start at 75% quality (typical for mobile uploads)
+        quality_start: 75
+
+        # End at 45% quality (after multiple shares)
+        quality_end: 45
+
+        # Linear decay means quality drops evenly each share:
+        # Share 1: 75%, Share 2: 65%, Share 3: 55%, Share 4: 45%
+        decay: "linear"
+
+        # Heavy chroma subsampling (4:2:0) creates visible 8x8 blocks
+        # This is what mobile apps typically use to reduce file size
+        subsampling: 2
+
+output:
+  base_dir: "./tutorials/01-social-media"
+  intermediate_dir: "./tutorials/01-social-media/intermediate"
+  final_dir: "./tutorials/01-social-media/final"
+
+# HOW TO RUN:
+#   sevenrad pipeline docs/tutorials/compression-filters/01-social-media.yaml
+#
+# OUTPUT:
+#   ./tutorials/01-social-media/final/
+#     └── social_media_compression_*_step00.jpg (60 images)
+#
+# WHAT TO LOOK FOR:
+#   - Check sky areas for color banding
+#   - Look for 8x8 pixel block patterns in smooth gradients
+#   - Notice loss of fine texture detail
+#   - Compare early frames vs. late frames if video has motion
+#
+# TRY EXPERIMENTING:
+#   - Increase iterations to 6-8 for more severe degradation
+#   - Change decay to "exponential" for rapid initial quality drop
+#   - Adjust quality_end to 30 for heavier artifacts
+#   - Try quality_start: 85 for higher initial quality
