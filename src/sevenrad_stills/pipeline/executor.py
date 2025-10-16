@@ -184,22 +184,21 @@ class PipelineExecutor:
         extractor = FrameExtractor(extraction_settings)
         strategy = create_extraction_strategy(fps=fps)
 
-        # Extract frames
-        all_frames = extractor.extract_frames(video_info, strategy)
+        # Extract frames from the segment time range
+        # FFmpeg will handle the time-based extraction
+        segment_frames = extractor.extract_frames(
+            video_info,
+            strategy,
+            start_time=segment.start,
+            end_time=segment.end,
+        )
 
-        # Filter frames based on segment time range
-        # Calculate which frame indices fall within the segment
-        start_idx = int(segment.start * fps)
-        end_idx = int(segment.end * fps)
-
-        # Return only frames within the segment
-        segment_frames = all_frames[start_idx:end_idx]
         self.logger.info(
-            "Selected frames %d-%d from segment %.1fs-%.1fs",
-            start_idx,
-            end_idx,
+            "Extracted %d frames from segment %.1fs-%.1fs at %.1f fps",
+            len(segment_frames),
             segment.start,
             segment.end,
+            fps,
         )
 
         return segment_frames
