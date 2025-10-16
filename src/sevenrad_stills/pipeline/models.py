@@ -8,7 +8,7 @@ and image transformation workflows.
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, ValidationInfo, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
 
 class SourceConfig(BaseModel):
@@ -49,10 +49,7 @@ class SegmentConfig(BaseModel):
 class OperationParams(BaseModel):
     """Base class for operation parameters - allows arbitrary fields."""
 
-    class Config:
-        """Pydantic config."""
-
-        extra = "allow"  # Allow additional fields for operation-specific params
+    model_config = ConfigDict(extra="allow")
 
 
 class ImageOperationStep(BaseModel):
