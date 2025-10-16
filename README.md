@@ -58,9 +58,27 @@ All checks run automatically via pre-commit hooks on each commit.
 
 ### Running Tests
 
+Run all unit tests (fast):
 ```bash
 pytest
 ```
+
+Run all tests including slow integration tests:
+```bash
+pytest -m "slow or integration"
+```
+
+Skip slow tests:
+```bash
+pytest -m "not slow"
+```
+
+Run only integration tests:
+```bash
+pytest tests/integration/ -v -s
+```
+
+**Note**: Integration tests download real YouTube videos and may take 30-60 seconds to complete.
 
 ### Project Structure
 
