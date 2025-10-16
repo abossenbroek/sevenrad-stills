@@ -7,6 +7,9 @@ Provides utilities for path resolution, sanitization, and file naming.
 import re
 from pathlib import Path
 
+# Maximum filename length for most filesystems
+MAX_FILENAME_LENGTH = 255
+
 
 def sanitize_filename(filename: str) -> str:
     """
@@ -27,11 +30,14 @@ def sanitize_filename(filename: str) -> str:
     sanitized = re.sub(r"_{2,}", "_", sanitized)
     # Remove leading/trailing spaces and dots
     sanitized = sanitized.strip(". ")
-    # Limit length to 255 characters (common filesystem limit)
-    if len(sanitized) > 255:
+    # Limit length to maximum filename length
+    if len(sanitized) > MAX_FILENAME_LENGTH:
         name, ext = sanitized.rsplit(".", 1) if "." in sanitized else (sanitized, "")
-        max_name_len = 255 - len(ext) - 1 if ext else 255
-        sanitized = f"{name[:max_name_len]}.{ext}" if ext else name[:255]
+        if ext:
+            max_name_len = MAX_FILENAME_LENGTH - len(ext) - 1
+            sanitized = f"{name[:max_name_len]}.{ext}"
+        else:
+            sanitized = name[:MAX_FILENAME_LENGTH]
     return sanitized or "unnamed"
 
 

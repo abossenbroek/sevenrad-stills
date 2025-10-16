@@ -52,7 +52,7 @@ class VideoProcessor:
             PipelineError: If processing fails
 
         """
-        self.logger.info(f"Starting video processing for: {url}")
+        self.logger.info("Starting video processing for: %s", url)
 
         try:
             # Setup cache
@@ -62,7 +62,7 @@ class VideoProcessor:
             self.logger.info("Downloading video...")
             video_info = self.downloader.download(url)
             self.logger.info(
-                f"Downloaded: {video_info.title} ({video_info.duration_str})"
+                "Downloaded: %s (%s)", video_info.title, video_info.duration_str
             )
 
             # Create extraction strategy
@@ -70,18 +70,18 @@ class VideoProcessor:
                 fps=self.settings.extraction.fps,
                 frame_interval=self.settings.extraction.frame_interval,
             )
-            self.logger.info(f"Extraction strategy: {strategy.get_description()}")
+            self.logger.info("Extraction strategy: %s", strategy.get_description())
 
             # Estimate frame count
             estimated_frames = self.extractor.get_frame_count_estimate(
                 video_info, strategy
             )
-            self.logger.info(f"Estimated frames to extract: {estimated_frames}")
+            self.logger.info("Estimated frames to extract: %d", estimated_frames)
 
             # Extract frames
             self.logger.info("Extracting frames...")
             frame_paths = self.extractor.extract_frames(video_info, strategy)
-            self.logger.info(f"Extracted {len(frame_paths)} frames")
+            self.logger.info("Extracted %d frames", len(frame_paths))
 
             # Cleanup
             self.cache_manager.cleanup()
