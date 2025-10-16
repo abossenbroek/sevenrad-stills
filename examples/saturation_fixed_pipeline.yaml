@@ -1,0 +1,24 @@
+# Example pipeline: Fixed saturation adjustment
+# This pipeline demonstrates using a fixed saturation multiplier.
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"  # Replace with actual video URL
+
+segment:
+  start: 10.0
+  end: 30.0
+  interval: 1.0
+
+pipeline:
+  steps:
+    # Step 1: Increase saturation by 50%
+    - name: "boost_saturation"
+      operation: "saturation"
+      params:
+        mode: "fixed"
+        value: 1.5  # 1.5x saturation (150% of original)
+
+output:
+  base_dir: "./pipeline_output"
+  intermediate_dir: "./pipeline_output/intermediate"
+  final_dir: "./pipeline_output/final"
