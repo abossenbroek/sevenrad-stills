@@ -170,7 +170,24 @@ def cache_info(config: Path | None) -> None:
     type=click.Path(exists=True, path_type=Path),  # type: ignore[type-var]
     help="Path to application configuration file",
 )
-def pipeline(pipeline_file: Path, config: Path | None) -> None:
+@click.option(
+    "--workers",
+    type=int,
+    default=None,
+    help="Number of parallel workers (defaults to CPU count)",
+)
+@click.option(
+    "--no-parallel",
+    is_flag=True,
+    default=False,
+    help="Disable parallel processing",
+)
+def pipeline(
+    pipeline_file: Path,
+    config: Path | None,
+    workers: int | None,
+    no_parallel: bool,
+) -> None:
     """
     Execute a YAML pipeline configuration.
 
@@ -196,10 +213,22 @@ def pipeline(pipeline_file: Path, config: Path | None) -> None:
         click.echo(f"Steps: {len(pipeline_config.steps)}")
         for idx, step in enumerate(pipeline_config.steps, 1):
             click.echo(f"  {idx}. {step.name} ({step.operation})")
-        click.echo(f"Output: {pipeline_config.output.final_dir}\n")
+        click.echo(f"Output: {pipeline_config.output.final_dir}")
+
+        # Show parallel processing info
+        parallel = not no_parallel
+        if parallel:
+            import multiprocessing
+
+            worker_count = workers or multiprocessing.cpu_count()
+            click.echo(f"Parallel processing: enabled ({worker_count} workers)\n")
+        else:
+            click.echo("Parallel processing: disabled\n")
 
         # Execute pipeline
-        executor = PipelineExecutor(pipeline_config, settings)
+        executor = PipelineExecutor(
+            pipeline_config, settings, max_workers=workers, parallel=parallel
+        )
         results = executor.execute()
 
         # Display results
