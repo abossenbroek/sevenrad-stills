@@ -37,12 +37,12 @@ def cli() -> None:
 )
 @click.option(
     "--output-dir",
-    type=click.Path(path_type=Path),
+    type=click.Path(path_type=Path),  # type: ignore[type-var]
     help="Output directory for extracted frames",
 )
 @click.option(
     "--config",
-    type=click.Path(exists=True, path_type=Path),
+    type=click.Path(exists=True, path_type=Path),  # type: ignore[type-var]
     help="Path to configuration file",
 )
 @click.option(
@@ -119,7 +119,7 @@ def cache() -> None:
 @cache.command("clear")
 @click.option(
     "--config",
-    type=click.Path(exists=True, path_type=Path),
+    type=click.Path(exists=True, path_type=Path),  # type: ignore[type-var]
     help="Path to configuration file",
 )
 def cache_clear(config: Path | None) -> None:
@@ -140,7 +140,7 @@ def cache_clear(config: Path | None) -> None:
 @cache.command("info")
 @click.option(
     "--config",
-    type=click.Path(exists=True, path_type=Path),
+    type=click.Path(exists=True, path_type=Path),  # type: ignore[type-var]
     help="Path to configuration file",
 )
 def cache_info(config: Path | None) -> None:
@@ -163,13 +163,13 @@ def cache_info(config: Path | None) -> None:
 
 @cli.group()
 def config_cmd() -> None:
-    """Configuration management."""
+    """Manage configuration."""
 
 
 @config_cmd.command("show")
 @click.option(
     "--config",
-    type=click.Path(exists=True, path_type=Path),
+    type=click.Path(exists=True, path_type=Path),  # type: ignore[type-var]
     help="Path to configuration file",
 )
 def config_show(config: Path | None) -> None:

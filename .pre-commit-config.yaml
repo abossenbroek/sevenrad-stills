@@ -16,4 +16,10 @@ repos:
       - id: mypy
         additional_dependencies:
           - types-Pillow
+          - types-PyYAML
+          - types-click
+          - pydantic>=2.0.0
+          - yt-dlp>=2024.0.0
+          - ffmpeg-python>=0.2.0
+          - click>=8.1.0
         args: [--strict]
