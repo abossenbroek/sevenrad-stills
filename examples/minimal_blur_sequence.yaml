@@ -1,0 +1,46 @@
+# Minimal Motion Blur Sequence
+# Demonstrates minimal and subtle blur effects
+# Useful for subtle camera shake and movement simulation.
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"  # Replace with actual video URL
+
+segment:
+  start: 20.0
+  end: 25.0
+  interval: 0.5  # Extract 2 frames per second (10 total frames)
+
+pipeline:
+  steps:
+    # Minimal horizontal blur
+    - name: "minimal_blur_horizontal"
+      operation: "motion_blur"
+      params:
+        kernel_size: 2                 # Minimal blur
+        angle: 0                       # Horizontal
+
+    # Minimal vertical blur
+    - name: "minimal_blur_vertical"
+      operation: "motion_blur"
+      params:
+        kernel_size: 2
+        angle: 90                      # Vertical
+
+    # Minimal diagonal blur
+    - name: "minimal_blur_diagonal"
+      operation: "motion_blur"
+      params:
+        kernel_size: 3
+        angle: 45                      # Diagonal
+
+    # Combine with compression for realistic degradation
+    - name: "compression_after_blur"
+      operation: "compression"
+      params:
+        quality: 60
+        subsampling: 2
+
+output:
+  base_dir: "./pipeline_output/minimal_blur"
+  intermediate_dir: "./pipeline_output/minimal_blur/intermediate"
+  final_dir: "./pipeline_output/minimal_blur/final"
