@@ -1,0 +1,25 @@
+# Example pipeline: Saturation adjustment
+# This pipeline downloads a YouTube video, extracts frames from a segment,
+# and applies saturation adjustments with random variation.
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"  # Replace with actual video URL
+
+segment:
+  start: 10.0    # Start at 10 seconds
+  end: 30.0      # End at 30 seconds
+  interval: 1.0  # Extract one frame per second (20 total frames)
+
+pipeline:
+  steps:
+    # Step 1: Random saturation adjustment
+    - name: "saturate_random"
+      operation: "saturation"
+      params:
+        mode: "random"
+        range: [-0.5, 0.5]  # Random adjustment between -50% and +50%
+
+output:
+  base_dir: "./pipeline_output"
+  intermediate_dir: "./pipeline_output/intermediate"
+  final_dir: "./pipeline_output/final"
