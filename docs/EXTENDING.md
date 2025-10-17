@@ -45,6 +45,8 @@ After downscale:         downscale_blur_compress_extracted_video_000001_step00_s
 
 This makes it immediately clear which operations were applied and in what order.
 
+**Important**: Long pipeline chains (10+ operations) can produce filenames exceeding filesystem limits (typically 255 characters). The system handles this by truncating operation names while preserving step numbers for traceability. Consider using shorter operation names for deep pipelines.
+
 ### 3. Pluggable Architecture
 Operations are self-contained modules that follow a standard interface. Adding a new operation requires:
 
@@ -53,6 +55,38 @@ Operations are self-contained modules that follow a standard interface. Adding a
 3. Use in YAML pipelines
 
 No changes to core pipeline logic required.
+
+## The Base Operation Class
+
+All operations inherit from the `Operation` base class, which provides:
+
+```python
+class Operation:
+    """Base class for all image operations.
+
+    Subclasses must implement the apply() method.
+    """
+
+    def apply(self, image: Image.Image) -> Image.Image:
+        """Apply the operation to an image.
+
+        Args:
+            image: Input PIL Image
+
+        Returns:
+            Transformed PIL Image (must be a new image, not modified input)
+
+        Raises:
+            NotImplementedError: Subclasses must override this method
+        """
+        raise NotImplementedError("Subclasses must implement apply()")
+```
+
+**Key Requirements**:
+- **Implement `apply()`**: This is the only required method
+- **Non-Destructive**: Must return a new image, never modify the input
+- **Type Hints**: Use PIL Image types for clarity
+- **Error Handling**: Raise descriptive exceptions for invalid states
 
 ## Creating New Operations
 
@@ -171,13 +205,16 @@ Single input → single output with parameters.
 **Example**: Adjust brightness
 
 ```python
+from PIL import Image, ImageEnhance
+
 class BrightnessOperation(Operation):
     def __init__(self, factor: float = 1.0):
         super().__init__()
-        self.factor = max(0.1, min(3.0, factor))
+        if not 0.1 <= factor <= 3.0:
+            raise ValueError(f"factor must be between 0.1 and 3.0, got {factor}")
+        self.factor = factor
 
     def apply(self, image: Image.Image) -> Image.Image:
-        from PIL import ImageEnhance
         enhancer = ImageEnhance.Brightness(image)
         return enhancer.enhance(self.factor)
 ```
@@ -200,8 +237,12 @@ class ColorShiftOperation(Operation):
     def __init__(self, hue: int = 0, saturation: float = 1.0, value: float = 1.0):
         super().__init__()
         self.hue = hue % 360
-        self.saturation = max(0.0, min(2.0, saturation))
-        self.value = max(0.0, min(2.0, value))
+        if not 0.0 <= saturation <= 2.0:
+            raise ValueError(f"saturation must be between 0.0 and 2.0, got {saturation}")
+        if not 0.0 <= value <= 2.0:
+            raise ValueError(f"value must be between 0.0 and 2.0, got {value}")
+        self.saturation = saturation
+        self.value = value
 
     def apply(self, image: Image.Image) -> Image.Image:
         # Convert RGB → HSV, adjust, convert back
@@ -240,6 +281,8 @@ Parameters that enable/disable sub-features.
 **Example**: Downscale with optional upscale
 
 ```python
+from PIL import Image
+
 class DownscaleOperation(Operation):
     def __init__(
         self,
@@ -251,8 +294,21 @@ class DownscaleOperation(Operation):
         super().__init__()
         self.scale = scale
         self.upscale = upscale
+        # Convert string names to Pillow enum members
         self.downscale_method = self._get_resample_filter(downscale_method)
         self.upscale_method = self._get_resample_filter(upscale_method)
+
+    def _get_resample_filter(self, method_name: str) -> Image.Resampling:
+        """Convert string method name to Pillow resampling enum."""
+        method_map = {
+            "nearest": Image.Resampling.NEAREST,
+            "bilinear": Image.Resampling.BILINEAR,
+            "bicubic": Image.Resampling.BICUBIC,
+            "lanczos": Image.Resampling.LANCZOS,
+        }
+        if method_name not in method_map:
+            raise ValueError(f"Invalid resampling method: {method_name}")
+        return method_map[method_name]
 
     def apply(self, image: Image.Image) -> Image.Image:
         # Downscale
@@ -526,13 +582,14 @@ steps:
       compression_quality: 60
 ```
 
-### 7. Preserve Image Mode
-Handle different image modes (RGB, RGBA, L, etc.) appropriately:
+### 7. Preserve Image Mode and Metadata
+Handle different image modes (RGB, RGBA, L, etc.) and preserve metadata:
 
 ```python
 def apply(self, image: Image.Image) -> Image.Image:
-    # Preserve original mode
+    # Preserve original mode and metadata
     original_mode = image.mode
+    original_info = image.info.copy() if hasattr(image, 'info') else {}
 
     # Convert if needed for processing
     if original_mode != "RGB":
@@ -546,6 +603,140 @@ def apply(self, image: Image.Image) -> Image.Image:
     if original_mode != "RGB":
         result = result.convert(original_mode)
 
+    # Restore metadata (EXIF, etc.)
+    if original_info:
+        result.info = original_info
+
+    return result
+```
+
+**Why preserve metadata?**
+- EXIF data contains camera settings, timestamps, GPS coordinates
+- ICC color profiles ensure color accuracy
+- Custom metadata from prior pipeline steps
+
+## Error Handling
+
+### Parameter Validation Errors
+Validate parameters in `__init__` to fail immediately with clear messages:
+
+```python
+def __init__(self, quality: int = 75):
+    super().__init__()
+    if not 1 <= quality <= 100:
+        raise ValueError(f"quality must be 1-100, got {quality}")
+    self.quality = quality
+```
+
+**Pipeline behavior**: Parameter validation errors prevent pipeline execution. The error message shows which operation and parameter failed.
+
+### Runtime Errors in apply()
+Handle runtime errors gracefully within `apply()`:
+
+```python
+def apply(self, image: Image.Image) -> Image.Image:
+    try:
+        result = image.copy()
+        # ... processing logic ...
+        return result
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to apply {self.__class__.__name__}: {e}"
+        ) from e
+```
+
+**Pipeline behavior**: If `apply()` raises an exception:
+- The current frame is skipped (logged as error)
+- Processing continues with remaining frames
+- Pipeline returns non-zero exit code if any frames failed
+
+**Best practice**: Let most exceptions bubble up naturally. Only catch exceptions when you can provide additional context or handle specific recoverable errors.
+
+### Handling Invalid Image States
+
+```python
+def apply(self, image: Image.Image) -> Image.Image:
+    # Check for minimum dimensions
+    if image.width < 10 or image.height < 10:
+        raise ValueError(
+            f"Image too small for processing: {image.width}x{image.height}"
+        )
+
+    # Check for supported modes
+    if image.mode not in ("RGB", "RGBA", "L"):
+        raise ValueError(
+            f"Unsupported image mode: {image.mode}. "
+            f"Supported modes: RGB, RGBA, L"
+        )
+
+    # ... processing logic ...
+```
+
+## Debugging Operations
+
+### Basic Debugging
+
+**Run pipeline on single image**:
+```bash
+# Extract just one frame for testing
+sevenrad pipeline --limit 1 my_pipeline.yaml
+```
+
+**Disable parallel processing** for predictable execution:
+```bash
+# Process frames sequentially
+sevenrad pipeline --workers 1 my_pipeline.yaml
+```
+
+**Use Python debugger (pdb)**:
+```python
+def apply(self, image: Image.Image) -> Image.Image:
+    import pdb; pdb.set_trace()  # Breakpoint
+    result = image.copy()
+    # ... step through processing ...
+    return result
+```
+
+### Debugging Tips
+
+1. **Check intermediate results**: The non-destructive design means you can inspect outputs from each step in the `intermediate/` directory
+
+2. **Verify input/output sizes**:
+```python
+def apply(self, image: Image.Image) -> Image.Image:
+    print(f"Input: {image.size} {image.mode}")
+    result = self._process(image)
+    print(f"Output: {result.size} {result.mode}")
+    return result
+```
+
+3. **Save debug images**:
+```python
+def apply(self, image: Image.Image) -> Image.Image:
+    result = self._process(image)
+    # Save intermediate result for inspection
+    result.save("/tmp/debug_output.jpg")
+    return result
+```
+
+4. **Test with synthetic images**:
+```python
+# Unit test with known pattern
+img = Image.new("RGB", (100, 100), color="red")
+result = operation.apply(img)
+# Verify expected changes
+```
+
+5. **Use logging instead of print**:
+```python
+import logging
+
+logger = logging.getLogger(__name__)
+
+def apply(self, image: Image.Image) -> Image.Image:
+    logger.debug(f"Processing image: {image.size}")
+    # ... processing ...
+    logger.info(f"Applied {self.__class__.__name__}")
     return result
 ```
 
