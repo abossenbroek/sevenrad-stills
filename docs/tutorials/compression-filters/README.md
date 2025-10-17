@@ -24,14 +24,14 @@ All tutorials use the same video segment for consistency:
 ```yaml
 segment:
   start: 192.0    # 3 minutes 12 seconds
-  end: 198.0      # 3 minutes 18 seconds
-  interval: 0.1   # 10 frames per second = 60 total frames
+  end: 195.0      # 3 minutes 15 seconds
+  interval: 0.0667  # 15 frames per second = 45 total frames
 ```
 
 **Why these settings?**
-- **6 seconds**: Enough variety without overwhelming output
-- **10 fps**: Good balance between sample size and processing time
-- **60 frames**: Substantial dataset to see filter effects across multiple frames
+- **3 seconds**: Enough variety without overwhelming output
+- **15 fps**: Good balance between sample size and processing time
+- **45 frames**: Substantial dataset to see filter effects across multiple frames
 
 ---
 
@@ -49,13 +49,18 @@ sevenrad pipeline docs/tutorials/compression-filters/01-social-media.yaml
 
 ### Expected Results
 
-**Output**: `tutorials/01-social-media/final/` containing 60 images
+**Output**: `tutorials/01-social-media/final/` containing 45 images
 
 **Visual Characteristics**:
 - Noticeable JPEG blocking patterns (8x8 pixel blocks)
 - Color banding in gradients and sky areas
 - Loss of fine details in textures and edges
 - Overall "compressed" look familiar from social media
+
+**Example Output:**
+
+![Social Media Compression Result](images/01-social-media-result.jpg)
+*Result after 4 social media sharing cycles (quality 75 → 45)*
 
 ### Pipeline Breakdown
 
@@ -100,11 +105,11 @@ sevenrad pipeline docs/tutorials/compression-filters/02-glitch-art.yaml
 
 ### Expected Results
 
-**Output**: `tutorials/02-glitch-art/final/` containing 60 heavily distorted images
+**Output**: `tutorials/02-glitch-art/final/` containing 45 heavily distorted images
 
 **Intermediate Steps** (preserved for inspection):
-- `extreme_pixelation/` - 60 pixelated frames
-- `severe_compression/` - 60 compressed frames
+- `extreme_pixelation/` - 45 pixelated frames
+- `severe_compression/` - 45 compressed frames
 
 **Visual Characteristics**:
 - Massive pixel blocks where details used to be
@@ -112,6 +117,20 @@ sevenrad pipeline docs/tutorials/compression-filters/02-glitch-art.yaml
 - Color banding creating abstract patterns
 - Original content barely recognizable
 - Surreal, digital artifact aesthetic
+
+**Visual Progression:**
+
+![Glitch Art Original](images/02-glitch-art-original.jpg)
+*Original extracted frame*
+
+![Glitch Art Step 1](images/02-glitch-art-step1-pixelation.jpg)
+*After Step 1: Extreme Pixelation (scale: 0.08)*
+
+![Glitch Art Step 2](images/02-glitch-art-step2-compression.jpg)
+*After Step 2: Severe Compression (quality: 5)*
+
+![Glitch Art Final](images/02-glitch-art-final.jpg)
+*Final Result: After 12 multi-generation compression cycles*
 
 ### Pipeline Breakdown
 
@@ -173,7 +192,7 @@ sevenrad pipeline docs/tutorials/compression-filters/03-vhs-analog.yaml
 
 ### Expected Results
 
-**Output**: `tutorials/03-vhs-analog/final/` containing 60 frames with VHS aesthetic
+**Output**: `tutorials/03-vhs-analog/final/` containing 45 frames with VHS aesthetic
 
 **Intermediate Steps**:
 - `scanline_blur/` - Horizontal blur applied
@@ -185,6 +204,11 @@ sevenrad pipeline docs/tutorials/compression-filters/03-vhs-analog.yaml
 - Compression artifacts typical of analog-to-digital conversion
 - "Tracking issues" appearance from motion blur
 - Nostalgic VHS tape playback feel
+
+**Example Output:**
+
+![VHS Analog Result](images/03-vhs-analog-result.jpg)
+*Final result showing VHS/analog video tape aesthetic*
 
 ### Pipeline Breakdown
 
@@ -243,17 +267,28 @@ sevenrad pipeline docs/tutorials/compression-filters/04-progressive-cascade.yaml
 
 ### Expected Results
 
-**Output**: `tutorials/04-progressive-cascade/final/` containing 60 heavily degraded images
+**Output**: `tutorials/04-progressive-cascade/final/` containing 45 heavily degraded images
 
 **Intermediate Steps** (showing progression):
-- `stage_1_light/` - Light compression (60 frames)
-- `stage_2_moderate/` - Moderate compression applied twice (60 frames)
+- `stage_1_light/` - Light compression (45 frames)
+- `stage_2_moderate/` - Moderate compression applied twice (45 frames)
 
 **Visual Characteristics**:
 - **Stage 1**: Subtle artifacts, most details preserved
 - **Stage 2**: More noticeable blocking, some detail loss
 - **Stage 3**: Heavy artifacts, significant quality reduction
 - Clear visual progression across all three stages
+
+**Progressive Degradation Stages:**
+
+![Stage 1: Light](images/04-cascade-stage1-light.jpg)
+*Stage 1: Light compression (quality: 70, subsampling: 1)*
+
+![Stage 2: Moderate](images/04-cascade-stage2-moderate.jpg)
+*Stage 2: Moderate compression applied twice (quality: 50, repeat: 2)*
+
+![Stage 3: Heavy](images/04-cascade-stage3-heavy.jpg)
+*Stage 3: Heavy multi-generation compression (5 iterations, exponential decay)*
 
 ### Pipeline Breakdown
 
