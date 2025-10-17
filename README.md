@@ -1,17 +1,51 @@
 # sevenrad-stills
 
-A Python application for extracting movies from YouTube, taking stills and reworking these stills to create unique images as part of a book. The primary goal is to explore poetic interpretations of digital media through algorithmic transformation, where the poetic voice is Rimbaud and Dominique de Groen.
+A Python application for extracting frames from YouTube videos and applying image processing operations through a flexible pipeline system.
 
 ## Project Overview
 
-This project uses modern Python practices and is structured for scalability and maintainability. The aesthetic is focused on abstraction and digital artifacts - think glitch art, data moshing, and poetic data visualization.
+This project provides a command-line tool for downloading YouTube videos, extracting frames at specified intervals, and processing those frames through configurable image transformation pipelines. Built with modern Python practices for scalability and maintainability.
 
 ## Features
 
-- Extract video content from YouTube
-- Generate stills from video frames
-- Apply algorithmic transformations to create unique imagery
-- Non-destructive image editing with incremental versioning
+- **Video Extraction**: Download videos from YouTube and extract frames at custom intervals
+- **Frame Processing**: Apply compression, degradation, blur, and scaling operations
+- **Pipeline System**: Chain multiple operations in YAML-configured pipelines
+- **Non-Destructive**: All operations preserve intermediate results with incremental versioning
+- **Parallel Processing**: Process multiple frames concurrently for performance
+
+## Quick Start
+
+```bash
+# Install dependencies
+uv pip install -e ".[dev]"
+
+# Run a tutorial example
+sevenrad pipeline docs/tutorials/compression-filters/01-social-media.yaml
+
+# Create your own pipeline
+cat > my_pipeline.yaml <<EOF
+source:
+  youtube_url: "https://www.youtube.com/watch?v=YOUR_VIDEO_ID"
+
+segment:
+  start: 10.0
+  end: 13.0
+  interval: 0.1  # Extract 1 frame every 0.1 seconds
+
+output:
+  base_dir: "output"
+
+steps:
+  - name: "compress"
+    operation: "compression"
+    params:
+      quality: 50
+      subsampling: 2
+EOF
+
+sevenrad pipeline my_pipeline.yaml
+```
 
 ## Installation
 
@@ -92,13 +126,18 @@ pytest tests/integration/ -v -s
 └── .pre-commit-config.yaml   # Pre-commit hooks
 ```
 
-## Artistic Context
+## Available Operations
 
-### Poetry Style (Dominique de Groen)
-Clinical, marketing-inspired language and exhaustive repetition to offer a critical analysis of late-stage capitalism, ecological crises, and exploitation, creating a bizarre and alienating yet recognizable reality.
+### Compression & Degradation
+- **compression**: JPEG compression with configurable quality and chroma subsampling
+- **multi_compress**: Multi-generation compression with progressive quality decay
+- **downscale**: Resolution reduction with multiple resampling methods
+- **motion_blur**: Directional blur with configurable angle and intensity
 
-### Image Style
-Images are edited in non-destructive mode, always tracking different steps with incremental filenames.
+### Documentation
+- [Filter Guide](docs/FILTER_GUIDE.md): Complete parameter reference for all operations
+- [Pipeline System](docs/PIPELINE.md): YAML pipeline configuration guide
+- [Tutorials](docs/tutorials/compression-filters/): Hands-on examples with real outputs
 
 ## Contributing
 
