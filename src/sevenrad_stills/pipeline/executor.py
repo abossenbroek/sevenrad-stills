@@ -32,6 +32,7 @@ def _process_single_frame(
     operation_name: str,
     params: dict[str, object],
     output_path: Path,
+    repeat: int = 1,
 ) -> Path:
     """
     Process a single frame with an operation.
@@ -43,6 +44,7 @@ def _process_single_frame(
         operation_name: Name of operation to apply
         params: Operation parameters
         output_path: Output file path
+        repeat: Number of times to repeat the operation
 
     Returns:
         Path to processed image
@@ -55,8 +57,13 @@ def _process_single_frame(
 
     # Get operation and process
     operation = get_operation(operation_name)
-    image = Image.open(frame_path)
-    processed_image = operation.apply(image, params)
+    image: Image.Image = Image.open(frame_path)
+
+    # Apply operation with repeat support
+    processed_image: Image.Image = image
+    for _ in range(repeat):
+        processed_image = operation.apply(processed_image, params)
+
     operation.save_image(processed_image, output_path)
 
     return output_path
@@ -281,10 +288,22 @@ class PipelineExecutor:
 
         for frame_path in frame_paths:
             # Load image
-            image = Image.open(frame_path)
+            image: Image.Image = Image.open(frame_path)
 
-            # Apply operation
-            processed_image = operation.apply(image, step.params)
+            # Apply operation (with repeat support)
+            processed_image: Image.Image = image
+            for repeat_idx in range(step.repeat):
+                processed_image = operation.apply(processed_image, step.params)
+
+                # Log repeat iterations if > 1
+                if step.repeat > 1 and repeat_idx > 0:
+                    self.logger.debug(
+                        "Step '%s' repeat %d/%d for %s",
+                        step.name,
+                        repeat_idx + 1,
+                        step.repeat,
+                        frame_path.name,
+                    )
 
             # Generate output filename
             output_filename = f"{step.name}_{frame_path.stem}_step{step_idx:02d}.jpg"
@@ -327,7 +346,9 @@ class PipelineExecutor:
         for frame_path in frame_paths:
             output_filename = f"{step.name}_{frame_path.stem}_step{step_idx:02d}.jpg"
             output_path = output_dir / output_filename
-            tasks.append((frame_path, step.operation, step.params, output_path))
+            tasks.append(
+                (frame_path, step.operation, step.params, output_path, step.repeat)
+            )
 
         # Process in parallel
         output_paths: list[Path] = []

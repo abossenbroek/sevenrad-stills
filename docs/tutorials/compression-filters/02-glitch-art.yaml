@@ -1,0 +1,110 @@
+# Tutorial 02: Glitch Art Aesthetic
+#
+# GOAL: Create extreme digital artifacts for abstract, glitch art aesthetic
+# suitable for artistic projects, album covers, or experimental visuals.
+#
+# WHAT YOU'LL SEE:
+# - Massive pixel blocks replacing fine details
+# - Severe JPEG blocking creating abstract patterns
+# - Heavy color banding and distortion
+# - Original content heavily abstracted and barely recognizable
+# - Surreal digital artifact aesthetic
+#
+# FRAMES: 45 (3 seconds at 15 fps)
+# OPERATIONS: 3 (downscale → compression → multi_compress)
+# DIFFICULTY: Intermediate
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=MzJaP-7N9I0"
+
+segment:
+  start: 192.0    # 3 minutes 12 seconds (3m12s)
+  end: 195.0      # 3 minutes 15 seconds (3m15s)
+  interval: 0.0667  # 15 frames per second = 45 total frames
+
+pipeline:
+  steps:
+    # STEP 1: Extreme Pixelation
+    # Reduce resolution dramatically then scale back up with harsh method
+    - name: "extreme_pixelation"
+      operation: "downscale"
+      params:
+        # Reduce to only 8% of original size
+        # Example: 1920x1080 → 154x86 → 1920x1080
+        scale: 0.08
+
+        # Scale back up to original size after downscaling
+        upscale: true
+
+        # Use bicubic for smooth high-quality downscaling
+        downscale_method: "bicubic"
+
+        # Use nearest neighbor for harsh, blocky upscaling
+        # This creates the massive pixel blocks characteristic of glitch art
+        upscale_method: "nearest"
+
+    # STEP 2: Severe JPEG Compression
+    # Apply extreme compression to create heavy blocking artifacts
+    - name: "severe_compression"
+      operation: "compression"
+      params:
+        # Very low quality for severe artifacts
+        quality: 5
+
+        # Heavy chroma subsampling (4:2:0) for maximum 8x8 blocking
+        subsampling: 2
+
+    # STEP 3: Multi-Generation Compression
+    # Apply many compression cycles with exponential quality decay
+    - name: "multi_generation_glitch"
+      operation: "multi_compress"
+      params:
+        # 12 compression cycles for extreme compound degradation
+        iterations: 12
+
+        # Start at moderate quality
+        quality_start: 30
+
+        # End at near-minimum quality
+        quality_end: 5
+
+        # Exponential decay means most degradation happens early
+        # Iteration 1-4: rapid quality drop
+        # Iteration 5-12: slower degradation as quality approaches minimum
+        decay: "exponential"
+
+        # Continue using heavy subsampling
+        subsampling: 2
+
+output:
+  base_dir: "./tutorials/02-glitch-art"
+  intermediate_dir: "./tutorials/02-glitch-art/intermediate"
+  final_dir: "./tutorials/02-glitch-art/final"
+
+# HOW TO RUN:
+#   sevenrad pipeline docs/tutorials/compression-filters/02-glitch-art.yaml
+#
+# OUTPUT:
+#   ./tutorials/02-glitch-art/
+#     ├── intermediate/
+#     │   ├── extreme_pixelation/
+#     │   │   └── extreme_pixelation_*_step00.jpg (45 images)
+#     │   └── severe_compression/
+#     │       └── severe_compression_*_step01.jpg (45 images)
+#     └── final/
+#         └── multi_generation_glitch_*_step02.jpg (45 images)
+#
+# WHAT TO LOOK FOR:
+#   - Massive pixel blocks in intermediate/extreme_pixelation/
+#   - Heavy JPEG blocking added in intermediate/severe_compression/
+#   - Extreme compound artifacts in final/
+#   - Abstract patterns created by compression algorithm
+#   - Color bleeding and unexpected color shifts
+#
+# TRY EXPERIMENTING:
+#   - Use scale: 0.05 for even larger pixel blocks
+#   - Try scale: 0.15 for less extreme but still heavy pixelation
+#   - Adjust quality in step 2 (try 10-20 for less severe compression)
+#   - Change iterations to 20 for even more extreme degradation
+#   - Try decay: "linear" for more consistent degradation
+#   - Swap step order (compress first, then pixelate) for different effect
