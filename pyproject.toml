@@ -101,5 +101,8 @@ follow_imports = "normal"
 module = [
     "yt_dlp.*",
     "ffmpeg.*",
+    "numpy.*",
+    "scipy.*",
+    "skimage.*",
 ]
 ignore_missing_imports = true
