@@ -582,7 +582,62 @@ steps:
       compression_quality: 60
 ```
 
-### 7. Preserve Image Mode
+### 7. Handle Image Dimensions Correctly
+
+**Critical Design Principle**: Operations should work with whatever dimensions they receive. They should NOT assume fixed canvas sizes.
+
+#### Operations That Maintain Dimensions
+
+Most operations preserve input dimensions:
+
+```python
+def apply(self, image: Image.Image) -> Image.Image:
+    # Input: 1920x1080 → Output: 1920x1080
+    result = image.copy()
+    # ... apply transformation that doesn't change size ...
+    return result
+```
+
+Examples: compression, blur, color adjustments, filters
+
+#### Operations That Change Dimensions
+
+Some operations may change dimensions. **If your operation changes dimensions, it should restore them** by default:
+
+```python
+def apply(self, image: Image.Image) -> Image.Image:
+    # Store original dimensions
+    original_size = image.size
+
+    # Change dimensions for effect
+    small = image.resize((100, 100), Image.Resampling.NEAREST)
+
+    # Restore original size (default behavior)
+    restore_size = params.get("restore_size", True)  # Default True
+    if restore_size:
+        result = small.resize(original_size, Image.Resampling.NEAREST)
+        return result
+
+    return small  # Only if user explicitly wants size change
+```
+
+**Why this matters**:
+- Pipeline operations chain: each expects to process images, not worry about canvas size
+- Users extract frames at specific resolution (e.g., 1920x1080) and expect outputs at that size
+- Dimension-changing operations create pixelation effects WHILE maintaining canvas size
+
+**Example**: The `downscale` operation:
+```python
+# With upscale=True (default):
+# 1920x1080 → downscale to 192x108 → upscale to 1920x1080
+# Creates blocky pixelation at original canvas size
+
+# With upscale=False (explicit):
+# 1920x1080 → downscale to 192x108 (stays small)
+# Changes canvas size - next operations work with smaller image
+```
+
+### 8. Preserve Image Mode
 Handle different image modes (RGB, RGBA, L, etc.) appropriately:
 
 ```python
