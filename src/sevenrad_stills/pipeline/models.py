@@ -62,6 +62,12 @@ class ImageOperationStep(BaseModel):
     params: dict[str, Any] = Field(
         default_factory=dict, description="Operation-specific parameters"
     )
+    repeat: int = Field(
+        default=1,
+        ge=1,
+        le=100,
+        description="Number of times to repeat this operation (default: 1)",
+    )
 
     @field_validator("name")
     @classmethod
