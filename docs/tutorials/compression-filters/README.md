@@ -1,21 +1,21 @@
 # Tutorial: Compression & Degradation Filters
 
-This tutorial demonstrates the compression and degradation filters through hands-on examples. Each tutorial processes the same 6-second video segment (3m12s to 3m18s) at 10 frames per second, extracting 60 frames for processing.
+This tutorial demonstrates compression and degradation filters through hands-on examples. Each tutorial processes a 3-second video segment at 15 frames per second, extracting 45 frames for processing.
 
 ## Prerequisites
 
 - sevenrad-stills installed and configured
-- YouTube video URL (replace placeholder URLs in examples)
+- YouTube video URL (or use the example: `https://www.youtube.com/watch?v=MzJaP-7N9I0`)
 - Basic familiarity with YAML pipeline system (see [docs/PIPELINE.md](../../PIPELINE.md))
 
 ## Tutorial Overview
 
-| Tutorial | Operations | Aesthetic Goal | Difficulty |
-|----------|-----------|----------------|------------|
-| [01-social-media](#tutorial-1-social-media-compression) | multi_compress | Simulates social media sharing degradation | Beginner |
-| [02-glitch-art](#tutorial-2-glitch-art-aesthetic) | downscale, compression, multi_compress | Extreme digital artifacts for abstract art | Intermediate |
-| [03-vhs-analog](#tutorial-3-vhsanalog-video-degradation) | motion_blur, compression, downscale | Nostalgic VHS tape aesthetic | Intermediate |
-| [04-progressive-cascade](#tutorial-4-progressive-degradation-stages) | compression (with repeat) | Shows degradation progression | Advanced |
+| Tutorial | Operations | Purpose | Complexity |
+|----------|-----------|---------|------------|
+| [01-social-media](#tutorial-1-social-media-compression) | multi_compress | Demonstrates multi-generation compression artifacts | Beginner |
+| [02-glitch-art](#tutorial-2-extreme-degradation) | downscale, compression, multi_compress | Shows cumulative degradation from multiple operations | Intermediate |
+| [03-vhs-analog](#tutorial-3-motion-blur-and-compression) | motion_blur, compression, downscale | Combines directional blur with compression | Intermediate |
+| [04-progressive-cascade](#tutorial-4-progressive-degradation-stages) | compression (with repeat) | Demonstrates progressive quality reduction stages | Advanced |
 
 ## Common Segment Configuration
 
@@ -37,9 +37,9 @@ segment:
 
 ## Tutorial 1: Social Media Compression
 
-**Goal**: Simulate an image that has been shared multiple times on social media platforms, with each share applying additional compression.
+**Goal**: Demonstrate multi-generation JPEG compression with progressive quality decay.
 
-**Use Case**: Understanding how images degrade through WhatsApp, Instagram, or Facebook sharing chains.
+**Demonstrates**: How iterative compression creates cumulative artifacts and quality loss.
 
 ### Running the Tutorial
 
@@ -91,11 +91,11 @@ steps:
 
 ---
 
-## Tutorial 2: Glitch Art Aesthetic
+## Tutorial 2: Extreme Degradation
 
-**Goal**: Create extreme digital artifacts for an abstract, glitch art aesthetic suitable for artistic projects.
+**Goal**: Apply extreme pixelation and compression to create heavy digital artifacts.
 
-**Use Case**: Book illustrations, album covers, digital art exploring degradation as aesthetic.
+**Demonstrates**: Cumulative effects of combining downscaling, compression, and multi-generation processing.
 
 ### Running the Tutorial
 
@@ -112,11 +112,11 @@ sevenrad pipeline docs/tutorials/compression-filters/02-glitch-art.yaml
 - `severe_compression/` - 45 compressed frames
 
 **Visual Characteristics**:
-- Massive pixel blocks where details used to be
-- Severe JPEG blocking throughout
-- Color banding creating abstract patterns
-- Original content barely recognizable
-- Surreal, digital artifact aesthetic
+- Large pixel blocks from aggressive downscaling
+- Severe JPEG compression artifacts (8x8 blocks)
+- Color banding in smooth gradients
+- Significant detail loss from multi-generation processing
+- Heavy digital degradation
 
 **Visual Progression:**
 
@@ -172,17 +172,17 @@ steps:
 ### What You'll Learn
 
 - Combining multiple operations for cumulative effects
-- How downscaling with different resampling methods creates pixelation
-- Using exponential decay for rapid quality degradation
-- Preserving intermediate results for artistic exploration
+- How resampling methods (bicubic vs nearest) affect pixelation
+- Using exponential decay for accelerated quality degradation
+- Inspecting intermediate results to understand processing stages
 
 ---
 
-## Tutorial 3: VHS/Analog Video Degradation
+## Tutorial 3: Motion Blur and Compression
 
-**Goal**: Simulate the characteristic degradation of VHS tapes and analog video recordings.
+**Goal**: Apply directional motion blur combined with compression and downscaling.
 
-**Use Case**: Nostalgic aesthetic for retro projects, 90s-inspired visuals, lo-fi video art.
+**Demonstrates**: Using motion blur at specific angles to create directional effects, combined with quality reduction.
 
 ### Running the Tutorial
 
@@ -199,16 +199,16 @@ sevenrad pipeline docs/tutorials/compression-filters/03-vhs-analog.yaml
 - `analog_compression/` - JPEG compression added
 
 **Visual Characteristics**:
-- Horizontal blur resembling scan lines
-- Moderate pixelation/softness
-- Compression artifacts typical of analog-to-digital conversion
-- "Tracking issues" appearance from motion blur
-- Nostalgic VHS tape playback feel
+- Horizontal motion blur (0° angle)
+- Moderate JPEG compression artifacts
+- Resolution reduction from 50% downscaling
+- Soft edges from bilinear resampling
+- Combined blur and compression effects
 
 **Example Output:**
 
-![VHS Analog Result](images/03-vhs-analog-result.jpg)
-*Final result showing VHS/analog video tape aesthetic*
+![Motion Blur Result](images/03-vhs-analog-result.jpg)
+*Final result showing combined motion blur, compression, and downscaling*
 
 ### Pipeline Breakdown
 
@@ -239,25 +239,25 @@ steps:
 ```
 
 **Parameter Explanation**:
-- `kernel_size: 7` - Moderate horizontal blur simulates scan line bleeding
-- `angle: 0` - Pure horizontal motion (0°) mimics horizontal scan lines
-- `quality: 35` - Moderate compression typical of analog video capture
-- `scale: 0.5` - Reduces resolution to mimic lower VHS resolution (e.g., 1920x1080 → 960x540 → 1920x1080)
-- `bilinear` methods - Softer resampling for that "analog" smoothness vs. harsh digital edges
+- `kernel_size: 7` - Moderate blur strength for visible motion effect
+- `angle: 0` - Pure horizontal motion (0° = left-right blur)
+- `quality: 35` - Medium-low compression (creates moderate artifacts)
+- `scale: 0.5` - Reduces to 50% resolution (e.g., 1920x1080 → 960x540 → 1920x1080)
+- `bilinear` methods - Softer resampling creates smooth transitions instead of hard edges
 
 ### What You'll Learn
 
-- Using motion blur with specific angles to simulate analog effects
-- Balancing compression and downscaling for realistic degradation
-- Creating period-specific aesthetics through filter combinations
+- Applying motion blur at specific angles (0° to 360°)
+- Balancing compression and downscaling parameters
+- Combining blur, compression, and resolution changes in sequence
 
 ---
 
 ## Tutorial 4: Progressive Degradation Stages
 
-**Goal**: Create a sequence showing progressive degradation from light to heavy, demonstrating the `repeat` parameter and intermediate stages.
+**Goal**: Create progressive quality reduction stages from light to heavy compression.
 
-**Use Case**: Visual comparisons, understanding degradation levels, artistic exploration of digital decay.
+**Demonstrates**: Using the `repeat` parameter and comparing different compression intensities across stages.
 
 ### Running the Tutorial
 
@@ -477,12 +477,12 @@ tutorials/
 After completing these tutorials:
 
 1. **Experiment with parameters** - Adjust quality levels, iterations, and scales
-2. **Create custom pipelines** - Combine operations in new ways
-3. **Try different segments** - Process various video sections
-4. **Share results** - Document your findings and aesthetics
+2. **Create custom pipelines** - Combine operations in different sequences
+3. **Try different segments** - Process various video sections or still images
+4. **Test parameter ranges** - Explore the full range of available settings
 5. **Read comprehensive docs**:
-   - [FILTER_GUIDE.md](../../FILTER_GUIDE.md) - All parameter ranges and effects
-   - [PIPELINE.md](../../PIPELINE.md) - Complete pipeline system documentation
+   - [FILTER_GUIDE.md](../../FILTER_GUIDE.md) - Complete parameter reference
+   - [PIPELINE.md](../../PIPELINE.md) - Pipeline system documentation
 
 ## Questions or Issues?
 
@@ -493,4 +493,6 @@ After completing these tutorials:
 
 ---
 
-**Happy experimenting with compression filters!**
+---
+
+**Note**: All operations are deterministic and reproducible with the same parameters and source material.
