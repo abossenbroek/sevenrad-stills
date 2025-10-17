@@ -582,14 +582,13 @@ steps:
       compression_quality: 60
 ```
 
-### 7. Preserve Image Mode and Metadata
-Handle different image modes (RGB, RGBA, L, etc.) and preserve metadata:
+### 7. Preserve Image Mode
+Handle different image modes (RGB, RGBA, L, etc.) appropriately:
 
 ```python
 def apply(self, image: Image.Image) -> Image.Image:
-    # Preserve original mode and metadata
+    # Preserve original mode
     original_mode = image.mode
-    original_info = image.info.copy() if hasattr(image, 'info') else {}
 
     # Convert if needed for processing
     if original_mode != "RGB":
@@ -603,17 +602,13 @@ def apply(self, image: Image.Image) -> Image.Image:
     if original_mode != "RGB":
         result = result.convert(original_mode)
 
-    # Restore metadata (EXIF, etc.)
-    if original_info:
-        result.info = original_info
-
     return result
 ```
 
-**Why preserve metadata?**
-- EXIF data contains camera settings, timestamps, GPS coordinates
-- ICC color profiles ensure color accuracy
-- Custom metadata from prior pipeline steps
+**Why preserve mode?**
+- YouTube frames are typically RGB, but operations may output different modes
+- Some operations work better in specific color spaces (grayscale, RGBA)
+- Ensures consistent format throughout the pipeline
 
 ## Error Handling
 
