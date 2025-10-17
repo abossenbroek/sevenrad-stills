@@ -9,18 +9,17 @@
 # - Loss of fine details and texture
 # - Overall "compressed" appearance familiar from social media
 #
-# FRAMES: 60 (6 seconds at 10 fps)
+# FRAMES: 45 (3 seconds at 15 fps)
 # OPERATIONS: 1 (multi_compress)
 # DIFFICULTY: Beginner
 
 source:
-  # Replace with your actual YouTube video URL
-  youtube_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+  youtube_url: "https://www.youtube.com/watch?v=MzJaP-7N9I0"
 
 segment:
   start: 192.0    # 3 minutes 12 seconds (3m12s)
-  end: 198.0      # 3 minutes 18 seconds (3m18s)
-  interval: 0.1   # 10 frames per second = 60 total frames
+  end: 195.0      # 3 minutes 15 seconds (3m15s)
+  interval: 0.0667  # 15 frames per second = 45 total frames
 
 pipeline:
   steps:
@@ -57,7 +56,7 @@ output:
 #
 # OUTPUT:
 #   ./tutorials/01-social-media/final/
-#     └── social_media_compression_*_step00.jpg (60 images)
+#     └── social_media_compression_*_step00.jpg (45 images)
 #
 # WHAT TO LOOK FOR:
 #   - Check sky areas for color banding
