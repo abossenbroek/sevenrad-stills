@@ -123,6 +123,8 @@ output:
 
 Adjusts image color saturation using either fixed or random values.
 
+> **Note**: For comprehensive documentation on compression and degradation operations, see the [Compression Filters Tutorial](tutorials/compression-filters/README.md) and [FILTER_GUIDE.md](FILTER_GUIDE.md).
+
 #### Fixed Mode
 
 Apply a specific saturation multiplier to all frames.
@@ -162,6 +164,132 @@ Apply random saturation variation within a range.
   - Example: `[-0.5, 0.5]` produces values from 0.5 to 1.5
   - `min` must be ≥ -1.0
   - `max` must be > `min`
+
+### Compression & Degradation Operations
+
+Four operations provide comprehensive control over image degradation and compression artifacts. See [Compression Filters Tutorial](tutorials/compression-filters/README.md) for hands-on examples and [FILTER_GUIDE.md](FILTER_GUIDE.md) for complete parameter documentation.
+
+#### Compression
+
+Apply JPEG compression with configurable quality and chroma subsampling to create block artifacts.
+
+```yaml
+- name: "compress"
+  operation: "compression"
+  params:
+    quality: 50         # 1-100 (lower = more artifacts)
+    subsampling: 2      # 0 (4:4:4), 1 (4:2:2), or 2 (4:2:0)
+    optimize: true      # Optional: JPEG optimization
+```
+
+**Parameters:**
+- `quality` (int, 1-100): JPEG quality level (lower creates more artifacts)
+- `subsampling` (int, 0/1/2): Chroma subsampling mode
+  - `0` (4:4:4): No subsampling - highest quality
+  - `1` (4:2:2): Moderate subsampling
+  - `2` (4:2:0): Heavy subsampling - creates visible 8x8 blocks (default)
+- `optimize` (bool, optional): Apply JPEG optimization (default: true)
+
+**Use cases:** Single-pass compression, specific quality targets, testing subsampling modes
+
+#### Multi-Compress
+
+Apply JPEG compression multiple times with quality decay to simulate multi-generation compression.
+
+```yaml
+- name: "multi_gen"
+  operation: "multi_compress"
+  params:
+    iterations: 5
+    quality_start: 60
+    quality_end: 20
+    decay: "linear"     # "fixed", "linear", or "exponential"
+    subsampling: 2
+```
+
+**Parameters:**
+- `iterations` (int, 1-50): Number of compression cycles
+- `quality_start` (int, 1-100): Starting quality level
+- `quality_end` (int, 1-100): Ending quality (for decay modes, must be < quality_start)
+- `decay` (str): Quality decay type
+  - `"fixed"`: Same quality each iteration
+  - `"linear"`: Quality decreases evenly
+  - `"exponential"`: Rapid initial degradation, then levels off
+- `subsampling` (int, 0/1/2, optional): Chroma subsampling mode (default: 2)
+
+**Use cases:** Social media compression simulation, compound artifacts, progressive degradation
+
+#### Downscale
+
+Reduce image resolution with configurable resampling methods to create pixelation effects.
+
+```yaml
+- name: "pixelate"
+  operation: "downscale"
+  params:
+    scale: 0.25
+    upscale: true
+    downscale_method: "bicubic"
+    upscale_method: "nearest"
+```
+
+**Parameters:**
+- `scale` (float, 0.01-1.0): Scale factor (e.g., 0.25 = 25% of original size)
+- `upscale` (bool, optional): Whether to upscale back to original size (default: true)
+- `downscale_method` (str, optional): Resampling for downscaling
+  - Options: `"nearest"`, `"bilinear"`, `"bicubic"`, `"lanczos"`, `"box"`
+  - Default: `"bicubic"`
+- `upscale_method` (str, optional): Resampling for upscaling
+  - `"nearest"`: Creates harsh, blocky pixelation
+  - `"bilinear"`: Softer pixelation
+  - `"bicubic"`, `"lanczos"`: Smooth upscaling
+  - Default: `"bilinear"`
+
+**Use cases:** Pixelation effects, resolution reduction, retro aesthetics
+
+#### Motion Blur
+
+Apply directional motion blur to simulate camera movement or shake.
+
+```yaml
+- name: "blur"
+  operation: "motion_blur"
+  params:
+    kernel_size: 10
+    angle: 45
+```
+
+**Parameters:**
+- `kernel_size` (int, 1-100): Blur strength in pixels
+  - 1-3: Minimal blur, subtle shake
+  - 3-8: Moderate blur
+  - 8-20: Heavy blur
+  - 20+: Extreme blur
+- `angle` (float, 0-360, optional): Direction of motion in degrees
+  - `0`: Horizontal (left-right)
+  - `90`: Vertical (up-down)
+  - `45`/`135`: Diagonal
+  - Default: `0`
+
+**Use cases:** Camera shake simulation, scan line effects, motion artifacts
+
+### Using the Repeat Parameter
+
+All operations support the `repeat` parameter (1-100) to apply the same operation multiple times:
+
+```yaml
+- name: "repeated_compression"
+  operation: "compression"
+  repeat: 5                 # Apply 5 times
+  params:
+    quality: 50
+```
+
+**Repeat vs. Multi-Compress:**
+- **`repeat`**: Applies same parameters each iteration (e.g., quality 50 five times)
+- **`multi_compress`**: Applies changing parameters with decay curves
+
+Use `repeat` for cumulative degradation with fixed settings. Use `multi_compress` for progressive quality decay.
 
 ## Multi-Step Pipelines
 
@@ -206,11 +334,32 @@ pipeline_output/
 
 ## Examples
 
+### Example Pipelines
+
 See the `examples/` directory for complete pipeline examples:
 
+**Saturation Operations:**
 - `saturation_pipeline.yaml`: Random saturation adjustment
 - `saturation_fixed_pipeline.yaml`: Fixed saturation boost
 - `multi_step_pipeline.yaml`: Multi-step processing chain
+
+**Compression & Degradation Operations:**
+- `severe_degradation_pipeline.yaml`: All effects combined for extreme artifacts
+- `multi_generation_compression.yaml`: Multi-compress with decay curves
+- `compression_block_sizes.yaml`: Subsampling modes demonstration
+- `minimal_blur_sequence.yaml`: Minimal blur capabilities
+- `flexible_sequence_repeat.yaml`: Repeat parameter showcase
+
+### Interactive Tutorials
+
+For hands-on learning with the compression filters, see the [Compression Filters Tutorial](tutorials/compression-filters/README.md):
+
+1. **Social Media Compression** - Simulate sharing degradation
+2. **Glitch Art Aesthetic** - Extreme digital artifacts
+3. **VHS/Analog Degradation** - Nostalgic retro effects
+4. **Progressive Cascade** - Degradation progression
+
+All tutorials use the same 6-second segment (3m12s-3m18s at 10fps) for consistent learning.
 
 ## Non-Destructive Processing
 

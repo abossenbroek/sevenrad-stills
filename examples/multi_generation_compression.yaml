@@ -1,0 +1,49 @@
+# Multi-Generation Compression Pipeline
+# Demonstrates the multi_compress operation with different decay curves
+# and the elegant use of the repeat parameter for looping.
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"  # Replace with actual video URL
+
+segment:
+  start: 5.0
+  end: 10.0
+  interval: 0.5  # Extract 2 frames per second (10 total frames)
+
+pipeline:
+  steps:
+    # Example 1: Multi-compress with linear decay
+    - name: "multi_compress_linear"
+      operation: "multi_compress"
+      params:
+        iterations: 5
+        quality_start: 60              # Start at moderate quality
+        quality_end: 20                # End at low quality
+        decay: "linear"                # Quality decreases linearly
+        subsampling: 2                 # Heavy subsampling
+
+    # Example 2: Using repeat parameter for fixed-quality cycles
+    # This achieves a similar effect to multi_compress but with no decay
+    - name: "repeated_compression"
+      operation: "compression"
+      repeat: 5                        # Apply 5 times
+      params:
+        quality: 40                    # Same quality each iteration
+        subsampling: 2
+        optimize: true
+
+    # Example 3: Multi-compress with exponential decay
+    # Rapid degradation at first, then levels off
+    - name: "multi_compress_exponential"
+      operation: "multi_compress"
+      params:
+        iterations: 10                 # More iterations
+        quality_start: 80              # Start high
+        quality_end: 10                # End very low
+        decay: "exponential"           # Rapid initial decay
+        subsampling: 2
+
+output:
+  base_dir: "./pipeline_output/multi_gen"
+  intermediate_dir: "./pipeline_output/multi_gen/intermediate"
+  final_dir: "./pipeline_output/multi_gen/final"
