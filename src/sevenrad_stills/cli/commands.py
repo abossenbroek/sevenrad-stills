@@ -9,7 +9,9 @@ from typing import Any
 
 import click
 
+from sevenrad_stills.pipeline.executor import PipelineExecutor
 from sevenrad_stills.pipeline.processor import VideoProcessor
+from sevenrad_stills.pipeline.yaml_loader import PipelineLoadError, load_pipeline_config
 from sevenrad_stills.settings.loader import load_config
 from sevenrad_stills.settings.models import ClearStrategy
 from sevenrad_stills.storage.cache import CacheManager
@@ -158,6 +160,91 @@ def cache_info(config: Path | None) -> None:
 
     except Exception as e:
         click.echo(f"Error getting cache info: {e}", err=True)
+        raise click.Abort from e
+
+
+@cli.command()
+@click.argument("pipeline_file", type=click.Path(exists=True, path_type=Path))  # type: ignore[type-var]
+@click.option(
+    "--config",
+    type=click.Path(exists=True, path_type=Path),  # type: ignore[type-var]
+    help="Path to application configuration file",
+)
+@click.option(
+    "--workers",
+    type=int,
+    default=None,
+    help="Number of parallel workers (defaults to CPU count)",
+)
+@click.option(
+    "--no-parallel",
+    is_flag=True,
+    default=False,
+    help="Disable parallel processing",
+)
+def pipeline(
+    pipeline_file: Path,
+    config: Path | None,
+    workers: int | None,
+    no_parallel: bool,
+) -> None:
+    """
+    Execute a YAML pipeline configuration.
+
+    PIPELINE_FILE: Path to YAML pipeline configuration file
+    """
+    try:
+        # Load application settings
+        settings = load_config(config)
+        logger = setup_logging(settings.logging)
+
+        # Load pipeline configuration
+        logger.info("Loading pipeline from: %s", pipeline_file)
+        pipeline_config = load_pipeline_config(pipeline_file)
+
+        # Display pipeline info
+        click.echo(f"\nPipeline: {pipeline_file.name}")
+        click.echo(f"Source: {pipeline_config.source.youtube_url}")
+        click.echo(
+            f"Segment: {pipeline_config.segment.start}s - "
+            f"{pipeline_config.segment.end}s "
+            f"(every {pipeline_config.segment.interval}s)"
+        )
+        click.echo(f"Steps: {len(pipeline_config.steps)}")
+        for idx, step in enumerate(pipeline_config.steps, 1):
+            click.echo(f"  {idx}. {step.name} ({step.operation})")
+        click.echo(f"Output: {pipeline_config.output.final_dir}")
+
+        # Show parallel processing info
+        parallel = not no_parallel
+        if parallel:
+            import multiprocessing
+
+            worker_count = workers or multiprocessing.cpu_count()
+            click.echo(f"Parallel processing: enabled ({worker_count} workers)\n")
+        else:
+            click.echo("Parallel processing: disabled\n")
+
+        # Execute pipeline
+        executor = PipelineExecutor(
+            pipeline_config, settings, max_workers=workers, parallel=parallel
+        )
+        results = executor.execute()
+
+        # Display results
+        click.echo("\nPipeline execution completed successfully!")
+        for step_name, paths in results.items():
+            click.echo(f"  {step_name}: {len(paths)} images")
+        click.echo(f"\nFinal output: {pipeline_config.output.final_dir}")
+
+    except PipelineLoadError as e:
+        click.echo(f"Pipeline configuration error: {e}", err=True)
+        raise click.Abort from e
+    except SevenradError as e:
+        click.echo(f"Pipeline execution error: {e}", err=True)
+        raise click.Abort from e
+    except Exception as e:
+        click.echo(f"Unexpected error: {e}", err=True)
         raise click.Abort from e
 
 

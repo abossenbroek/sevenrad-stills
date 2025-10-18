@@ -74,6 +74,14 @@ ignore = [
 "tests/*" = ["S101", "ANN", "PLR2004", "S108"]  # Allow assert, annotations, magic values, and /tmp in tests
 "src/sevenrad_stills/cli/commands.py" = ["PLR0913"]  # Click commands have many options
 
+[tool.pytest.ini_options]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests requiring external resources",
+]
+# Run tests in parallel when possible
+addopts = "-v"
+
 [tool.mypy]
 python_version = "3.12"
 strict = true
