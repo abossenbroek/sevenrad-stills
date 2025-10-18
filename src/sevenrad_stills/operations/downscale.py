@@ -54,9 +54,9 @@ class DownscaleOperation(BaseImageOperation):
 
         Expected params:
         - scale: float (0.01-1.0) - Scale factor for downscaling
-        - upscale: bool - Whether to upscale back to original size (optional)
-        - downscale_method: str - Resampling method for downscaling (optional)
-        - upscale_method: str - Resampling method for upscaling (optional)
+        - upscale: bool - Whether to upscale back to original size (default: True)
+        - downscale_method: str - Resampling method for downscaling (default: "bicubic")
+        - upscale_method: str - Resampling method for upscaling (default: "nearest")
 
         Args:
             params: Parameters to validate
