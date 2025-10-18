@@ -1,0 +1,50 @@
+# Tutorial 5: Soft Glow
+#
+# LEARN: Create dreamy softness using Gaussian blur
+# TRY: Experiment with sigma values to control blur intensity
+# FRAMES: 105 (7 seconds @ 15fps)
+#
+# This tutorial introduces Gaussian blur, a fundamental softening effect
+# that creates smooth, dreamy imagery. You'll see how sigma controls the
+# blur radius, from subtle glow to strong ethereal effects.
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=MzJaP-7N9I0"
+
+segment:
+  start: 52.0
+  end: 59.0
+  interval: 0.0667  # 15 fps
+
+pipeline:
+  steps:
+    - name: "glow_subtle"
+      operation: "blur_gaussian"
+      params:
+        sigma: 0.5  # Minimal blur - adds gentle softness without losing detail
+
+    - name: "glow_moderate"
+      operation: "blur_gaussian"
+      params:
+        sigma: 2.0  # Moderate blur - creates noticeable dreamy quality
+
+    - name: "glow_strong"
+      operation: "blur_gaussian"
+      params:
+        sigma: 5.0  # Heavy blur - strong ethereal glow effect
+
+output:
+  base_dir: "./tutorials/degradr-effects/soft-glow"
+
+# HOW TO RUN:
+#   sevenrad pipeline docs/tutorials/degradr-effects/05-soft-glow.yaml
+#
+# WHAT YOU'LL SEE:
+#   - Subtle softness preserving most details
+#   - Moderate dreaminess with reduced sharpness
+#   - Strong glow creating ethereal atmosphere
+#
+# TRY NEXT:
+#   - Values between 0.5-10.0 for different intensities
+#   - Combine with noise for soft film grain aesthetic
+#   - Use with chromatic_aberration for dreamy lens effects
