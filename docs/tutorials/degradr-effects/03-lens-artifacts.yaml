@@ -61,10 +61,11 @@ pipeline:
     - name: "vintage_color"
       operation: "saturation"
       params:
+        mode: "fixed"
         # Boost saturation for warm, nostalgic color palette
-        # Values < 1.0 desaturate, > 1.0 saturate
-        # Try 0.8 for faded vintage, 1.3 for vivid vintage
-        factor: 1.15
+        # value is added to 1.0: 0.15 = 1.15x saturation
+        # Try -0.2 for faded vintage, 0.3 for vivid vintage
+        value: 0.15
 
 output:
   base_dir: "./tutorials/degradr-effects/lens-artifacts"
@@ -94,8 +95,8 @@ output:
 # TRY EXPERIMENTING:
 #   - Increase radius to 10-12 for heavier bokeh blur
 #   - Try shift_x: 6, shift_y: 3 for stronger aberration
-#   - Adjust factor: 0.75 for faded vintage film look
-#   - Adjust factor: 1.4 for technicolor-style oversaturation
+#   - Adjust value: -0.25 for faded vintage film look
+#   - Adjust value: 0.4 for technicolor-style oversaturation
 #   - Add blur_gaussian with sigma: 0.5 before circular blur for extra softness
 #   - Add compression after saturation for vintage photo print aesthetic
 #   - Try motion_blur with small kernel_size for motion + softness
