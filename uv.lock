@@ -775,7 +775,7 @@ requires-dist = [
     { name = "scikit-image", specifier = "~=0.24.0" },
     { name = "types-click", marker = "extra == 'dev'", specifier = "~=7.1" },
     { name = "types-pyyaml", marker = "extra == 'dev'", specifier = "~=6.0" },
-    { name = "yt-dlp", specifier = "~=2024.12" },
+    { name = "yt-dlp", specifier = "~=2025.10" },
 ]
 provides-extras = ["dev"]
 
@@ -846,9 +846,9 @@ wheels = [
 
 [[package]]
 name = "yt-dlp"
-version = "2024.12.23"
+version = "2025.10.14"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/88/ea/f30e5925c5b9109d2f8e47b87bb7e7feac1a6c496b5324deb352c2002cf4/yt_dlp-2024.12.23.tar.gz", hash = "sha256:ac0e72b5a9017ba104b4258546201a7cedc38e8bd20727e0c63b77c829b425e9", size = 2914953, upload-time = "2024-12-23T23:54:08.304Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/03/b7/dab729345e22891e79294273bc59c5213a1ec87331f49cb82ccea2b1bc9f/yt_dlp-2025.10.14.tar.gz", hash = "sha256:b18436aa9bb6f04354fd78d31ad9eeaae8c81b6a859f07072b25c18cd6c25844", size = 3045272, upload-time = "2025-10-14T23:39:52.688Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/70/d3/dc656c921f45baaba4d439292194b5be7f48b3558fcc38941aca16fa5afa/yt_dlp-2024.12.23-py3-none-any.whl", hash = "sha256:2fc08a5221a0379628ac4e7324c6c69a95b9fdfa7a7ca3187444b3b7451e38be", size = 3176724, upload-time = "2024-12-23T23:54:04.96Z" },
+    { url = "https://files.pythonhosted.org/packages/b0/19/399c85d29bd7b366b31ede82698f7963374e5a3842ae9de0cde6514506b0/yt_dlp-2025.10.14-py3-none-any.whl", hash = "sha256:0b9da17eda1bbf48e2315130043d7993fd4ca1c5a35571f8231da1a910c9c115", size = 3248664, upload-time = "2025-10-14T23:39:49.95Z" },
 ]
