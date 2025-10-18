@@ -1,0 +1,57 @@
+# Tutorial 7: Film Grain
+#
+# LEARN: Add analog film texture using Gaussian noise
+# TRY: Find the sweet spot between subtle grain and heavy texture
+# FRAMES: 105 (7 seconds @ 15fps)
+#
+# This tutorial introduces Gaussian noise for creating analog film grain
+# effects. You'll learn how small amount values create realistic film
+# texture while larger values produce heavily degraded aesthetics.
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=MzJaP-7N9I0"
+
+segment:
+  start: 90.0
+  end: 97.0
+  interval: 0.0667  # 15 fps
+
+pipeline:
+  steps:
+    - name: "grain_subtle"
+      operation: "noise"
+      params:
+        mode: "gaussian"
+        amount: 0.02  # Minimal grain - realistic film texture
+        seed: 42
+
+    - name: "grain_moderate"
+      operation: "noise"
+      params:
+        mode: "gaussian"
+        amount: 0.05  # Moderate grain - noticeable analog character
+        seed: 42
+
+    - name: "grain_heavy"
+      operation: "noise"
+      params:
+        mode: "gaussian"
+        amount: 0.15  # Heavy grain - strong degraded aesthetic
+        seed: 42
+
+output:
+  base_dir: "./tutorials/degradr-effects/film-grain"
+
+# HOW TO RUN:
+#   sevenrad pipeline docs/tutorials/degradr-effects/07-film-grain.yaml
+#
+# WHAT YOU'LL SEE:
+#   - Fine grain texture resembling 35mm film
+#   - Noticeable grain creating analog warmth
+#   - Heavy grain with strong vintage degradation
+#
+# TRY NEXT:
+#   - Values 0.01-0.2 to explore grain intensity range
+#   - Remove 'seed' parameter for different grain per frame
+#   - Combine with blur_gaussian for soft film aesthetic
+#   - Use with downscale for lo-fi compressed look
