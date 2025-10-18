@@ -1,0 +1,50 @@
+# Tutorial 6: Dreamy Bokeh
+#
+# LEARN: Create circular lens bokeh effects with disc-shaped blur
+# TRY: Compare circular blur with Gaussian blur for different aesthetics
+# FRAMES: 105 (7 seconds @ 15fps)
+#
+# This tutorial explores circular blur, which creates bokeh-like effects
+# similar to camera lenses with circular apertures. The disc-shaped kernel
+# produces a different aesthetic than Gaussian blur.
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=MzJaP-7N9I0"
+
+segment:
+  start: 52.0
+  end: 59.0
+  interval: 0.0667  # 15 fps
+
+pipeline:
+  steps:
+    - name: "bokeh_subtle"
+      operation: "blur_circular"
+      params:
+        radius: 3  # Small circular kernel - gentle lens-like softness
+
+    - name: "bokeh_moderate"
+      operation: "blur_circular"
+      params:
+        radius: 8  # Medium circular kernel - noticeable bokeh effect
+
+    - name: "bokeh_strong"
+      operation: "blur_circular"
+      params:
+        radius: 15  # Large circular kernel - dramatic lens blur
+
+output:
+  base_dir: "./tutorials/degradr-effects/dreamy-bokeh"
+
+# HOW TO RUN:
+#   sevenrad pipeline docs/tutorials/degradr-effects/06-dreamy-bokeh.yaml
+#
+# WHAT YOU'LL SEE:
+#   - Subtle circular softening mimicking lens defocus
+#   - Moderate bokeh creating dreamy out-of-focus areas
+#   - Strong bokeh with pronounced circular blur patterns
+#
+# TRY NEXT:
+#   - Radius values 3-20 for different bokeh strengths
+#   - Compare with blur_gaussian (sigma=3) to see the difference
+#   - Combine with bayer_filter for digital camera simulation

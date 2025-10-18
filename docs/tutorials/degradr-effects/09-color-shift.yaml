@@ -1,0 +1,57 @@
+# Tutorial 9: Color Shift
+#
+# LEARN: Create chromatic aberration by shifting RGB channels
+# TRY: Experiment with horizontal, vertical, and diagonal shifts
+# FRAMES: 105 (7 seconds @ 15fps)
+#
+# This tutorial demonstrates chromatic aberration, an optical lens defect
+# where colors don't focus at the same point. You'll see how shifting red
+# and blue channels creates color fringing at edges.
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=MzJaP-7N9I0"
+
+segment:
+  start: 52.0
+  end: 59.0
+  interval: 0.0667  # 15 fps
+
+pipeline:
+  steps:
+    - name: "shift_horizontal"
+      operation: "chromatic_aberration"
+      params:
+        shift_x: 2  # Minimal horizontal shift - subtle red-cyan fringing
+        shift_y: 0
+
+    - name: "shift_diagonal"
+      operation: "chromatic_aberration"
+      params:
+        shift_x: 5  # Moderate diagonal shift - noticeable lens defect
+        shift_y: 3
+
+    - name: "shift_strong"
+      operation: "chromatic_aberration"
+      params:
+        shift_x: 10  # Strong diagonal shift - pronounced color separation
+        shift_y: -5
+
+output:
+  base_dir: "./tutorials/degradr-effects/color-shift"
+
+# HOW TO RUN:
+#   sevenrad pipeline docs/tutorials/degradr-effects/09-color-shift.yaml
+#
+# WHAT YOU'LL SEE:
+#   - Subtle horizontal color fringing on vertical edges
+#   - Diagonal color separation creating lens-like artifacts
+#   - Strong chromatic aberration with visible RGB separation
+#
+# NOTE: Green channel stays fixed as reference, red and blue shift
+#       in opposite directions to create the fringing effect.
+#
+# TRY NEXT:
+#   - Shift values from -20 to 20 for different intensities
+#   - Try shift_y without shift_x for vertical fringing
+#   - Combine with blur_circular for vintage lens simulation
+#   - Use negative values to reverse the shift direction
