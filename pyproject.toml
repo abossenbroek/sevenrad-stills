@@ -81,8 +81,9 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests requiring external resources",
 ]
-# Run tests in parallel when possible
-addopts = "-v"
+# Exclude slow and integration tests by default
+# Run with: pytest -m "slow or integration" to include them
+addopts = "-v -m 'not slow and not integration'"
 
 [tool.mypy]
 python_version = "3.12"
