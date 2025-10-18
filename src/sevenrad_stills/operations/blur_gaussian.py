@@ -87,14 +87,16 @@ class GaussianBlurOperation(BaseImageOperation):
             rgb = image.convert("RGB")
             alpha = image.getchannel("A")
 
-            rgb_array = np.array(rgb)
+            rgb_array = np.array(rgb, dtype=np.float32)
             # Apply blur only to spatial dimensions (height, width), not channels
             blurred_rgb_array = gaussian_filter(
                 rgb_array, sigma=[sigma, sigma, 0], mode="reflect"
             )
 
             # Restore original data type and create new image
-            blurred_rgb = Image.fromarray(blurred_rgb_array.astype(original_dtype))
+            blurred_rgb = Image.fromarray(
+                np.clip(blurred_rgb_array, 0, 255).astype(original_dtype)
+            )
             # Create RGBA image with blurred RGB and original alpha
             result = Image.new("RGBA", image.size)
             result.paste(blurred_rgb, (0, 0))
@@ -102,14 +104,17 @@ class GaussianBlurOperation(BaseImageOperation):
             return result
 
         # For RGB or L images, apply blur directly
+        # Convert to float32 for precision during filtering
+        img_float = img_array.astype(np.float32)
+
         # The sigma sequence is (height, width, channels).
         # We don't blur across channels, so the channel sigma is 0.
         sigma_vector = (
-            [sigma, sigma, 0] if img_array.ndim == RGB_CHANNELS else [sigma, sigma]
+            [sigma, sigma, 0] if img_float.ndim == RGB_CHANNELS else [sigma, sigma]
         )
         blurred_array = gaussian_filter(
-            img_array, sigma=sigma_vector[: img_array.ndim], mode="reflect"
+            img_float, sigma=sigma_vector[: img_float.ndim], mode="reflect"
         )
 
         # Convert back to PIL Image, ensuring original dtype is respected.
-        return Image.fromarray(blurred_array.astype(original_dtype))
+        return Image.fromarray(np.clip(blurred_array, 0, 255).astype(original_dtype))
