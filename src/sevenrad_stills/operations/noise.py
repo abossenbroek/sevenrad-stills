@@ -91,26 +91,43 @@ class NoiseOperation(BaseImageOperation):
         rng = np.random.default_rng(seed)
         img_array = np.array(image, dtype=np.float32) / 255.0
 
-        noise = np.zeros_like(img_array)
         h, w = img_array.shape[:2]
 
-        if mode == "gaussian":
-            noise = rng.normal(loc=0, scale=amount, size=img_array.shape)
-        elif mode == "row":
-            # Generate one noise value per row and broadcast it
-            # For grayscale, we need 1 channel; for RGB, 3 channels
-            num_channels = 1 if img_array.ndim == 2 else img_array.shape[2]  # noqa: PLR2004
-            row_noise = rng.uniform(-amount, amount, size=(h, 1, num_channels))
-            noise = np.broadcast_to(row_noise, img_array.shape)
-        elif mode == "column":
-            # Generate one noise value per column and broadcast it
-            num_channels = 1 if img_array.ndim == 2 else img_array.shape[2]  # noqa: PLR2004
-            col_noise = rng.uniform(-amount, amount, size=(1, w, num_channels))
-            noise = np.broadcast_to(col_noise, img_array.shape)
+        # Handle RGBA separately to preserve alpha channel
+        if image.mode == "RGBA":
+            rgb = img_array[..., :3]
+            alpha = img_array[..., 3:4]
 
-        # Add noise and clip to valid range [0, 1]
-        noisy_array = np.clip(img_array + noise, 0.0, 1.0)
+            # Generate noise for RGB channels only
+            if mode == "gaussian":
+                noise_rgb = rng.normal(loc=0, scale=amount, size=rgb.shape)
+            elif mode == "row":
+                row_noise = rng.uniform(-amount, amount, size=(h, 1, 3))
+                noise_rgb = np.broadcast_to(row_noise, rgb.shape)
+            else:  # column
+                col_noise = rng.uniform(-amount, amount, size=(1, w, 3))
+                noise_rgb = np.broadcast_to(col_noise, rgb.shape)
 
-        # Convert back to original dtype and then to PIL Image
-        output_array = (noisy_array * 255).astype(np.uint8)
+            # Apply noise to RGB, preserve alpha
+            noisy_rgb = np.clip(rgb + noise_rgb, 0.0, 1.0)
+            output_array = np.concatenate([noisy_rgb, alpha], axis=2)
+        else:
+            # For grayscale and RGB, apply noise normally
+            noise = np.zeros_like(img_array)
+
+            if mode == "gaussian":
+                noise = rng.normal(loc=0, scale=amount, size=img_array.shape)
+            elif mode == "row":
+                num_channels = 1 if img_array.ndim == 2 else img_array.shape[2]  # noqa: PLR2004
+                row_noise = rng.uniform(-amount, amount, size=(h, 1, num_channels))
+                noise = np.broadcast_to(row_noise, img_array.shape)
+            else:  # column
+                num_channels = 1 if img_array.ndim == 2 else img_array.shape[2]  # noqa: PLR2004
+                col_noise = rng.uniform(-amount, amount, size=(1, w, num_channels))
+                noise = np.broadcast_to(col_noise, img_array.shape)
+
+            output_array = np.clip(img_array + noise, 0.0, 1.0)
+
+        # Convert back to uint8 and return as PIL Image
+        output_array = (output_array * 255).astype(np.uint8)
         return Image.fromarray(output_array)

@@ -99,13 +99,25 @@ class MotionBlurOperation(BaseImageOperation):
 
         """
         # Create a horizontal line kernel
-        kernel = np.zeros((size, size))
-        kernel[int((size - 1) / 2), :] = np.ones(size)
-        kernel = kernel / size
+        kernel: np.ndarray = np.zeros((size, size), dtype=float)
+        kernel[(size - 1) // 2, :] = 1.0
+        kernel /= kernel.sum()
 
         # Rotate kernel to desired angle
-        if angle != 0:
-            kernel = cast(np.ndarray, rotate(kernel, angle, resize=False))
+        if angle != 0.0:
+            kernel = rotate(
+                kernel,
+                angle,
+                resize=False,
+                order=1,
+                mode="constant",
+                cval=0.0,
+                preserve_range=True,
+            )
+            # Re-normalize after rotation to preserve brightness
+            kernel_sum = kernel.sum()
+            if kernel_sum > 0:
+                kernel /= kernel_sum
 
         return kernel
 
