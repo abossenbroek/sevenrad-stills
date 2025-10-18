@@ -108,7 +108,7 @@ pwa:
 paginate: 10
 
 # The base URL of your site
-baseurl: ""
+baseurl: "/sevenrad-stills"
 
 # Site Settings
 kramdown:
@@ -164,7 +164,6 @@ compress_html:
 exclude:
   - "*.gem"
   - "*.gemspec"
-  - docs/_posts
   - tools
   - README.md
   - CHANGELOG.md
