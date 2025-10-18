@@ -32,6 +32,8 @@ class FrameExtractor:
         self,
         video_info: VideoInfo,
         strategy: ExtractionStrategy,
+        start_time: float | None = None,
+        end_time: float | None = None,
     ) -> list[Path]:
         """
         Extract frames from video using the given strategy.
@@ -39,6 +41,8 @@ class FrameExtractor:
         Args:
             video_info: Video metadata
             strategy: Extraction strategy to use
+            start_time: Optional start time in seconds
+            end_time: Optional end time in seconds
 
         Returns:
             List of paths to extracted frame files
@@ -55,16 +59,32 @@ class FrameExtractor:
         output_pattern = self._get_output_pattern(video_info.video_id)
 
         try:
-            # Build ffmpeg command
-            stream = ffmpeg.input(str(video_info.file_path))
+            # Build ffmpeg command with optional time range
+            input_kwargs = {}
+            if start_time is not None:
+                input_kwargs["ss"] = start_time
+            if end_time is not None and start_time is not None:
+                input_kwargs["t"] = end_time - start_time
+
+            stream = ffmpeg.input(str(video_info.file_path), **input_kwargs)
 
             # Apply extraction filter
             filter_str = strategy.get_ffmpeg_filter()
-            stream = ffmpeg.filter(stream, "select", filter_str)
-            stream = ffmpeg.filter(stream, "vsync", "vfr")  # Variable frame rate
+
+            # Check if this is an fps filter or select filter
+            if filter_str.startswith("fps="):
+                # FPS filter: use fps filter directly
+                fps_value = filter_str.split("=")[1]
+                stream = ffmpeg.filter(stream, "fps", fps=fps_value)
+            else:
+                # Select filter: use select with expression
+                stream = ffmpeg.filter(stream, "select", filter_str)
 
             # Set output options
-            output_args = {"q:v": 2}  # Quality for JPEG
+            output_args = {
+                "q:v": 2,  # Quality for JPEG
+                "fps_mode": "vfr",  # Variable frame rate (replaces deprecated vsync)
+            }
             if self.settings.output_format == "jpg":
                 output_args["q:v"] = int((100 - self.settings.jpeg_quality) / 10)
 
@@ -124,8 +144,8 @@ class FrameExtractor:
             Sorted list of frame file paths
 
         """
-        # Pattern to match extracted frames
-        pattern = f"{video_id}_frame_*.{self.settings.output_format}"
+        # Pattern to match extracted frames - use wildcard to match any naming pattern
+        pattern = f"{video_id}_*.{self.settings.output_format}"
         frames = sorted(self.settings.output_dir.glob(pattern))
         return frames
 
