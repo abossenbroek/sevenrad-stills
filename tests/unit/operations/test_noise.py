@@ -24,6 +24,20 @@ def test_image_grayscale() -> Image.Image:
     return Image.new("L", (100, 100), color=128)
 
 
+@pytest.fixture
+def test_image_rgba() -> Image.Image:
+    """Create a simple RGBA test image with varying alpha."""
+    img = Image.new("RGBA", (100, 100), color=(128, 128, 128, 255))
+    # Create a pattern with different alpha values
+    pixels = img.load()
+    for y in range(100):
+        for x in range(100):
+            if pixels is not None:  # Type guard
+                alpha = int((x / 100) * 255)
+                pixels[x, y] = (128, 128, 128, alpha)
+    return img
+
+
 class TestNoiseValidation:
     """Test parameter validation for noise operation."""
 
@@ -189,3 +203,57 @@ class TestNoiseApply:
     def test_operation_name(self, noise_op: NoiseOperation) -> None:
         """Test that operation has correct name."""
         assert noise_op.name == "noise"
+
+    def test_rgba_alpha_preservation_gaussian(
+        self, noise_op: NoiseOperation, test_image_rgba: Image.Image
+    ) -> None:
+        """Test that Gaussian noise preserves alpha channel in RGBA images."""
+        result = noise_op.apply(
+            test_image_rgba, {"mode": "gaussian", "amount": 0.2, "seed": 42}
+        )
+
+        # Verify mode is preserved
+        assert result.mode == "RGBA"
+        assert result.size == test_image_rgba.size
+
+        # Extract alpha channels
+        original_alpha = np.array(test_image_rgba)[:, :, 3]
+        result_alpha = np.array(result)[:, :, 3]
+
+        # Alpha channel should be completely unchanged
+        np.testing.assert_array_equal(result_alpha, original_alpha)
+
+        # RGB channels should have changed
+        original_rgb = np.array(test_image_rgba)[:, :, :3]
+        result_rgb = np.array(result)[:, :, :3]
+        assert not np.array_equal(result_rgb, original_rgb)
+
+    def test_rgba_alpha_preservation_row(
+        self, noise_op: NoiseOperation, test_image_rgba: Image.Image
+    ) -> None:
+        """Test that row noise preserves alpha channel in RGBA images."""
+        result = noise_op.apply(
+            test_image_rgba, {"mode": "row", "amount": 0.2, "seed": 42}
+        )
+
+        # Extract alpha channels
+        original_alpha = np.array(test_image_rgba)[:, :, 3]
+        result_alpha = np.array(result)[:, :, 3]
+
+        # Alpha channel should be completely unchanged
+        np.testing.assert_array_equal(result_alpha, original_alpha)
+
+    def test_rgba_alpha_preservation_column(
+        self, noise_op: NoiseOperation, test_image_rgba: Image.Image
+    ) -> None:
+        """Test that column noise preserves alpha channel in RGBA images."""
+        result = noise_op.apply(
+            test_image_rgba, {"mode": "column", "amount": 0.2, "seed": 42}
+        )
+
+        # Extract alpha channels
+        original_alpha = np.array(test_image_rgba)[:, :, 3]
+        result_alpha = np.array(result)[:, :, 3]
+
+        # Alpha channel should be completely unchanged
+        np.testing.assert_array_equal(result_alpha, original_alpha)
