@@ -113,6 +113,9 @@ def format_frame_filename(
         - {timestamp}: Timestamp in seconds (supports formatting)
         - {ext}: File extension
 
+    Raises:
+        ValueError: If the formatted filename contains path separators
+
     """
     # Sanitize video_id
     safe_video_id = sanitize_filename(video_id)
@@ -128,10 +131,20 @@ def format_frame_filename(
         format_args["timestamp"] = timestamp
 
     try:
-        return pattern.format(**format_args)
-    except (KeyError, ValueError) as e:
+        formatted = pattern.format(**format_args)
+    except (KeyError, ValueError):
         # Fallback to simple pattern if formatting fails
-        return f"{safe_video_id}_frame_{index:06d}.{ext}"
+        formatted = f"{safe_video_id}_frame_{index:06d}.{ext}"
+
+    # Security: Prevent path traversal by rejecting filenames with path separators
+    if "/" in formatted or "\\" in formatted or ".." in formatted:
+        msg = (
+            f"Invalid filename pattern: '{formatted}' contains path separators. "
+            "Filenames must not contain '/', '\\\\', or '..' to prevent path traversal."
+        )
+        raise ValueError(msg)
+
+    return formatted
 
 
 def ensure_directory(path: Path) -> Path:
