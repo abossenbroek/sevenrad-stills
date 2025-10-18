@@ -1,0 +1,137 @@
+# Tutorial: Digital Sensor Noise Effect
+#
+# GOAL: Simulate digital camera sensor artifacts including Bayer demosaicing
+# patterns, gaussian sensor noise, and gamma-corrected compression to create
+# the look of a low-quality digital camera or degraded sensor.
+#
+# WHAT YOU'LL SEE:
+# - Bayer filter color artifacts (pixel-level color patterns)
+# - Gaussian noise typical of high-ISO digital photography
+# - Enhanced compression with gamma correction revealing dark noise
+# - Digital sensor degradation aesthetic
+#
+# ARTISTIC CONTEXT:
+# Digital sensors capture light through color filter arrays (Bayer patterns),
+# which must be demosaiced to create full-color images. This process, combined
+# with sensor noise at high ISO settings, creates distinctive digital artifacts.
+# This pipeline makes visible the computational nature of digital imaging.
+#
+# FRAMES: 45 (3 seconds at 15 fps)
+# OPERATIONS: 3 (bayer_filter → noise → compression)
+# DIFFICULTY: Intermediate
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=MzJaP-7N9I0"
+
+segment:
+  start: 192.0    # 3 minutes 12 seconds (3m12s)
+  end: 195.0      # 3 minutes 15 seconds (3m15s)
+  interval: 0.0667  # 15 frames per second = 45 total frames
+
+pipeline:
+  steps:
+    # STEP 1: Bayer Filter Pattern
+    # Simulates the mosaic pattern of a digital camera sensor
+    # followed by imperfect demosaicing
+    - name: "sensor_mosaic"
+      operation: "bayer_filter"
+      params:
+        # RGGB is the most common Bayer pattern
+        # (Red-Green-Green-Blue in 2x2 grid)
+        # Other options: BGGR, GRBG, GBRG
+        pattern: "RGGB"
+
+    # STEP 2: Gaussian Sensor Noise
+    # Adds pixel-level noise typical of high-ISO photography
+    # or low-quality digital sensors
+    - name: "sensor_grain"
+      operation: "noise"
+      params:
+        # Gaussian mode for natural sensor noise distribution
+        # Real sensors have noise following Gaussian distribution
+        mode: "gaussian"
+
+        # Moderate noise level simulating ISO 3200-6400
+        # Lower values (0.05) = clean sensor, higher (0.3) = very noisy
+        amount: 0.12
+
+        # Deterministic seed for reproducible results
+        seed: 1337
+
+    # STEP 3: Gamma-Corrected Compression
+    # Compresses with gamma adjustment to reveal noise in shadows
+    # This is where low-quality sensors really show their limitations
+    - name: "sensor_compression"
+      operation: "compression"
+      params:
+        # Moderate quality - digital cameras compress on-sensor
+        quality: 55
+
+        # Moderate subsampling (4:2:2)
+        # Better than VHS but still lossy
+        subsampling: 1
+
+        # Gamma correction to lift shadows
+        # Makes sensor noise more visible in dark areas
+        # Values > 1.0 brighten, < 1.0 darken
+        # gamma: 1.2
+
+output:
+  base_dir: "./tutorials/degradr-effects/sensor-noise"
+  intermediate_dir: "./tutorials/degradr-effects/sensor-noise/intermediate"
+  final_dir: "./tutorials/degradr-effects/sensor-noise/final"
+
+# HOW TO RUN:
+#   sevenrad pipeline docs/tutorials/degradr-effects/sensor-noise.yaml
+#
+# OUTPUT:
+#   ./tutorials/degradr-effects/sensor-noise/
+#     ├── intermediate/
+#     │   ├── sensor_mosaic/
+#     │   │   └── sensor_mosaic_*_step00.jpg (45 images)
+#     │   └── sensor_grain/
+#     │       └── sensor_grain_*_step01.jpg (45 images)
+#     └── final/
+#         └── sensor_compression_*_step02.jpg (45 images)
+#
+# WHAT TO LOOK FOR:
+#   - Bayer pattern artifacts creating color moire and false colors
+#   - Fine-grained gaussian noise throughout the image
+#   - Noise more visible in darker regions (especially with gamma)
+#   - Loss of color accuracy from demosaicing + noise + compression
+#   - "Digital" look vs analog VHS softness
+#
+# TRY EXPERIMENTING:
+#   - Try pattern: "BGGR" for different Bayer alignment artifacts
+#   - Increase amount: 0.20 to simulate very cheap sensors or extreme ISO
+#   - Uncomment gamma parameter and try values from 1.1 to 1.5
+#   - Lower quality to 35 for heavier on-sensor compression
+#   - Add saturation operation before or after to enhance/reduce color
+#   - Try subsampling: 2 for even more compression artifacts
+#   - Add motion_blur after for motion + noise combination
+#
+# TECHNICAL NOTES:
+#   - Bayer filter uses skimage demosaicing (Malvar2004 algorithm)
+#   - Gaussian noise uses NumPy random.normal with configurable seed
+#   - Optional gamma correction brightens shadows before compression
+#   - JPEG encoding happens after all transformations
+#
+# SCIENTIFIC ACCURACY:
+#   Real digital sensors have:
+#   - Bayer color filter array requiring demosaicing
+#   - Shot noise (Poisson) + read noise (Gaussian) + dark current
+#   - Non-linear response curves requiring gamma correction
+#   - On-chip or in-camera JPEG compression
+#
+#   This pipeline simplifies but captures the essential visual character.
+#
+# POETIC INTERPRETATION:
+#   "The sensor grid quantizes light into discrete cells,
+#    each pixel an uncertain measurement of photons,
+#    demosaicing algorithms guess at missing colors,
+#    compression discards what it deems redundant,
+#    and we call this computational process 'seeing.'"
+#
+#   This effect reveals the algorithmic nature of digital vision - how
+#   cameras don't simply record reality but construct it through layers
+#   of mathematical operations, each introducing its own artifacts.

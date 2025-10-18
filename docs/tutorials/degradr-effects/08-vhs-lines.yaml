@@ -1,0 +1,65 @@
+# Tutorial 8: VHS Scan Lines
+#
+# LEARN: Create horizontal and vertical line artifacts using directional noise
+# TRY: Compare row vs column modes for different retro effects
+# FRAMES: 105 (7 seconds @ 15fps)
+#
+# This tutorial explores row and column noise modes that create scan line
+# artifacts. Row mode produces horizontal VHS-style lines, while column
+# mode creates vertical distortions.
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=MzJaP-7N9I0"
+
+segment:
+  start: 90.0
+  end: 97.0
+  interval: 0.0667  # 15 fps
+
+pipeline:
+  steps:
+    - name: "scanlines_subtle"
+      operation: "noise"
+      params:
+        mode: "row"
+        amount: 0.03  # Subtle horizontal lines - gentle VHS tracking
+        seed: 42
+
+    - name: "scanlines_moderate"
+      operation: "noise"
+      params:
+        mode: "row"
+        amount: 0.08  # Moderate scan lines - classic VHS artifacts
+        seed: 42
+
+    - name: "scanlines_heavy"
+      operation: "noise"
+      params:
+        mode: "row"
+        amount: 0.2  # Heavy scan lines - degraded tape effect
+        seed: 42
+
+    - name: "vertical_lines"
+      operation: "noise"
+      params:
+        mode: "column"
+        amount: 0.08  # Vertical line artifacts for variety
+        seed: 42
+
+output:
+  base_dir: "./tutorials/degradr-effects/vhs-lines"
+
+# HOW TO RUN:
+#   sevenrad pipeline docs/tutorials/degradr-effects/08-vhs-lines.yaml
+#
+# WHAT YOU'LL SEE:
+#   - Gentle horizontal scan lines
+#   - Classic VHS tracking artifacts
+#   - Heavy degraded tape distortion
+#   - Vertical line patterns (column mode)
+#
+# TRY NEXT:
+#   - Switch between 'row' and 'column' modes
+#   - Remove 'seed' for animated line noise
+#   - Combine with downscale for authentic VHS resolution
+#   - Use with motion_blur for VCR playback simulation

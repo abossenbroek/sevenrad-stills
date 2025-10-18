@@ -1,0 +1,55 @@
+# Tutorial 10: Digital Mosaic
+#
+# LEARN: Simulate digital camera sensor artifacts using Bayer filter
+# TRY: Compare different Bayer patterns to see their unique effects
+# FRAMES: 105 (7 seconds @ 15fps)
+#
+# This tutorial explores the Bayer filter, simulating how digital camera
+# sensors capture color. The mosaicing and demosaicing process creates
+# artifacts like color fringing and moiré patterns.
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=MzJaP-7N9I0"
+
+segment:
+  start: 90.0
+  end: 97.0
+  interval: 0.0667  # 15 fps
+
+pipeline:
+  steps:
+    - name: "sensor_rggb"
+      operation: "bayer_filter"
+      params:
+        pattern: "RGGB"  # Most common pattern - red top-left, blue bottom-right
+
+    - name: "sensor_bggr"
+      operation: "bayer_filter"
+      params:
+        pattern: "BGGR"  # Inverted pattern - blue top-left, red bottom-right
+
+    - name: "sensor_grbg"
+      operation: "bayer_filter"
+      params:
+        pattern: "GRBG"  # Rotated pattern - different color artifacts
+
+output:
+  base_dir: "./tutorials/degradr-effects/digital-mosaic"
+
+# HOW TO RUN:
+#   sevenrad pipeline docs/tutorials/degradr-effects/10-digital-mosaic.yaml
+#
+# WHAT YOU'LL SEE:
+#   - Color fringing at edges from demosaicing
+#   - Slight softening from interpolation
+#   - Moiré patterns on fine details
+#   - Pattern-dependent color shifts
+#
+# NOTE: Each pattern creates a 2x2 color filter array, then reconstructs
+#       RGB through interpolation. This mimics real camera sensor behavior.
+#
+# TRY NEXT:
+#   - Try all 4 patterns: RGGB, BGGR, GRBG, GBRG
+#   - Combine with noise for realistic sensor noise
+#   - Use with blur_circular for lens + sensor simulation
+#   - Apply to high-detail images to see moiré patterns clearly
