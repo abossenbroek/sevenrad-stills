@@ -1,3 +1,10 @@
+---
+layout: page
+title: YAML Pipeline System
+permalink: /PIPELINE/
+toc: true
+---
+
 # YAML Pipeline System
 
 The YAML Pipeline System enables declarative configuration of video processing workflows, from YouTube download through frame extraction to image transformations.

@@ -1,3 +1,10 @@
+---
+layout: page
+title: Filter Guide
+permalink: /FILTER_GUIDE/
+toc: true
+---
+
 # Filter Guide: Compression & Degradation Effects
 
 This guide provides recommended parameter ranges for achieving specific visual degradation effects using the compression and degradation filters. All filters are deterministic and support elegant looping via the `repeat` parameter.
