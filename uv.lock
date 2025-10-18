@@ -42,6 +42,37 @@ wheels = [
 ]
 
 [[package]]
+name = "colour-demosaicing"
+version = "0.2.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colour-science" },
+    { name = "imageio" },
+    { name = "numpy" },
+    { name = "scipy" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/38/31/6b0361591fa221f6accd7758bf35906a6e1889e7035988310421f26a3542/colour_demosaicing-0.2.6.tar.gz", hash = "sha256:19e6f56cd4b7ae8340da6e9a0e8f7d06ddae49d86536c63d8c2be98adc617e28", size = 3999027, upload-time = "2024-10-11T02:07:16.341Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7f/55/0bef3f4b9bf61b21ed0bbf4d1535984c07a84b9bba06c87f2be8a260b099/colour_demosaicing-0.2.6-py3-none-any.whl", hash = "sha256:0dc47f732867fb218ee75be108ed8988716563cc5ea4ceb8967bc41a98495bef", size = 3263094, upload-time = "2024-10-11T02:07:21.63Z" },
+]
+
+[[package]]
+name = "colour-science"
+version = "0.4.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "imageio" },
+    { name = "numpy" },
+    { name = "scipy" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5a/29/4ea0082b8ad8c5e18b9ac7cf7ad5f21b70e10976ed53b877773ead3c268d/colour_science-0.4.6.tar.gz", hash = "sha256:be98c2c9b2a5caf0c443431f402599ca9e1cc7d944bb804156803bcc97af4cf0", size = 2228183, upload-time = "2024-10-11T05:49:40.206Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6e/3e/7a39e00d11a58ab6aa75985433ad4b8001eabf965c20280ed22ed1512887/colour_science-0.4.6-py3-none-any.whl", hash = "sha256:4cd90e6d500c16f3c24225da57031e1944de52fec6b484f5bb3d4ea7d0cfee08", size = 2480689, upload-time = "2024-10-11T05:49:45.084Z" },
+]
+
+[[package]]
 name = "distlib"
 version = "0.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -664,6 +695,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
+    { name = "colour-demosaicing" },
     { name = "ffmpeg-python" },
     { name = "pillow" },
     { name = "pydantic" },
@@ -686,6 +718,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8.1.0" },
+    { name = "colour-demosaicing", specifier = ">=0.2.0" },
     { name = "ffmpeg-python", specifier = ">=0.2.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13.0" },
     { name = "pillow", specifier = ">=10.0.0" },

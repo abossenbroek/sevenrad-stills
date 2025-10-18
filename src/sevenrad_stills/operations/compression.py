@@ -6,8 +6,9 @@ color subsampling, and quality levels to achieve various levels of degradation.
 """
 
 import io
-from typing import Any, Literal
+from typing import Any
 
+import numpy as np
 from PIL import Image
 
 from sevenrad_stills.operations.base import BaseImageOperation
@@ -41,6 +42,24 @@ class CompressionOperation(BaseImageOperation):
         """Initialize compression operation."""
         super().__init__("compression")
 
+    def _validate_gamma(self, gamma: object) -> None:
+        """
+        Validate gamma correction parameter.
+
+        Args:
+            gamma: Gamma value to validate
+
+        Raises:
+            ValueError: If gamma is invalid
+
+        """
+        if not isinstance(gamma, (int, float)):
+            msg = f"Gamma must be a number, got {type(gamma)}"
+            raise ValueError(msg)
+        if gamma <= 0:
+            msg = f"Gamma must be positive, got {gamma}"
+            raise ValueError(msg)
+
     def validate_params(self, params: dict[str, Any]) -> None:
         """
         Validate compression operation parameters.
@@ -49,6 +68,7 @@ class CompressionOperation(BaseImageOperation):
         - quality: int (1-100) - JPEG quality level
         - subsampling: int (0, 1, or 2) - Chroma subsampling mode (optional)
         - optimize: bool - Apply JPEG optimization (optional, default True)
+        - gamma: float | None - Gamma correction factor (optional, default None)
 
         Args:
             params: Parameters to validate
@@ -89,12 +109,17 @@ class CompressionOperation(BaseImageOperation):
                 msg = f"Optimize must be a boolean, got {type(optimize)}"
                 raise ValueError(msg)
 
+        # Validate gamma if provided
+        if "gamma" in params and params["gamma"] is not None:
+            self._validate_gamma(params["gamma"])
+
     def apply(self, image: Image.Image, params: dict[str, Any]) -> Image.Image:
         """
-        Apply JPEG compression to image.
+        Apply JPEG compression to image, with optional gamma correction.
 
         The compression is applied by saving to an in-memory buffer and
-        reloading, simulating a real save/load cycle.
+        reloading, simulating a real save/load cycle. If gamma is provided,
+        it is applied before the compression step.
 
         Args:
             image: Input PIL Image
@@ -110,10 +135,22 @@ class CompressionOperation(BaseImageOperation):
         quality: int = params["quality"]
         subsampling: int = params.get("subsampling", 2)  # Default to 4:2:0
         optimize: bool = params.get("optimize", True)
+        gamma: float | None = params.get("gamma")
 
         # Convert to RGB if necessary (JPEG doesn't support transparency)
         if image.mode not in ("RGB", "L"):
             image = image.convert("RGB")
+
+        # Apply gamma correction if specified
+        if gamma is not None:
+            # Gamma correction logic inspired by degradr (MIT License)
+            # https://github.com/nhauber99/degradr
+            img_array = np.array(image, dtype=np.float32) / 255.0
+            gamma_corrected_array = np.power(img_array, gamma)
+            img_uint8 = (np.clip(gamma_corrected_array, 0.0, 1.0) * 255.0).astype(
+                np.uint8
+            )
+            image = Image.fromarray(img_uint8)
 
         # Apply compression via in-memory save/load cycle
         buffer = io.BytesIO()

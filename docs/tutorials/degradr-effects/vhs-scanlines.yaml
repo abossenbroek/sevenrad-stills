@@ -1,0 +1,134 @@
+# Tutorial: VHS Scanlines Effect
+#
+# GOAL: Recreate the iconic VHS tape aesthetic with scanline artifacts,
+# color fringing, and analog degradation reminiscent of 1980s-90s home video.
+#
+# WHAT YOU'LL SEE:
+# - Chromatic aberration (color fringing) at edges
+# - Horizontal scanline noise patterns
+# - Soft Gaussian blur for analog feel
+# - JPEG compression simulating analog-to-digital conversion
+# - Nostalgic VHS playback aesthetic
+#
+# ARTISTIC CONTEXT:
+# VHS tapes degraded through magnetic tape wear, tracking issues, and
+# analog signal noise. This pipeline captures that material decay through
+# digital operations, creating a poetic dialogue between analog memory
+# and digital reconstruction.
+#
+# FRAMES: 45 (3 seconds at 15 fps)
+# OPERATIONS: 4 (chromatic_aberration → noise → blur_gaussian → compression)
+# DIFFICULTY: Intermediate
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=MzJaP-7N9I0"
+
+segment:
+  start: 192.0    # 3 minutes 12 seconds (3m12s)
+  end: 195.0      # 3 minutes 15 seconds (3m15s)
+  interval: 0.0667  # 15 frames per second = 45 total frames
+
+pipeline:
+  steps:
+    # STEP 1: Chromatic Aberration (Color Fringing)
+    # Simulates lens imperfections and magnetic tape misalignment
+    # Red and blue channels shift in opposite directions
+    - name: "vhs_color_fringing"
+      operation: "chromatic_aberration"
+      params:
+        # Subtle horizontal shift creating color separation at edges
+        # VHS had this from head misalignment and tape stretch
+        shift_x: 3
+
+        # Slight vertical shift from tracking errors
+        shift_y: 1
+
+    # STEP 2: Horizontal Scanline Noise
+    # Creates the characteristic horizontal bands of VHS artifacts
+    - name: "vhs_scanlines"
+      operation: "noise"
+      params:
+        # Row mode creates horizontal noise bands
+        # This is the signature VHS look - horizontal lines of interference
+        mode: "row"
+
+        # Moderate amount - visible but not overwhelming
+        # VHS had varying levels depending on tape quality
+        amount: 0.15
+
+        # Seed for reproducible results
+        # Remove this for random variation each run
+        seed: 42
+
+    # STEP 3: Gaussian Blur (Analog Softness)
+    # VHS was never sharp - everything had that soft, analog feel
+    - name: "vhs_softness"
+      operation: "blur_gaussian"
+      params:
+        # Light blur to remove digital sharpness
+        # VHS resolution was ~240-480 lines, never crisp
+        sigma: 1.2
+
+    # STEP 4: JPEG Compression (Analog-to-Digital Artifacts)
+    # Simulates digitizing an old VHS tape to a computer
+    - name: "vhs_digitization"
+      operation: "compression"
+      params:
+        # Medium-low quality typical of 90s VHS captures
+        # Early digital video capture cards had limited quality
+        quality: 40
+
+        # Heavy chroma subsampling (4:2:0)
+        # VHS had terrible color resolution - mostly luminance detail
+        subsampling: 2
+
+output:
+  base_dir: "./tutorials/degradr-effects/vhs-scanlines"
+  intermediate_dir: "./tutorials/degradr-effects/vhs-scanlines/intermediate"
+  final_dir: "./tutorials/degradr-effects/vhs-scanlines/final"
+
+# HOW TO RUN:
+#   sevenrad pipeline docs/tutorials/degradr-effects/vhs-scanlines.yaml
+#
+# OUTPUT:
+#   ./tutorials/degradr-effects/vhs-scanlines/
+#     ├── intermediate/
+#     │   ├── vhs_color_fringing/
+#     │   │   └── vhs_color_fringing_*_step00.jpg (45 images)
+#     │   ├── vhs_scanlines/
+#     │   │   └── vhs_scanlines_*_step01.jpg (45 images)
+#     │   └── vhs_softness/
+#     │       └── vhs_softness_*_step02.jpg (45 images)
+#     └── final/
+#         └── vhs_digitization_*_step03.jpg (45 images)
+#
+# WHAT TO LOOK FOR:
+#   - Color fringing (red/blue separation) at high-contrast edges
+#   - Horizontal bands of noise throughout the image
+#   - Overall soft, slightly blurred appearance
+#   - JPEG blocking combined with scanline patterns
+#   - Loss of color detail while maintaining luminance
+#
+# TRY EXPERIMENTING:
+#   - Increase shift_x to 5-7 for more pronounced color fringing
+#   - Try amount: 0.25 for heavier scanline noise
+#   - Adjust sigma to 2.0 for softer, more degraded look
+#   - Lower quality to 30 for heavier compression artifacts
+#   - Add motion_blur with angle: 0, kernel_size: 5 after blur for tracking issues
+#   - Try seed values or remove seed for different noise patterns
+#
+# TECHNICAL NOTES:
+#   - Chromatic aberration uses scipy.ndimage.shift for channel displacement
+#   - Row noise creates horizontal bands by broadcasting per-row values
+#   - Gaussian blur uses scipy.ndimage.gaussian_filter
+#   - Compression uses PIL JPEG encoder with configurable subsampling
+#
+# POETIC INTERPRETATION:
+#   "The magnetic tape remembers imperfectly,
+#    each playback a palimpsest of loss,
+#    horizontal scars marking time's passage,
+#    colors bleeding like memories at dusk."
+#
+#   This effect explores the materiality of obsolete media - how VHS tapes
+#   physically degraded through use, creating unique aesthetic signatures
+#   that are now nostalgically recreated through digital simulation.

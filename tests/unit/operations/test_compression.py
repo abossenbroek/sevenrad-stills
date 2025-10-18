@@ -1,5 +1,6 @@
 """Tests for compression operation."""
 
+import numpy as np
 import pytest
 from PIL import Image
 from sevenrad_stills.operations.compression import CompressionOperation
@@ -171,3 +172,65 @@ class TestCompressionOperation:
         )
         match_ratio = matching_pixels / len(pixels1)
         assert match_ratio > 0.99  # At least 99% of pixels should match
+
+    def test_invalid_gamma_type_raises_error(
+        self, operation: CompressionOperation
+    ) -> None:
+        """Test that non-numeric gamma raises error."""
+        params = {"quality": 80, "gamma": "1.5"}
+        with pytest.raises(ValueError, match="Gamma must be a number"):
+            operation.validate_params(params)
+
+    def test_invalid_gamma_value_raises_error(
+        self, operation: CompressionOperation
+    ) -> None:
+        """Test that zero or negative gamma raises error."""
+        params = {"quality": 80, "gamma": 0}
+        with pytest.raises(ValueError, match="Gamma must be positive"):
+            operation.validate_params(params)
+
+        params = {"quality": 80, "gamma": -1.0}
+        with pytest.raises(ValueError, match="Gamma must be positive"):
+            operation.validate_params(params)
+
+    def test_valid_gamma_passes_validation(
+        self, operation: CompressionOperation
+    ) -> None:
+        """Test that valid gamma values pass validation."""
+        operation.validate_params({"quality": 80, "gamma": 1.5})
+        operation.validate_params({"quality": 80, "gamma": 0.5})
+        operation.validate_params({"quality": 80, "gamma": None})
+
+    def test_apply_with_gamma_none_is_unchanged(
+        self, operation: CompressionOperation, test_image: Image.Image
+    ) -> None:
+        """Test that gamma=None behaves identically to no gamma parameter."""
+        result_no_gamma = operation.apply(test_image, {"quality": 80})
+        result_gamma_none = operation.apply(test_image, {"quality": 80, "gamma": None})
+        np.testing.assert_array_equal(
+            np.array(result_no_gamma), np.array(result_gamma_none)
+        )
+
+    def test_apply_gamma_darkens_image(
+        self, operation: CompressionOperation, test_image: Image.Image
+    ) -> None:
+        """Test that gamma > 1.0 darkens the image."""
+        base_result = operation.apply(test_image, {"quality": 95})
+        dark_result = operation.apply(test_image, {"quality": 95, "gamma": 2.0})
+
+        mean_base = np.mean(np.array(base_result))
+        mean_dark = np.mean(np.array(dark_result))
+
+        assert mean_dark < mean_base
+
+    def test_apply_gamma_brightens_image(
+        self, operation: CompressionOperation, test_image: Image.Image
+    ) -> None:
+        """Test that gamma < 1.0 brightens the image."""
+        base_result = operation.apply(test_image, {"quality": 95})
+        bright_result = operation.apply(test_image, {"quality": 95, "gamma": 0.5})
+
+        mean_base = np.mean(np.array(base_result))
+        mean_bright = np.mean(np.array(bright_result))
+
+        assert mean_bright > mean_base
