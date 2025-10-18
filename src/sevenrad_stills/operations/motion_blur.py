@@ -5,12 +5,12 @@ Provides directional blur with configurable intensity and angle,
 supporting minimal blur amounts for subtle effects.
 """
 
-from typing import Any
+from typing import Any, cast
 
-import numpy as np  # type: ignore[import-not-found]
+import numpy as np
 from PIL import Image
-from scipy.ndimage import convolve  # type: ignore[import-not-found]
-from skimage.transform import rotate  # type: ignore[import-not-found]
+from scipy.ndimage import convolve
+from skimage.transform import rotate
 
 from sevenrad_stills.operations.base import BaseImageOperation
 
@@ -83,10 +83,7 @@ class MotionBlurOperation(BaseImageOperation):
                 msg = f"Angle must be a number, got {type(angle)}"
                 raise ValueError(msg)
             if not MIN_ANGLE <= angle < MAX_ANGLE:
-                msg = (
-                    f"Angle must be between {MIN_ANGLE} and {MAX_ANGLE}, "
-                    f"got {angle}"
-                )
+                msg = f"Angle must be between {MIN_ANGLE} and {MAX_ANGLE}, got {angle}"
                 raise ValueError(msg)
 
     def _create_motion_kernel(self, size: int, angle: float) -> np.ndarray:
@@ -108,7 +105,7 @@ class MotionBlurOperation(BaseImageOperation):
 
         # Rotate kernel to desired angle
         if angle != 0:
-            kernel = rotate(kernel, angle, resize=False)
+            kernel = cast(np.ndarray, rotate(kernel, angle, resize=False))
 
         return kernel
 
