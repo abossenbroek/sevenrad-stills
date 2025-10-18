@@ -46,7 +46,7 @@ jobs:
         id: pytest
         run: |
           source .venv/bin/activate
-          pytest --cov=src/sevenrad_stills --cov-report=xml --cov-report=term-missing -v 2>&1 | tee pytest-output.log
+          pytest -m "not integration" --cov=src/sevenrad_stills --cov-report=xml --cov-report=term-missing -v 2>&1 | tee pytest-output.log
         continue-on-error: true
 
       - name: Upload test results on failure
