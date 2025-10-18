@@ -23,5 +23,8 @@ repos:
           - ffmpeg-python>=0.2.0
           - click>=8.1.0
           - pytest>=8.0.0
-        args: [--strict]
+          - scikit-image>=0.25.0
+          - colour-demosaicing>=0.2.0
+          - scipy>=1.0.0
+          - numpy>=1.26.0
         exclude: ^tests/
