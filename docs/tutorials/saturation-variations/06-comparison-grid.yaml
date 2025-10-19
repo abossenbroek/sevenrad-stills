@@ -1,0 +1,92 @@
+# Tutorial 06: Saturation Comparison Grid
+#
+# GOAL: Generate multiple saturation levels for side-by-side comparison
+#
+# WHAT YOU'LL SEE:
+# - Progressive saturation levels from grayscale to hyper-saturated
+# - All intermediate steps showing the saturation spectrum
+# - Perfect for understanding parameter ranges
+#
+# FRAMES: 1 (single representative frame)
+# OPERATIONS: 6 (saturation variations)
+# DIFFICULTY: Intermediate
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=MzJaP-7N9I0"
+
+segment:
+  start: 192.5    # Single frame at 3m 12.5s
+  end: 193.5      # 1 second segment
+  interval: 1.0   # Extract 1 frame per second = 1 frame total
+
+pipeline:
+  steps:
+    # Step 1: Grayscale
+    - name: "sat_grayscale"
+      operation: "saturation"
+      params:
+        mode: "fixed"
+        value: -1.0    # 0.0x saturation
+
+    # Step 2: Heavy desaturation
+    - name: "sat_heavy_muted"
+      operation: "saturation"
+      params:
+        mode: "fixed"
+        value: -0.6    # 0.4x saturation
+
+    # Step 3: Subtle desaturation
+    - name: "sat_subtle_muted"
+      operation: "saturation"
+      params:
+        mode: "fixed"
+        value: -0.2    # 0.8x saturation
+
+    # Step 4: Original (no change)
+    - name: "sat_original"
+      operation: "saturation"
+      params:
+        mode: "fixed"
+        value: 0.0     # 1.0x saturation (original)
+
+    # Step 5: Moderate boost
+    - name: "sat_moderate_boost"
+      operation: "saturation"
+      params:
+        mode: "fixed"
+        value: 0.5     # 1.5x saturation
+
+    # Step 6: Heavy boost
+    - name: "sat_heavy_boost"
+      operation: "saturation"
+      params:
+        mode: "fixed"
+        value: 1.5     # 2.5x saturation
+
+output:
+  base_dir: "./tutorials/saturation-variations/06-comparison-grid"
+  intermediate_dir: "./tutorials/saturation-variations/06-comparison-grid/intermediate"
+  final_dir: "./tutorials/saturation-variations/06-comparison-grid/final"
+
+# HOW TO RUN:
+#   sevenrad pipeline docs/tutorials/saturation-variations/06-comparison-grid.yaml
+#
+# OUTPUT:
+#   ./tutorials/saturation-variations/06-comparison-grid/intermediate/
+#     ├── sat_grayscale_*_step00.jpg        (value: -1.0)
+#     ├── sat_heavy_muted_*_step01.jpg      (value: -0.6)
+#     ├── sat_subtle_muted_*_step02.jpg     (value: -0.2)
+#     ├── sat_original_*_step03.jpg         (value:  0.0)
+#     ├── sat_moderate_boost_*_step04.jpg   (value:  0.5)
+#     └── sat_heavy_boost_*_step05.jpg      (value:  1.5)
+#
+# WHAT TO LOOK FOR:
+#   - Progressive increase in saturation across the 6 steps
+#   - Grayscale → muted → original → boosted → hyper spectrum
+#   - How different saturation levels affect mood and perception
+#
+# TRY EXPERIMENTING:
+#   - Modify values to explore different ranges
+#   - Add more intermediate steps
+#   - Combine with other operations (compression, blur, etc.)
+#   - Create a visual grid manually from the 6 outputs
