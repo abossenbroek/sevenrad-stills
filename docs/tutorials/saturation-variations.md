@@ -421,40 +421,6 @@ For adding natural variation across frame sequences:
 
 ---
 
-## Understanding Output Structure
-
-Tutorials follow this non-destructive output structure:
-
-```
-tutorials/saturation-variations/
-├── 01-grayscale/
-│   └── final/
-│       └── grayscale_*_step00.jpg (15 images)
-│
-├── 02-heavily-muted/
-│   └── final/
-│       └── heavily_muted_*_step00.jpg (15 images)
-│
-├── 06-comparison-grid/
-│   └── intermediate/
-│       ├── sat_grayscale_*_step00.jpg (1 image)
-│       ├── sat_heavy_muted_*_step01.jpg (1 image)
-│       ├── sat_subtle_muted_*_step02.jpg (1 image)
-│       ├── sat_original_*_step03.jpg (1 image)
-│       ├── sat_moderate_boost_*_step04.jpg (1 image)
-│       └── sat_heavy_boost_*_step05.jpg (1 image)
-│
-└── ...
-```
-
-**Key points:**
-- Each tutorial saves to its own directory
-- Tutorial 06 uses intermediate directory for all variations
-- Filenames include step number and operation name
-- Original frames never modified
-
----
-
 ## Troubleshooting
 
 ### Colors Not Changing
