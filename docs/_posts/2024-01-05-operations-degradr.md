@@ -510,7 +510,7 @@ Sorted by typical performance (fastest to slowest):
 
 ## Next Steps
 
-- **Try hands-on examples**: [Degradr Effects Tutorial](/posts/tutorial-degradr/)
+- **Try hands-on examples**: [Degradr Effects Tutorial](/posts/tutorial-degradr-effects/)
 - **Explore all parameters**: [Filter Guide](/FILTER_GUIDE/)
 - **Learn YAML system**: [Pipeline Documentation](/PIPELINE/)
 - **Technical details**: Full algorithm documentation in repository technical notes
