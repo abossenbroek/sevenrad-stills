@@ -1,0 +1,50 @@
+# Tutorial 05: Heavy Saturation Boost
+#
+# GOAL: Create extremely saturated, surreal colors
+#
+# WHAT YOU'LL SEE:
+# - Hyper-saturated, intense colors
+# - Surreal, otherworldly appearance
+# - Artistic/abstract aesthetic
+#
+# FRAMES: 15 (1 second at 15 fps)
+# OPERATIONS: 1 (saturation)
+# DIFFICULTY: Beginner
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=MzJaP-7N9I0"
+
+segment:
+  start: 192.0    # 3 minutes 12 seconds
+  end: 193.0      # 3 minutes 13 seconds
+  interval: 0.0667  # 15 frames per second
+
+pipeline:
+  steps:
+    - name: "heavy_boost"
+      operation: "saturation"
+      params:
+        mode: "fixed"
+        value: 1.5    # Factor = 2.5 → 150% more saturated
+
+output:
+  base_dir: "./tutorials/saturation-variations/05-heavy-boost"
+  intermediate_dir: "./tutorials/saturation-variations/05-heavy-boost/intermediate"
+  final_dir: "./tutorials/saturation-variations/05-heavy-boost/final"
+
+# HOW TO RUN:
+#   sevenrad pipeline docs/tutorials/saturation-variations/05-heavy-boost.yaml
+#
+# OUTPUT:
+#   ./tutorials/saturation-variations/05-heavy-boost/final/
+#     └── heavy_boost_*_step00.jpg (15 images)
+#
+# WHAT TO LOOK FOR:
+#   - Extreme color intensity
+#   - Surreal, hyper-real appearance
+#   - Artistic abstraction
+#
+# TRY EXPERIMENTING:
+#   - Try value: 2.0 or higher for even more extreme effect
+#   - Combine with compression for glitch art
+#   - Add noise for digital artifact aesthetic

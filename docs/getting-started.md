@@ -178,24 +178,6 @@ Run it:
 sevenrad pipeline multi-step-pipeline.yaml
 ```
 
-### Output Structure
-
-```
-multi_step_output/
-├── intermediate/
-│   ├── pixelate/
-│   │   └── pixelate_segment_*_step00.jpg (6 images)
-│   └── compress/
-│       └── compress_segment_*_step01.jpg (6 images)
-└── final/
-    └── saturate_segment_*_step02.jpg (6 images)
-```
-
-Each step builds on the previous:
-1. **Original frame** → pixelate → `step00`
-2. **step00** → compress → `step01`
-3. **step01** → saturate → `step02` (final)
-
 ## Using the Repeat Parameter
 
 Apply an operation multiple times with `repeat`:

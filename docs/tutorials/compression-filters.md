@@ -395,38 +395,6 @@ See [Filter Guide](../reference/filter-guide/) for comprehensive parameter range
 
 ---
 
-## Understanding Output Structure
-
-All tutorials follow this non-destructive output structure:
-
-```
-tutorials/
-├── 01-social-media/
-│   ├── intermediate/          # No intermediate steps
-│   └── final/
-│       └── social_media_compression_*_step00.jpg (45 images)
-│
-├── 02-glitch-art/
-│   ├── intermediate/
-│   │   ├── extreme_pixelation/
-│   │   │   └── extreme_pixelation_*_step00.jpg (45 images)
-│   │   └── severe_compression/
-│   │       └── severe_compression_*_step01.jpg (45 images)
-│   └── final/
-│       └── multi_generation_glitch_*_step02.jpg (45 images)
-│
-└── ... (similar structure for other tutorials)
-```
-
-**Key points:**
-- Each step saves to its own directory
-- Intermediate steps preserved for inspection
-- Final output always in `final/` directory
-- Filenames include step number and operation name
-- Original frames never modified
-
----
-
 ## Troubleshooting
 
 ### Not Enough Frames Extracted
