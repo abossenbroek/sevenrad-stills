@@ -405,7 +405,7 @@ pipeline:
 
 ## Next Steps
 
-- **Try hands-on examples**: [Compression Filters Tutorial](/posts/tutorial-compression/)
+- **Try hands-on examples**: [Compression Filters Tutorial](/posts/tutorial-compression-filters/)
 - **Explore all parameters**: [Filter Guide](/FILTER_GUIDE/)
 - **Learn YAML system**: [Pipeline Documentation](/PIPELINE/)
 
