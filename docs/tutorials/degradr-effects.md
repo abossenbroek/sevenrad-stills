@@ -11,9 +11,9 @@ Learn creative image degradation through hands-on examples. These tutorials demo
 
 ## Prerequisites
 
-- sevenrad-stills installed and configured ([Installation Guide](/posts/installation/))
+- sevenrad-stills installed and configured ([Installation Guide](../installation/))
 - YouTube video URL (replace placeholder URLs in examples)
-- Basic familiarity with YAML pipeline system ([YAML Pipeline System](/PIPELINE/))
+- Basic familiarity with YAML pipeline system ([YAML Pipeline System](../reference/pipeline/))
 
 ## Tutorial Overview
 
@@ -68,7 +68,7 @@ sevenrad pipeline docs/tutorials/degradr-effects/05-soft-glow.yaml
 
 **Example Output:**
 
-![Soft Glow Result](/assets/img/posts/05-soft-glow-result.jpg)
+![Soft Glow Result](../../assets/img/posts/05-soft-glow-result.jpg)
 *Result showing soft glow effect (sigma: 2.5)*
 
 #### Pipeline Breakdown
@@ -118,7 +118,7 @@ sevenrad pipeline docs/tutorials/degradr-effects/06-dreamy-bokeh.yaml
 
 **Example Output:**
 
-![Dreamy Bokeh Result](/assets/img/posts/06-dreamy-bokeh-result.jpg)
+![Dreamy Bokeh Result](../../assets/img/posts/06-dreamy-bokeh-result.jpg)
 *Result showing circular bokeh blur effect (radius: 10)*
 
 #### Pipeline Breakdown
@@ -168,7 +168,7 @@ sevenrad pipeline docs/tutorials/degradr-effects/07-film-grain.yaml
 
 **Example Output:**
 
-![Film Grain Result](/assets/img/posts/07-film-grain-result.jpg)
+![Film Grain Result](../../assets/img/posts/07-film-grain-result.jpg)
 *Result showing Gaussian noise film grain (amount: 0.05)*
 
 #### Pipeline Breakdown
@@ -222,7 +222,7 @@ sevenrad pipeline docs/tutorials/degradr-effects/08-vhs-lines.yaml
 
 **Example Output:**
 
-![VHS Lines Result](/assets/img/posts/08-vhs-lines-result.jpg)
+![VHS Lines Result](../../assets/img/posts/08-vhs-lines-result.jpg)
 *Result showing VHS scan line artifacts (mode: row, amount: 0.1)*
 
 #### Pipeline Breakdown
@@ -276,7 +276,7 @@ sevenrad pipeline docs/tutorials/degradr-effects/09-color-shift.yaml
 
 **Example Output:**
 
-![Color Shift Result](/assets/img/posts/09-color-shift-result.jpg)
+![Color Shift Result](../../assets/img/posts/09-color-shift-result.jpg)
 *Result showing chromatic aberration with horizontal RGB fringing*
 
 #### Pipeline Breakdown
@@ -329,7 +329,7 @@ sevenrad pipeline docs/tutorials/degradr-effects/10-digital-mosaic.yaml
 
 **Example Output:**
 
-![Digital Mosaic Result](/assets/img/posts/10-digital-mosaic-result.jpg)
+![Digital Mosaic Result](../../assets/img/posts/10-digital-mosaic-result.jpg)
 *Result showing Bayer filter sensor artifacts (pattern: RGGB)*
 
 #### Pipeline Breakdown
@@ -735,14 +735,14 @@ After completing these tutorials:
 2. **Create custom pipelines** - Combine operations in new ways
 3. **Try different segments** - Process various video sections
 4. **Read comprehensive docs**:
-   - [Operations Reference](/posts/operations-degradr/) - Detailed operation specs
-   - [Filter Guide](/FILTER_GUIDE/) - All parameter ranges
-   - [YAML Pipeline System](/PIPELINE/) - Complete pipeline documentation
+   - [Operations Reference](../operations/degradr/) - Detailed operation specs
+   - [Filter Guide](../reference/filter-guide/) - All parameter ranges
+   - [YAML Pipeline System](../reference/pipeline/) - Complete pipeline documentation
 
 ## Questions or Issues?
 
-- Check [Operations Reference](/posts/operations-degradr/) for parameter details
-- Review [Filter Guide](/FILTER_GUIDE/) for comprehensive ranges
+- Check [Operations Reference](../operations/degradr/) for parameter details
+- Review [Filter Guide](../reference/filter-guide/) for comprehensive ranges
 - Report issues on the [project repository](https://github.com/abossenbroek/sevenrad-stills)
 
 ---

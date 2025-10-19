@@ -130,7 +130,7 @@ output:
 
 Adjusts image color saturation using either fixed or random values.
 
-> **Note**: For comprehensive documentation on compression and degradation operations, see the [Compression Filters Tutorial](/posts/tutorial-compression-filters/) and [Filter Guide](/FILTER_GUIDE/).
+> **Note**: For comprehensive documentation on compression and degradation operations, see the [Compression Filters Tutorial](../tutorials/compression-filters/) and [Filter Guide](filter-guide/).
 
 #### Fixed Mode
 
@@ -174,7 +174,7 @@ Apply random saturation variation within a range.
 
 ### Compression & Degradation Operations
 
-Four operations provide comprehensive control over image degradation and compression artifacts. See [Compression Filters Tutorial](/posts/tutorial-compression-filters/) for hands-on examples and [Filter Guide](/FILTER_GUIDE/) for complete parameter documentation.
+Four operations provide comprehensive control over image degradation and compression artifacts. See [Compression Filters Tutorial](../tutorials/compression-filters/) for hands-on examples and [Filter Guide](filter-guide/) for complete parameter documentation.
 
 #### Compression
 
@@ -359,7 +359,7 @@ See the `examples/` directory for complete pipeline examples:
 
 ### Interactive Tutorials
 
-For hands-on learning with the compression filters, see the [Compression Filters Tutorial](/posts/tutorial-compression-filters/):
+For hands-on learning with the compression filters, see the [Compression Filters Tutorial](../tutorials/compression-filters/):
 
 1. **Social Media Compression** - Simulate sharing degradation
 2. **Glitch Art Aesthetic** - Extreme digital artifacts
