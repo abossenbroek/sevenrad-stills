@@ -1,12 +1,8 @@
 ---
-title: "Tutorial: Compression & Degradation Filters"
-date: 2024-01-04 12:00:00 +0000
-categories: [Tutorial, Compression]
-tags: [tutorial, compression, degradation, glitch-art, vhs, hands-on, beginner, intermediate, advanced]
-image:
-  path: /assets/img/posts/02-glitch-art-final.jpg
-  alt: Glitch art result from compression tutorial
-toc: true
+title: Compression Filters
+parent: Tutorials
+nav_order: 1
+has_toc: true
 ---
 
 # Tutorial: Compression & Degradation Filters
@@ -15,9 +11,9 @@ This tutorial demonstrates the compression and degradation filters through hands
 
 ## Prerequisites
 
-- sevenrad-stills installed and configured ([Installation Guide](/posts/installation/))
+- sevenrad-stills installed and configured ([Installation Guide](../installation/))
 - YouTube video URL (replace placeholder URLs in examples)
-- Basic familiarity with YAML pipeline system ([YAML Pipeline System](/PIPELINE/))
+- Basic familiarity with YAML pipeline system ([YAML Pipeline System](../reference/pipeline/))
 
 ## Tutorial Overview
 
@@ -70,7 +66,7 @@ sevenrad pipeline docs/tutorials/compression-filters/01-social-media.yaml
 
 **Example Output:**
 
-![Social Media Compression Result](/assets/img/posts/01-social-media-result.jpg)
+![Social Media Compression Result]({{ site.baseurl }}/tutorials/compression-filters/images/01-social-media-result.jpg)
 *Result after 4 social media sharing cycles (quality 75 → 45)*
 
 ### Pipeline Breakdown
@@ -131,16 +127,16 @@ sevenrad pipeline docs/tutorials/compression-filters/02-glitch-art.yaml
 
 **Visual Progression:**
 
-![Glitch Art Original](/assets/img/posts/02-glitch-art-original.jpg)
+![Glitch Art Original]({{ site.baseurl }}/tutorials/compression-filters/images/02-glitch-art-original.jpg)
 *Original extracted frame*
 
-![Glitch Art Step 1](/assets/img/posts/02-glitch-art-step1-pixelation.jpg)
+![Glitch Art Step 1]({{ site.baseurl }}/tutorials/compression-filters/images/02-glitch-art-step1-pixelation.jpg)
 *After Step 1: Extreme Pixelation (scale: 0.08)*
 
-![Glitch Art Step 2](/assets/img/posts/02-glitch-art-step2-compression.jpg)
+![Glitch Art Step 2]({{ site.baseurl }}/tutorials/compression-filters/images/02-glitch-art-step2-compression.jpg)
 *After Step 2: Severe Compression (quality: 5)*
 
-![Glitch Art Final](/assets/img/posts/02-glitch-art-final.jpg)
+![Glitch Art Final]({{ site.baseurl }}/tutorials/compression-filters/images/02-glitch-art-final.jpg)
 *Final Result: After 12 multi-generation compression cycles*
 
 ### Pipeline Breakdown
@@ -218,7 +214,7 @@ sevenrad pipeline docs/tutorials/compression-filters/03-vhs-analog.yaml
 
 **Example Output:**
 
-![VHS Analog Result](/assets/img/posts/03-vhs-analog-result.jpg)
+![VHS Analog Result]({{ site.baseurl }}/tutorials/compression-filters/images/03-vhs-analog-result.jpg)
 *Final result showing VHS/analog video tape aesthetic*
 
 ### Pipeline Breakdown
@@ -292,13 +288,13 @@ sevenrad pipeline docs/tutorials/compression-filters/04-progressive-cascade.yaml
 
 **Progressive Degradation Stages:**
 
-![Stage 1: Light](/assets/img/posts/04-cascade-stage1-light.jpg)
+![Stage 1: Light]({{ site.baseurl }}/tutorials/compression-filters/images/04-cascade-stage1-light.jpg)
 *Stage 1: Light compression (quality: 70, subsampling: 1)*
 
-![Stage 2: Moderate](/assets/img/posts/04-cascade-stage2-moderate.jpg)
+![Stage 2: Moderate]({{ site.baseurl }}/tutorials/compression-filters/images/04-cascade-stage2-moderate.jpg)
 *Stage 2: Moderate compression applied twice (quality: 50, repeat: 2)*
 
-![Stage 3: Heavy](/assets/img/posts/04-cascade-stage3-heavy.jpg)
+![Stage 3: Heavy]({{ site.baseurl }}/tutorials/compression-filters/images/04-cascade-stage3-heavy.jpg)
 *Stage 3: Heavy multi-generation compression (5 iterations, exponential decay)*
 
 ### Pipeline Breakdown
@@ -395,7 +391,7 @@ steps:
 - Motion blur kernel_size: 20-50
 - Multi_compress iterations: 10-20
 
-See [Filter Guide](/FILTER_GUIDE/) for comprehensive parameter ranges.
+See [Filter Guide](../reference/filter-guide/) for comprehensive parameter ranges.
 
 ---
 
@@ -492,14 +488,14 @@ After completing these tutorials:
 3. **Try different segments** - Process various video sections
 4. **Share results** - Document your findings and aesthetics
 5. **Read comprehensive docs**:
-   - [Filter Guide](/FILTER_GUIDE/) - All parameter ranges and effects
-   - [YAML Pipeline System](/PIPELINE/) - Complete pipeline system documentation
-   - [Operations Reference](/posts/operations-compression/) - Detailed operation specs
+   - [Filter Guide](../reference/filter-guide/) - All parameter ranges and effects
+   - [YAML Pipeline System](../reference/pipeline/) - Complete pipeline system documentation
+   - [Operations Reference](../operations/compression/) - Detailed operation specs
 
 ## Questions or Issues?
 
-- Check [Filter Guide](/FILTER_GUIDE/) for parameter recommendations
-- Review [YAML Pipeline System](/PIPELINE/) for pipeline system details
+- Check [Filter Guide](../reference/filter-guide/) for parameter recommendations
+- Review [YAML Pipeline System](../reference/pipeline/) for pipeline system details
 - Report issues on the [project repository](https://github.com/abossenbroek/sevenrad-stills)
 
 ---

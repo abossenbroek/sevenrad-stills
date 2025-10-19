@@ -1,1 +1,0 @@
-../../_posts/2024-01-06-tutorial-degradr-effects.md
