@@ -94,9 +94,6 @@ pytest tests/integration/ -v -s
 
 ## Artistic Context
 
-### Poetry Style (Dominique de Groen)
-Clinical, marketing-inspired language and exhaustive repetition to offer a critical analysis of late-stage capitalism, ecological crises, and exploitation, creating a bizarre and alienating yet recognizable reality.
-
 ### Image Style
 Images are edited in non-destructive mode, always tracking different steps with incremental filenames.
 
