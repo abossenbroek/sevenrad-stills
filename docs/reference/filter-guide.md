@@ -1,8 +1,8 @@
 ---
-layout: page
 title: Filter Guide
-permalink: /FILTER_GUIDE/
-toc: true
+parent: Reference
+nav_order: 1
+has_toc: true
 ---
 
 # Filter Guide: Compression & Degradation Effects

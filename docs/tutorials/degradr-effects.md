@@ -1,9 +1,8 @@
 ---
-title: "Tutorial: Degradr Effects"
-date: 2024-01-06 12:00:00 +0000
-categories: [Tutorial, Degradr]
-tags: [tutorial, degradr, blur, noise, chromatic-aberration, bayer-filter, hands-on, beginner, intermediate, advanced]
-toc: true
+title: Degradr Effects
+parent: Tutorials
+nav_order: 2
+has_toc: true
 ---
 
 # Tutorial: Degradr Effects
@@ -12,9 +11,9 @@ Learn creative image degradation through hands-on examples. These tutorials demo
 
 ## Prerequisites
 
-- sevenrad-stills installed and configured ([Installation Guide](/posts/installation/))
+- sevenrad-stills installed and configured ([Installation Guide](../installation/))
 - YouTube video URL (replace placeholder URLs in examples)
-- Basic familiarity with YAML pipeline system ([YAML Pipeline System](/PIPELINE/))
+- Basic familiarity with YAML pipeline system ([YAML Pipeline System](../reference/pipeline/))
 
 ## Tutorial Overview
 
@@ -67,6 +66,11 @@ sevenrad pipeline docs/tutorials/degradr-effects/05-soft-glow.yaml
 - Gentle glow effect
 - Atmospheric quality
 
+**Example Output:**
+
+![Soft Glow Result]({{ site.baseurl }}/assets/img/tutorials/degradr/05-soft-glow-result.jpg)
+*Result showing soft glow effect (sigma: 2.5)*
+
 #### Pipeline Breakdown
 
 ```yaml
@@ -112,6 +116,11 @@ sevenrad pipeline docs/tutorials/degradr-effects/06-dreamy-bokeh.yaml
 - Distinct circular smoothing
 - Professional photography feel
 
+**Example Output:**
+
+![Dreamy Bokeh Result]({{ site.baseurl }}/assets/img/tutorials/degradr/06-dreamy-bokeh-result.jpg)
+*Result showing circular bokeh blur effect (radius: 10)*
+
 #### Pipeline Breakdown
 
 ```yaml
@@ -156,6 +165,11 @@ sevenrad pipeline docs/tutorials/degradr-effects/07-film-grain.yaml
 - Film-like grain texture
 - Organic, analog feel
 - Consistent across frame
+
+**Example Output:**
+
+![Film Grain Result]({{ site.baseurl }}/assets/img/tutorials/degradr/07-film-grain-result.jpg)
+*Result showing Gaussian noise film grain (amount: 0.05)*
 
 #### Pipeline Breakdown
 
@@ -206,6 +220,11 @@ sevenrad pipeline docs/tutorials/degradr-effects/08-vhs-lines.yaml
 - VHS playback degradation
 - Distinctive retro look
 
+**Example Output:**
+
+![VHS Lines Result]({{ site.baseurl }}/assets/img/tutorials/degradr/08-vhs-lines-result.jpg)
+*Result showing VHS scan line artifacts (mode: row, amount: 0.1)*
+
 #### Pipeline Breakdown
 
 ```yaml
@@ -255,6 +274,11 @@ sevenrad pipeline docs/tutorials/degradr-effects/09-color-shift.yaml
 - Optical aberration look
 - Lens imperfection simulation
 
+**Example Output:**
+
+![Color Shift Result]({{ site.baseurl }}/assets/img/tutorials/degradr/09-color-shift-result.jpg)
+*Result showing chromatic aberration with horizontal RGB fringing*
+
 #### Pipeline Breakdown
 
 ```yaml
@@ -302,6 +326,11 @@ sevenrad pipeline docs/tutorials/degradr-effects/10-digital-mosaic.yaml
 - Moiré patterns on details
 - Slight softening
 - Digital sensor look
+
+**Example Output:**
+
+![Digital Mosaic Result]({{ site.baseurl }}/assets/img/tutorials/degradr/10-digital-mosaic-result.jpg)
+*Result showing Bayer filter sensor artifacts (pattern: RGGB)*
 
 #### Pipeline Breakdown
 
@@ -433,6 +462,17 @@ sevenrad pipeline docs/tutorials/degradr-effects/02-sensor-noise.yaml
 - Digital compression
 - High-ISO camera look
 
+**Visual Progression:**
+
+![Sensor Mosaic Step]({{ site.baseurl }}/assets/img/tutorials/degradr/02-sensor-step1-mosaic.jpg)
+*After Step 1: Bayer Filter (pattern: RGGB)*
+
+![Sensor Grain Step]({{ site.baseurl }}/assets/img/tutorials/degradr/02-sensor-step2-grain.jpg)
+*After Step 2: Gaussian Noise (amount: 0.04)*
+
+![Sensor Final Result]({{ site.baseurl }}/assets/img/tutorials/degradr/02-sensor-final.jpg)
+*Final Result: After camera compression (quality: 85)*
+
 #### Pipeline Breakdown
 
 ```yaml
@@ -499,6 +539,17 @@ sevenrad pipeline docs/tutorials/degradr-effects/03-lens-artifacts.yaml
 - Color fringing at edges
 - Enhanced saturation
 - Vintage lens character
+
+**Visual Progression:**
+
+![Bokeh Step]({{ site.baseurl }}/assets/img/tutorials/degradr/03-lens-step1-bokeh.jpg)
+*After Step 1: Circular Bokeh Blur (radius: 10)*
+
+![Chromatic Aberration Step]({{ site.baseurl }}/assets/img/tutorials/degradr/03-lens-step2-fringing.jpg)
+*After Step 2: Chromatic Aberration (shift_x: 4, shift_y: 2)*
+
+![Vintage Lens Final]({{ site.baseurl }}/assets/img/tutorials/degradr/03-lens-final.jpg)
+*Final Result: After saturation boost (value: 1.3)*
 
 #### Pipeline Breakdown
 
@@ -662,7 +713,7 @@ tutorials/degradr-effects/
 **Solutions**:
 - Reduce parameter values
 - Remove operations from pipeline
-- Check parameter ranges in [Operations Reference](/posts/operations-degradr/)
+- Check parameter ranges in [Operations Reference](../operations/degradr/)
 
 ### Processing Too Slow
 
@@ -706,14 +757,14 @@ After completing these tutorials:
 2. **Create custom pipelines** - Combine operations in new ways
 3. **Try different segments** - Process various video sections
 4. **Read comprehensive docs**:
-   - [Operations Reference](/posts/operations-degradr/) - Detailed operation specs
-   - [Filter Guide](/FILTER_GUIDE/) - All parameter ranges
-   - [YAML Pipeline System](/PIPELINE/) - Complete pipeline documentation
+   - [Operations Reference](../operations/degradr/) - Detailed operation specs
+   - [Filter Guide](../reference/filter-guide/) - All parameter ranges
+   - [YAML Pipeline System](../reference/pipeline/) - Complete pipeline documentation
 
 ## Questions or Issues?
 
-- Check [Operations Reference](/posts/operations-degradr/) for parameter details
-- Review [Filter Guide](/FILTER_GUIDE/) for comprehensive ranges
+- Check [Operations Reference](../operations/degradr/) for parameter details
+- Review [Filter Guide](../reference/filter-guide/) for comprehensive ranges
 - Report issues on the [project repository](https://github.com/abossenbroek/sevenrad-stills)
 
 ---
