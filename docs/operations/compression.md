@@ -404,10 +404,10 @@ pipeline:
 
 ## Next Steps
 
-- **Try hands-on examples**: [Compression Filters Tutorial](/posts/tutorial-compression-filters/)
-- **Explore all parameters**: [Filter Guide](/FILTER_GUIDE/)
-- **Learn YAML system**: [Pipeline Documentation](/PIPELINE/)
+- **Try hands-on examples**: [Compression Filters Tutorial](../tutorials/compression-filters/)
+- **Explore all parameters**: [Filter Guide](../reference/filter-guide/)
+- **Learn YAML system**: [Pipeline Documentation](../reference/pipeline/)
 
 ---
 
-For detailed parameter ranges and visual examples, see the complete [Filter Guide](/FILTER_GUIDE/).
+For detailed parameter ranges and visual examples, see the complete [Filter Guide](../reference/filter-guide/).

@@ -691,7 +691,7 @@ tutorials/degradr-effects/
 **Solutions**:
 - Reduce parameter values
 - Remove operations from pipeline
-- Check parameter ranges in [Operations Reference](/posts/operations-degradr/)
+- Check parameter ranges in [Operations Reference](../operations/degradr/)
 
 ### Processing Too Slow
 
