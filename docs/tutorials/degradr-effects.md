@@ -462,6 +462,17 @@ sevenrad pipeline docs/tutorials/degradr-effects/02-sensor-noise.yaml
 - Digital compression
 - High-ISO camera look
 
+**Visual Progression:**
+
+![Sensor Mosaic Step](../../assets/img/tutorials/degradr/02-sensor-step1-mosaic.jpg)
+*After Step 1: Bayer Filter (pattern: RGGB)*
+
+![Sensor Grain Step](../../assets/img/tutorials/degradr/02-sensor-step2-grain.jpg)
+*After Step 2: Gaussian Noise (amount: 0.04)*
+
+![Sensor Final Result](../../assets/img/tutorials/degradr/02-sensor-final.jpg)
+*Final Result: After camera compression (quality: 85)*
+
 #### Pipeline Breakdown
 
 ```yaml
@@ -528,6 +539,17 @@ sevenrad pipeline docs/tutorials/degradr-effects/03-lens-artifacts.yaml
 - Color fringing at edges
 - Enhanced saturation
 - Vintage lens character
+
+**Visual Progression:**
+
+![Bokeh Step](../../assets/img/tutorials/degradr/03-lens-step1-bokeh.jpg)
+*After Step 1: Circular Bokeh Blur (radius: 10)*
+
+![Chromatic Aberration Step](../../assets/img/tutorials/degradr/03-lens-step2-fringing.jpg)
+*After Step 2: Chromatic Aberration (shift_x: 4, shift_y: 2)*
+
+![Vintage Lens Final](../../assets/img/tutorials/degradr/03-lens-final.jpg)
+*Final Result: After saturation boost (value: 1.3)*
 
 #### Pipeline Breakdown
 
