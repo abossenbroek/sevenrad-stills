@@ -1,12 +1,8 @@
 ---
-title: "Tutorial: Compression & Degradation Filters"
-date: 2024-01-04 12:00:00 +0000
-categories: [Tutorial, Compression]
-tags: [tutorial, compression, degradation, glitch-art, vhs, hands-on, beginner, intermediate, advanced]
-image:
-  path: /assets/img/posts/02-glitch-art-final.jpg
-  alt: Glitch art result from compression tutorial
-toc: true
+title: Compression Filters
+parent: Tutorials
+nav_order: 1
+has_toc: true
 ---
 
 # Tutorial: Compression & Degradation Filters

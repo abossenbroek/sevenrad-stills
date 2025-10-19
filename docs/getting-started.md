@@ -1,9 +1,6 @@
 ---
 title: Getting Started
-date: 2024-01-02 12:00:00 +0000
-categories: [Guide, Tutorial]
-tags: [quickstart, pipeline, yaml, basics]
-pin: true
+nav_order: 2
 ---
 
 # Getting Started
@@ -12,7 +9,7 @@ This guide walks you through creating your first image transformation pipeline w
 
 ## Prerequisites
 
-- Complete the [Installation](/posts/installation/) guide
+- Complete the [Installation](installation) guide
 - Virtual environment activated
 - Basic understanding of YAML syntax
 
@@ -296,16 +293,16 @@ This creates three distinct degradation stages visible in intermediate outputs.
 Now that you understand the basics:
 
 1. **Explore Operations**:
-   - [Compression & Degradation](/posts/operations-compression/)
-   - [Degradr Effects](/posts/operations-degradr/)
+   - [Compression & Degradation](operations/compression)
+   - [Degradr Effects](operations/degradr)
 
 2. **Follow Tutorials**:
-   - [Compression Filters Tutorial](/posts/tutorial-compression-filters/)
-   - [Degradr Effects Tutorial](/posts/tutorial-degradr-effects/)
+   - [Compression Filters Tutorial](tutorials/compression-filters)
+   - [Degradr Effects Tutorial](tutorials/degradr-effects)
 
 3. **Read Reference Docs**:
-   - [YAML Pipeline System](/PIPELINE/)
-   - [Filter Guide](/FILTER_GUIDE/)
+   - [YAML Pipeline System](reference/pipeline)
+   - [Filter Guide](reference/filter-guide)
 
 ## Troubleshooting
 
@@ -336,4 +333,4 @@ Ensure operation names are correct:
 
 ---
 
-**You're ready to explore!** Continue with the [Compression Filters Tutorial](/posts/tutorial-compression-filters/) for hands-on examples.
+**You're ready to explore!** Continue with the [Compression Filters Tutorial](tutorials/compression-filters) for hands-on examples.

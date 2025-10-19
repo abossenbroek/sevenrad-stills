@@ -1,8 +1,8 @@
 ---
-layout: page
 title: YAML Pipeline System
-permalink: /PIPELINE/
-toc: true
+parent: Reference
+nav_order: 2
+has_toc: true
 ---
 
 # YAML Pipeline System

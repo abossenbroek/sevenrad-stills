@@ -1,9 +1,8 @@
 ---
-title: "Operations: Compression & Degradation"
-date: 2024-01-03 12:00:00 +0000
-categories: [Operations, Reference]
-tags: [compression, multi-compress, downscale, motion-blur, repeat, degradation]
-toc: true
+title: Compression Operations
+parent: Operations
+nav_order: 1
+has_toc: true
 ---
 
 # Compression & Degradation Operations

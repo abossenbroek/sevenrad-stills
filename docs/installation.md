@@ -1,9 +1,6 @@
 ---
 title: Installation
-date: 2024-01-01 12:00:00 +0000
-categories: [Guide, Setup]
-tags: [installation, mise, setup, prerequisites]
-pin: true
+nav_order: 1
 ---
 
 # Installation
@@ -191,9 +188,9 @@ pre-commit autoupdate
 
 ## Next Steps
 
-- [Getting Started](/posts/getting-started/) - Run your first pipeline
-- [Operations Reference](/posts/operations-compression/) - Learn about available transformations
-- [Tutorials](/posts/tutorial-compression-filters/) - Hands-on examples
+- [Getting Started](getting-started) - Run your first pipeline
+- [Operations Reference](operations/compression) - Learn about available transformations
+- [Tutorials](tutorials) - Hands-on examples
 
 ## Development Setup
 
@@ -222,4 +219,4 @@ uv pip install -e ".[dev]"
 
 ---
 
-**Installation complete!** You're ready to start transforming images. Continue to [Getting Started](/posts/getting-started/) for your first pipeline.
+**Installation complete!** You're ready to start transforming images. Continue to [Getting Started](getting-started) for your first pipeline.

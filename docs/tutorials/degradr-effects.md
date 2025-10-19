@@ -1,9 +1,8 @@
 ---
-title: "Tutorial: Degradr Effects"
-date: 2024-01-06 12:00:00 +0000
-categories: [Tutorial, Degradr]
-tags: [tutorial, degradr, blur, noise, chromatic-aberration, bayer-filter, hands-on, beginner, intermediate, advanced]
-toc: true
+title: Degradr Effects
+parent: Tutorials
+nav_order: 2
+has_toc: true
 ---
 
 # Tutorial: Degradr Effects
@@ -67,6 +66,11 @@ sevenrad pipeline docs/tutorials/degradr-effects/05-soft-glow.yaml
 - Gentle glow effect
 - Atmospheric quality
 
+**Example Output:**
+
+![Soft Glow Result](/assets/img/posts/05-soft-glow-result.jpg)
+*Result showing soft glow effect (sigma: 2.5)*
+
 #### Pipeline Breakdown
 
 ```yaml
@@ -112,6 +116,11 @@ sevenrad pipeline docs/tutorials/degradr-effects/06-dreamy-bokeh.yaml
 - Distinct circular smoothing
 - Professional photography feel
 
+**Example Output:**
+
+![Dreamy Bokeh Result](/assets/img/posts/06-dreamy-bokeh-result.jpg)
+*Result showing circular bokeh blur effect (radius: 10)*
+
 #### Pipeline Breakdown
 
 ```yaml
@@ -156,6 +165,11 @@ sevenrad pipeline docs/tutorials/degradr-effects/07-film-grain.yaml
 - Film-like grain texture
 - Organic, analog feel
 - Consistent across frame
+
+**Example Output:**
+
+![Film Grain Result](/assets/img/posts/07-film-grain-result.jpg)
+*Result showing Gaussian noise film grain (amount: 0.05)*
 
 #### Pipeline Breakdown
 
@@ -206,6 +220,11 @@ sevenrad pipeline docs/tutorials/degradr-effects/08-vhs-lines.yaml
 - VHS playback degradation
 - Distinctive retro look
 
+**Example Output:**
+
+![VHS Lines Result](/assets/img/posts/08-vhs-lines-result.jpg)
+*Result showing VHS scan line artifacts (mode: row, amount: 0.1)*
+
 #### Pipeline Breakdown
 
 ```yaml
@@ -255,6 +274,11 @@ sevenrad pipeline docs/tutorials/degradr-effects/09-color-shift.yaml
 - Optical aberration look
 - Lens imperfection simulation
 
+**Example Output:**
+
+![Color Shift Result](/assets/img/posts/09-color-shift-result.jpg)
+*Result showing chromatic aberration with horizontal RGB fringing*
+
 #### Pipeline Breakdown
 
 ```yaml
@@ -302,6 +326,11 @@ sevenrad pipeline docs/tutorials/degradr-effects/10-digital-mosaic.yaml
 - Moiré patterns on details
 - Slight softening
 - Digital sensor look
+
+**Example Output:**
+
+![Digital Mosaic Result](/assets/img/posts/10-digital-mosaic-result.jpg)
+*Result showing Bayer filter sensor artifacts (pattern: RGGB)*
 
 #### Pipeline Breakdown
 
