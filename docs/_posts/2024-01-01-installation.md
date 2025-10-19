@@ -193,7 +193,7 @@ pre-commit autoupdate
 
 - [Getting Started](/posts/getting-started/) - Run your first pipeline
 - [Operations Reference](/posts/operations-compression/) - Learn about available transformations
-- [Tutorials](/posts/tutorial-compression/) - Hands-on examples
+- [Tutorials](/posts/tutorial-compression-filters/) - Hands-on examples
 
 ## Development Setup
 
