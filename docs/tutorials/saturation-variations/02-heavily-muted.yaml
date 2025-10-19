@@ -1,0 +1,50 @@
+# Tutorial 02: Heavily Muted Colors
+#
+# GOAL: Create heavily desaturated, washed-out aesthetic
+#
+# WHAT YOU'LL SEE:
+# - Very muted, desaturated color palette
+# - Washed-out appearance
+# - Documentary or melancholic mood
+#
+# FRAMES: 15 (1 second at 15 fps)
+# OPERATIONS: 1 (saturation)
+# DIFFICULTY: Beginner
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=MzJaP-7N9I0"
+
+segment:
+  start: 192.0    # 3 minutes 12 seconds
+  end: 193.0      # 3 minutes 13 seconds
+  interval: 0.0667  # 15 frames per second
+
+pipeline:
+  steps:
+    - name: "heavily_muted"
+      operation: "saturation"
+      params:
+        mode: "fixed"
+        value: -0.6    # Factor = 0.4 → heavily desaturated
+
+output:
+  base_dir: "./tutorials/saturation-variations/02-heavily-muted"
+  intermediate_dir: "./tutorials/saturation-variations/02-heavily-muted/intermediate"
+  final_dir: "./tutorials/saturation-variations/02-heavily-muted/final"
+
+# HOW TO RUN:
+#   sevenrad pipeline docs/tutorials/saturation-variations/02-heavily-muted.yaml
+#
+# OUTPUT:
+#   ./tutorials/saturation-variations/02-heavily-muted/final/
+#     └── heavily_muted_*_step00.jpg (15 images)
+#
+# WHAT TO LOOK FOR:
+#   - Muted, washed-out colors
+#   - Reduced color intensity
+#   - Melancholic or contemplative mood
+#
+# TRY EXPERIMENTING:
+#   - Adjust value to -0.4 for less extreme muting
+#   - Combine with film grain (noise operation)
+#   - Add slight blur for vintage film look

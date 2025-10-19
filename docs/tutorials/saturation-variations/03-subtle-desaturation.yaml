@@ -1,0 +1,50 @@
+# Tutorial 03: Subtle Desaturation
+#
+# GOAL: Apply subtle, natural-looking desaturation
+#
+# WHAT YOU'LL SEE:
+# - Slightly muted colors
+# - Natural, film-like appearance
+# - Subtle reduction in color intensity
+#
+# FRAMES: 15 (1 second at 15 fps)
+# OPERATIONS: 1 (saturation)
+# DIFFICULTY: Beginner
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=MzJaP-7N9I0"
+
+segment:
+  start: 192.0    # 3 minutes 12 seconds
+  end: 193.0      # 3 minutes 13 seconds
+  interval: 0.0667  # 15 frames per second
+
+pipeline:
+  steps:
+    - name: "subtle_desaturation"
+      operation: "saturation"
+      params:
+        mode: "fixed"
+        value: -0.2    # Factor = 0.8 → slightly muted
+
+output:
+  base_dir: "./tutorials/saturation-variations/03-subtle-desaturation"
+  intermediate_dir: "./tutorials/saturation-variations/03-subtle-desaturation/intermediate"
+  final_dir: "./tutorials/saturation-variations/03-subtle-desaturation/final"
+
+# HOW TO RUN:
+#   sevenrad pipeline docs/tutorials/saturation-variations/03-subtle-desaturation.yaml
+#
+# OUTPUT:
+#   ./tutorials/saturation-variations/03-subtle-desaturation/final/
+#     └── subtle_desaturation_*_step00.jpg (15 images)
+#
+# WHAT TO LOOK FOR:
+#   - Subtle color muting
+#   - Natural, film-like quality
+#   - Maintains most color information
+#
+# TRY EXPERIMENTING:
+#   - Compare with original (value: 0.0)
+#   - Try value: -0.15 for even more subtle effect
+#   - Combine with soft glow (blur_gaussian)

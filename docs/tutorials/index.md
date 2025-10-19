@@ -14,3 +14,4 @@ Each tutorial processes video segments to create transformed image sequences, ex
 
 - **[Compression Filters](compression-filters)** - Multi-generation compression, pixelation, and motion blur for glitch art and nostalgic effects
 - **[Degradr Effects](degradr-effects)** - Blur, noise, chromatic aberration, and sensor artifacts for analog and digital aesthetics
+- **[Saturation Variations](saturation-variations)** - Color saturation adjustments from grayscale to hyper-saturated for mood and artistic effects
