@@ -300,8 +300,8 @@ Now that you understand the basics:
    - [Degradr Effects](/posts/operations-degradr/)
 
 2. **Follow Tutorials**:
-   - [Compression Filters Tutorial](/posts/tutorial-compression/)
-   - [Degradr Effects Tutorial](/posts/tutorial-degradr/)
+   - [Compression Filters Tutorial](/posts/tutorial-compression-filters/)
+   - [Degradr Effects Tutorial](/posts/tutorial-degradr-effects/)
 
 3. **Read Reference Docs**:
    - [YAML Pipeline System](/PIPELINE/)
@@ -336,4 +336,4 @@ Ensure operation names are correct:
 
 ---
 
-**You're ready to explore!** Continue with the [Compression Filters Tutorial](/posts/tutorial-compression/) for hands-on examples.
+**You're ready to explore!** Continue with the [Compression Filters Tutorial](/posts/tutorial-compression-filters/) for hands-on examples.
