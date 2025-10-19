@@ -32,6 +32,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          lfs: true
 
       - name: Setup Pages
         id: pages
@@ -60,18 +61,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: build-error-logs
-          path: |
-            docs/Gemfile.lock
-            docs/_site
-          retention-days: 7
-
-
-      - name: Upload error logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-error-logs
+          name: build-error-logs-${{ github.run_id }}
           path: |
             docs/Gemfile.lock
             docs/_site
