@@ -68,7 +68,7 @@ sevenrad pipeline docs/tutorials/degradr-effects/05-soft-glow.yaml
 
 **Example Output:**
 
-![Soft Glow Result](../../assets/img/tutorials/degradr/05-soft-glow-result.jpg)
+![Soft Glow Result]({{ site.baseurl }}/assets/img/tutorials/degradr/05-soft-glow-result.jpg)
 *Result showing soft glow effect (sigma: 2.5)*
 
 #### Pipeline Breakdown
@@ -118,7 +118,7 @@ sevenrad pipeline docs/tutorials/degradr-effects/06-dreamy-bokeh.yaml
 
 **Example Output:**
 
-![Dreamy Bokeh Result](../../assets/img/tutorials/degradr/06-dreamy-bokeh-result.jpg)
+![Dreamy Bokeh Result]({{ site.baseurl }}/assets/img/tutorials/degradr/06-dreamy-bokeh-result.jpg)
 *Result showing circular bokeh blur effect (radius: 10)*
 
 #### Pipeline Breakdown
@@ -168,7 +168,7 @@ sevenrad pipeline docs/tutorials/degradr-effects/07-film-grain.yaml
 
 **Example Output:**
 
-![Film Grain Result](../../assets/img/tutorials/degradr/07-film-grain-result.jpg)
+![Film Grain Result]({{ site.baseurl }}/assets/img/tutorials/degradr/07-film-grain-result.jpg)
 *Result showing Gaussian noise film grain (amount: 0.05)*
 
 #### Pipeline Breakdown
@@ -222,7 +222,7 @@ sevenrad pipeline docs/tutorials/degradr-effects/08-vhs-lines.yaml
 
 **Example Output:**
 
-![VHS Lines Result](../../assets/img/tutorials/degradr/08-vhs-lines-result.jpg)
+![VHS Lines Result]({{ site.baseurl }}/assets/img/tutorials/degradr/08-vhs-lines-result.jpg)
 *Result showing VHS scan line artifacts (mode: row, amount: 0.1)*
 
 #### Pipeline Breakdown
@@ -276,7 +276,7 @@ sevenrad pipeline docs/tutorials/degradr-effects/09-color-shift.yaml
 
 **Example Output:**
 
-![Color Shift Result](../../assets/img/tutorials/degradr/09-color-shift-result.jpg)
+![Color Shift Result]({{ site.baseurl }}/assets/img/tutorials/degradr/09-color-shift-result.jpg)
 *Result showing chromatic aberration with horizontal RGB fringing*
 
 #### Pipeline Breakdown
@@ -329,7 +329,7 @@ sevenrad pipeline docs/tutorials/degradr-effects/10-digital-mosaic.yaml
 
 **Example Output:**
 
-![Digital Mosaic Result](../../assets/img/tutorials/degradr/10-digital-mosaic-result.jpg)
+![Digital Mosaic Result]({{ site.baseurl }}/assets/img/tutorials/degradr/10-digital-mosaic-result.jpg)
 *Result showing Bayer filter sensor artifacts (pattern: RGGB)*
 
 #### Pipeline Breakdown
@@ -464,13 +464,13 @@ sevenrad pipeline docs/tutorials/degradr-effects/02-sensor-noise.yaml
 
 **Visual Progression:**
 
-![Sensor Mosaic Step](../../assets/img/tutorials/degradr/02-sensor-step1-mosaic.jpg)
+![Sensor Mosaic Step]({{ site.baseurl }}/assets/img/tutorials/degradr/02-sensor-step1-mosaic.jpg)
 *After Step 1: Bayer Filter (pattern: RGGB)*
 
-![Sensor Grain Step](../../assets/img/tutorials/degradr/02-sensor-step2-grain.jpg)
+![Sensor Grain Step]({{ site.baseurl }}/assets/img/tutorials/degradr/02-sensor-step2-grain.jpg)
 *After Step 2: Gaussian Noise (amount: 0.04)*
 
-![Sensor Final Result](../../assets/img/tutorials/degradr/02-sensor-final.jpg)
+![Sensor Final Result]({{ site.baseurl }}/assets/img/tutorials/degradr/02-sensor-final.jpg)
 *Final Result: After camera compression (quality: 85)*
 
 #### Pipeline Breakdown
@@ -542,13 +542,13 @@ sevenrad pipeline docs/tutorials/degradr-effects/03-lens-artifacts.yaml
 
 **Visual Progression:**
 
-![Bokeh Step](../../assets/img/tutorials/degradr/03-lens-step1-bokeh.jpg)
+![Bokeh Step]({{ site.baseurl }}/assets/img/tutorials/degradr/03-lens-step1-bokeh.jpg)
 *After Step 1: Circular Bokeh Blur (radius: 10)*
 
-![Chromatic Aberration Step](../../assets/img/tutorials/degradr/03-lens-step2-fringing.jpg)
+![Chromatic Aberration Step]({{ site.baseurl }}/assets/img/tutorials/degradr/03-lens-step2-fringing.jpg)
 *After Step 2: Chromatic Aberration (shift_x: 4, shift_y: 2)*
 
-![Vintage Lens Final](../../assets/img/tutorials/degradr/03-lens-final.jpg)
+![Vintage Lens Final]({{ site.baseurl }}/assets/img/tutorials/degradr/03-lens-final.jpg)
 *Final Result: After saturation boost (value: 1.3)*
 
 #### Pipeline Breakdown
