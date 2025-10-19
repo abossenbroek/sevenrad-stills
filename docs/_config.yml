@@ -35,6 +35,14 @@ theme: just-the-docs
 # Color scheme - Ghost in the Shell-inspired cyberpunk aesthetic
 color_scheme: ghost-in-shell
 
+# Default layouts for content
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "default"
+
 # Enable search functionality
 search_enabled: true
 search:
