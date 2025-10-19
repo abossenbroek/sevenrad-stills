@@ -16,8 +16,8 @@ source:
 
 segment:
   start: 192.5    # Single frame at 3m 12.5s
-  end: 192.5067
-  interval: 1.0   # Extract just 1 frame
+  end: 193.5      # 1 second segment
+  interval: 1.0   # Extract 1 frame per second = 1 frame total
 
 pipeline:
   steps:

@@ -50,8 +50,8 @@ class SaturationOperation(BaseImageOperation):
         if not isinstance(value, (int, float)):
             msg = f"Value must be a number, got {type(value)}"
             raise ValueError(msg)
-        if value < 0:
-            msg = f"Value must be non-negative, got {value}"
+        if value < -1.0:
+            msg = f"Value must be >= -1.0 (for complete grayscale), got {value}"
             raise ValueError(msg)
 
     def _validate_random_params(self, params: dict[str, Any]) -> None:
