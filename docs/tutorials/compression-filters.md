@@ -66,7 +66,7 @@ sevenrad pipeline docs/tutorials/compression-filters/01-social-media.yaml
 
 **Example Output:**
 
-![Social Media Compression Result](images/01-social-media-result.jpg)
+![Social Media Compression Result]({{ site.baseurl }}/tutorials/compression-filters/images/01-social-media-result.jpg)
 *Result after 4 social media sharing cycles (quality 75 → 45)*
 
 ### Pipeline Breakdown
@@ -127,16 +127,16 @@ sevenrad pipeline docs/tutorials/compression-filters/02-glitch-art.yaml
 
 **Visual Progression:**
 
-![Glitch Art Original](images/02-glitch-art-original.jpg)
+![Glitch Art Original]({{ site.baseurl }}/tutorials/compression-filters/images/02-glitch-art-original.jpg)
 *Original extracted frame*
 
-![Glitch Art Step 1](images/02-glitch-art-step1-pixelation.jpg)
+![Glitch Art Step 1]({{ site.baseurl }}/tutorials/compression-filters/images/02-glitch-art-step1-pixelation.jpg)
 *After Step 1: Extreme Pixelation (scale: 0.08)*
 
-![Glitch Art Step 2](images/02-glitch-art-step2-compression.jpg)
+![Glitch Art Step 2]({{ site.baseurl }}/tutorials/compression-filters/images/02-glitch-art-step2-compression.jpg)
 *After Step 2: Severe Compression (quality: 5)*
 
-![Glitch Art Final](images/02-glitch-art-final.jpg)
+![Glitch Art Final]({{ site.baseurl }}/tutorials/compression-filters/images/02-glitch-art-final.jpg)
 *Final Result: After 12 multi-generation compression cycles*
 
 ### Pipeline Breakdown
@@ -214,7 +214,7 @@ sevenrad pipeline docs/tutorials/compression-filters/03-vhs-analog.yaml
 
 **Example Output:**
 
-![VHS Analog Result](images/03-vhs-analog-result.jpg)
+![VHS Analog Result]({{ site.baseurl }}/tutorials/compression-filters/images/03-vhs-analog-result.jpg)
 *Final result showing VHS/analog video tape aesthetic*
 
 ### Pipeline Breakdown
@@ -288,13 +288,13 @@ sevenrad pipeline docs/tutorials/compression-filters/04-progressive-cascade.yaml
 
 **Progressive Degradation Stages:**
 
-![Stage 1: Light](images/04-cascade-stage1-light.jpg)
+![Stage 1: Light]({{ site.baseurl }}/tutorials/compression-filters/images/04-cascade-stage1-light.jpg)
 *Stage 1: Light compression (quality: 70, subsampling: 1)*
 
-![Stage 2: Moderate](images/04-cascade-stage2-moderate.jpg)
+![Stage 2: Moderate]({{ site.baseurl }}/tutorials/compression-filters/images/04-cascade-stage2-moderate.jpg)
 *Stage 2: Moderate compression applied twice (quality: 50, repeat: 2)*
 
-![Stage 3: Heavy](images/04-cascade-stage3-heavy.jpg)
+![Stage 3: Heavy]({{ site.baseurl }}/tutorials/compression-filters/images/04-cascade-stage3-heavy.jpg)
 *Stage 3: Heavy multi-generation compression (5 iterations, exponential decay)*
 
 ### Pipeline Breakdown
