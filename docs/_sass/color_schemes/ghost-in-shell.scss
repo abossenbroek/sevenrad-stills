@@ -1,0 +1,31 @@
+// Ghost in the Shell-inspired cyberpunk color scheme
+// Based on the iconic anime's purple-cyan-blue palette
+
+// Ghost in the Shell cyberpunk colors
+$gits-deep-purple: #372c5c;     // Deep purple backgrounds
+$gits-dark-blue: #08448c;        // Dark blue accents
+$gits-muted-purple: #5a5b9c;     // Muted purple-blue borders
+$gits-cyan: #04acee;             // Bright cyan links
+$gits-purple: #8474fb;           // Light purple buttons
+$gits-neon-cyan: #34EDF3;        // Fluorescent cyan highlights
+$gits-dusty-pink: #ccacbc;       // Dusty pink text accents
+
+// Override theme variables with Ghost in the Shell palette
+$body-background-color: $gits-deep-purple;
+$sidebar-color: $gits-dark-blue;
+$link-color: $gits-cyan;
+$btn-primary-color: $gits-purple;
+$base-button-color: $gits-muted-purple;
+
+// Code blocks with darker purple
+$code-background-color: #2f2650;
+$border-color: $gits-muted-purple;
+
+// Search and navigation
+$search-background-color: #06346b;
+$search-result-preview-color: $gits-dusty-pink;
+$nav-child-link-color: $gits-neon-cyan;
+
+// Tables and content
+$table-background-color: #322955;
+$feedback-color: $gits-purple;

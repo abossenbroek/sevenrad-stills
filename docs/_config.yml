@@ -32,8 +32,8 @@ social:
 # Just the Docs theme
 theme: just-the-docs
 
-# Color scheme - preserve dark mode aesthetic
-color_scheme: dark
+# Color scheme - Ghost in the Shell-inspired cyberpunk aesthetic
+color_scheme: ghost-in-shell
 
 # Enable search functionality
 search_enabled: true
