@@ -52,7 +52,7 @@ docs-check-images:
 			echo "⚠️  Image not referenced: $$basename"; \
 		fi; \
 	done
-	@for img in $$(grep -o '{{ site.baseurl }}/assets/img/tutorials/degradr/[^"]*' docs/tutorials/degradr-effects.md | sed 's|{{ site.baseurl }}/assets/img/tutorials/degradr/||'); do \
+	@for img in $$(grep -o '{{ site.baseurl }}/assets/img/tutorials/degradr/[^)]*' docs/tutorials/degradr-effects.md | sed 's|{{ site.baseurl }}/assets/img/tutorials/degradr/||'); do \
 		if [ ! -f "docs/assets/img/tutorials/degradr/$$img" ]; then \
 			echo "❌ Missing image: $$img"; \
 		fi; \
