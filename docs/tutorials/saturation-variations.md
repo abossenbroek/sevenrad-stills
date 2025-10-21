@@ -65,6 +65,8 @@ sevenrad pipeline docs/tutorials/saturation-variations/01-grayscale.yaml
 - Tonal relationships preserved
 - Focus shifts to form, texture, and composition
 
+![Grayscale Result]({{ site.baseurl }}/tutorials/saturation-variations/images/01-grayscale-result.jpg)
+
 ### Pipeline Breakdown
 
 ```yaml
@@ -104,6 +106,8 @@ sevenrad pipeline docs/tutorials/saturation-variations/02-heavily-muted.yaml
 - Washed-out appearance
 - Melancholic or contemplative mood
 - Colors present but heavily subdued
+
+![Heavily Muted Result]({{ site.baseurl }}/tutorials/saturation-variations/images/02-heavily-muted-result.jpg)
 
 ### Pipeline Breakdown
 
@@ -145,6 +149,8 @@ sevenrad pipeline docs/tutorials/saturation-variations/03-subtle-desaturation.ya
 - Subtle reduction in color intensity
 - Most color information preserved
 
+![Subtle Desaturation Result]({{ site.baseurl }}/tutorials/saturation-variations/images/03-subtle-desaturation-result.jpg)
+
 ### Pipeline Breakdown
 
 ```yaml
@@ -185,6 +191,8 @@ sevenrad pipeline docs/tutorials/saturation-variations/04-moderate-boost.yaml
 - Commercial/advertising aesthetic
 - Punchy without appearing unnatural
 
+![Moderate Boost Result]({{ site.baseurl }}/tutorials/saturation-variations/images/04-moderate-boost-result.jpg)
+
 ### Pipeline Breakdown
 
 ```yaml
@@ -224,6 +232,8 @@ sevenrad pipeline docs/tutorials/saturation-variations/05-heavy-boost.yaml
 - Surreal, otherworldly appearance
 - Artistic/abstract aesthetic
 - Colors beyond natural appearance
+
+![Heavy Boost Result]({{ site.baseurl }}/tutorials/saturation-variations/images/05-heavy-boost-result.jpg)
 
 ### Pipeline Breakdown
 
@@ -271,6 +281,26 @@ sevenrad pipeline docs/tutorials/saturation-variations/06-comparison-grid.yaml
 - Complete saturation spectrum in one pipeline
 - Side-by-side comparison of all levels
 - Progressive increase from grayscale to hyper-saturated
+
+**Saturation Progression:**
+
+![Grayscale (-1.0)]({{ site.baseurl }}/tutorials/saturation-variations/images/06-grid-grayscale.jpg)
+*Step 1: Grayscale (value: -1.0)*
+
+![Heavy Muted (-0.6)]({{ site.baseurl }}/tutorials/saturation-variations/images/06-grid-heavy-muted.jpg)
+*Step 2: Heavy Muted (value: -0.6)*
+
+![Subtle Muted (-0.2)]({{ site.baseurl }}/tutorials/saturation-variations/images/06-grid-subtle-muted.jpg)
+*Step 3: Subtle Muted (value: -0.2)*
+
+![Original (0.0)]({{ site.baseurl }}/tutorials/saturation-variations/images/06-grid-original.jpg)
+*Step 4: Original (value: 0.0)*
+
+![Moderate Boost (0.5)]({{ site.baseurl }}/tutorials/saturation-variations/images/06-grid-moderate-boost.jpg)
+*Step 5: Moderate Boost (value: 0.5)*
+
+![Heavy Boost (1.5)]({{ site.baseurl }}/tutorials/saturation-variations/images/06-grid-heavy-boost.jpg)
+*Step 6: Heavy Boost (value: 1.5)*
 
 ### Pipeline Breakdown
 
@@ -388,40 +418,6 @@ For adding natural variation across frame sequences:
 - `0.2 to 0.4`: Moderate boost (commercial, vibrant)
 - `0.5 to 0.8`: Strong boost (advertising, punchy)
 - `1.0+`: Extreme boost (surreal, artistic, psychedelic)
-
----
-
-## Understanding Output Structure
-
-Tutorials follow this non-destructive output structure:
-
-```
-tutorials/saturation-variations/
-├── 01-grayscale/
-│   └── final/
-│       └── grayscale_*_step00.jpg (15 images)
-│
-├── 02-heavily-muted/
-│   └── final/
-│       └── heavily_muted_*_step00.jpg (15 images)
-│
-├── 06-comparison-grid/
-│   └── intermediate/
-│       ├── sat_grayscale_*_step00.jpg (1 image)
-│       ├── sat_heavy_muted_*_step01.jpg (1 image)
-│       ├── sat_subtle_muted_*_step02.jpg (1 image)
-│       ├── sat_original_*_step03.jpg (1 image)
-│       ├── sat_moderate_boost_*_step04.jpg (1 image)
-│       └── sat_heavy_boost_*_step05.jpg (1 image)
-│
-└── ...
-```
-
-**Key points:**
-- Each tutorial saves to its own directory
-- Tutorial 06 uses intermediate directory for all variations
-- Filenames include step number and operation name
-- Original frames never modified
 
 ---
 
