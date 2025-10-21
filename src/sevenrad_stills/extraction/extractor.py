@@ -5,6 +5,7 @@ Extracts frames from video files using ffmpeg-python.
 """
 
 from pathlib import Path
+from typing import Any
 
 import ffmpeg
 
@@ -60,11 +61,14 @@ class FrameExtractor:
 
         try:
             # Build ffmpeg command with optional time range
-            input_kwargs = {}
+            input_kwargs: dict[str, Any] = {}
             if start_time is not None:
                 input_kwargs["ss"] = start_time
             if end_time is not None and start_time is not None:
                 input_kwargs["t"] = end_time - start_time
+
+            # Add strict compliance flag to handle non-standard YUV formats
+            input_kwargs["strict"] = "unofficial"
 
             stream = ffmpeg.input(str(video_info.file_path), **input_kwargs)
 
@@ -80,13 +84,25 @@ class FrameExtractor:
                 # Select filter: use select with expression
                 stream = ffmpeg.filter(stream, "select", filter_str)
 
+            # Add color space conversion for robust video format handling
+            # Convert limited-range YUV to full-range RGB for compatibility
+            stream = ffmpeg.filter(
+                stream, "scale", in_range="limited", out_range="full"
+            )
+            stream = ffmpeg.filter(stream, "format", pix_fmts="rgb24")
+
             # Set output options
-            output_args = {
-                "q:v": 2,  # Quality for JPEG
+            output_args: dict[str, Any] = {
                 "fps_mode": "vfr",  # Variable frame rate (replaces deprecated vsync)
+                "strict": "unofficial",  # Handle non-standard YUV formats in encoder
             }
+
+            # Configure output format-specific options
             if self.settings.output_format == "jpg":
                 output_args["q:v"] = int((100 - self.settings.jpeg_quality) / 10)
+            else:
+                # For PNG or other formats, use high quality
+                output_args["q:v"] = 2
 
             # Run ffmpeg
             stream = ffmpeg.output(

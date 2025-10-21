@@ -386,6 +386,20 @@ sevenrad pipeline docs/tutorials/degradr-effects/01-vhs-scanlines.yaml
 - Compression artifacts
 - Authentic VHS tape feel
 
+**Visual Progression:**
+
+![VHS Color Shift Step]({{ site.baseurl }}/assets/img/tutorials/degradr/01-vhs-step1-color-shift.jpg)
+*After Step 1: Chromatic Aberration (shift_x: 3)*
+
+![VHS Scanlines Step]({{ site.baseurl }}/assets/img/tutorials/degradr/01-vhs-step2-scanlines.jpg)
+*After Step 2: Row Noise Scan Lines (amount: 0.08)*
+
+![VHS Blur Step]({{ site.baseurl }}/assets/img/tutorials/degradr/01-vhs-step3-blur.jpg)
+*After Step 3: Gaussian Blur (sigma: 1.5)*
+
+![VHS Final Result]({{ site.baseurl }}/assets/img/tutorials/degradr/01-vhs-final.jpg)
+*Final Result: After analog compression (quality: 35)*
+
 #### Pipeline Breakdown
 
 ```yaml
@@ -668,29 +682,6 @@ pattern: "RGGB"  # Standard (most cameras)
 pattern: "BGGR"  # Alternative
 pattern: "GRBG"  # Alternative
 pattern: "GBRG"  # Alternative
-```
-
----
-
-## Output Structure
-
-All tutorials follow this non-destructive structure:
-
-```
-tutorials/degradr-effects/
-├── soft-glow/
-│   └── final/
-│       └── soft_glow_segment_*_step00.jpg (105 images)
-│
-├── vhs-scanlines/
-│   ├── intermediate/
-│   │   ├── color_shift/
-│   │   ├── scanlines/
-│   │   └── vhs_blur/
-│   └── final/
-│       └── vhs_compress_*_step03.jpg (45 images)
-│
-└── ... (other tutorials)
 ```
 
 ---
