@@ -1,0 +1,138 @@
+# Tutorial 03: Late Mission Degradation
+#
+# GOAL: Simulate a satellite in years 15+ of operation with accumulated
+# radiation damage, calibration drift, and occasional transmission errors.
+#
+# WHAT YOU'LL SEE:
+# - Significant salt & pepper noise from detector damage
+# - Strong vertical banding from calibration drift
+# - Rectangular corruption blocks from buffer upsets
+# - Localized JPEG compression artifacts from encoder stress
+# - Combined realistic late-mission image quality
+#
+# FRAMES: 45 (3 seconds at 15 fps)
+# OPERATIONS: 4 (salt_pepper, corduroy, buffer_corruption, compression_artifact)
+# DIFFICULTY: Intermediate
+# SCENARIO: Low Earth Orbit (LEO), Years 15+
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=MzJaP-7N9I0"
+
+segment:
+  start: 192.0    # 3 minutes 12 seconds (3m12s)
+  end: 195.0      # 3 minutes 15 seconds (3m15s)
+  interval: 0.0667  # 15 frames per second = 45 total frames
+
+pipeline:
+  steps:
+    # Step 1: Heavy cosmic ray damage
+    # Accumulated radiation damage to detector array
+    - name: "radiation_damage"
+      operation: "salt_pepper"
+      params:
+        # 0.2% of pixels affected (accumulated damage)
+        amount: 0.002
+
+        # More "salt" (hot pixels) than "pepper" (dead pixels)
+        # Radiation damage creates permanent hot pixels
+        salt_vs_pepper: 0.7
+
+        # Reproducible results
+        seed: 42
+
+    # Step 2: Severe detector calibration drift
+    # 15+ years of thermal cycling and radiation exposure
+    - name: "calibration_drift"
+      operation: "corduroy"
+      params:
+        # Strong brightness variation (±14%)
+        strength: 0.7
+
+        # Vertical stripes (push-broom scanner)
+        orientation: "vertical"
+
+        # 60% of detector elements drifted
+        density: 0.6
+
+        # Reproducible results
+        seed: 100
+
+    # Step 3: Memory buffer corruption
+    # Single event upsets from cosmic rays hitting RAM
+    - name: "memory_upsets"
+      operation: "buffer_corruption"
+      params:
+        # 3 corrupted memory blocks
+        tile_count: 3
+
+        # XOR corruption (bit flips)
+        corruption_type: "xor"
+
+        # Moderate corruption intensity
+        severity: 0.5
+
+        # Small to medium tiles (5-15% of image)
+        tile_size_range: [0.05, 0.15]
+
+        # Reproducible results
+        seed: 200
+
+    # Step 4: On-board compression failures
+    # Encoder aging and thermal stress
+    - name: "encoder_stress"
+      operation: "compression_artifact"
+      params:
+        # 5 tiles with compression failures
+        tile_count: 5
+
+        # Severe JPEG quality (heavy artifacts)
+        quality: 8
+
+        # Variable tile sizes (3-20% of image)
+        tile_size_range: [0.03, 0.20]
+
+        # Reproducible results
+        seed: 300
+
+output:
+  base_dir: "./tutorials/satellite-malfunctions/03-late-mission"
+  intermediate_dir: "./tutorials/satellite-malfunctions/03-late-mission/intermediate"
+  final_dir: "./tutorials/satellite-malfunctions/03-late-mission/final"
+
+# HOW TO RUN:
+#   sevenrad pipeline docs/tutorials/satellite-malfunctions/03-late-mission.yaml
+#
+# OUTPUT:
+#   ./tutorials/satellite-malfunctions/03-late-mission/final/
+#     └── encoder_stress_*_step03.jpg (45 images with all artifacts)
+#
+#   ./tutorials/satellite-malfunctions/03-late-mission/intermediate/
+#     └── radiation_damage_*_step00.jpg (just cosmic ray damage)
+#     └── calibration_drift_*_step01.jpg (+ striping)
+#     └── memory_upsets_*_step02.jpg (+ buffer corruption)
+#
+# WHAT TO LOOK FOR:
+#   - Dense random white pixels (hot pixels from radiation)
+#   - Strong vertical banding across entire image
+#   - Rectangular "glitch blocks" with wrong colors or inverted pixels
+#   - Blocky JPEG artifacts (8x8 DCT blocks) in random regions
+#   - Combined effect showing realistic aging satellite
+#
+# SCIENTIFIC CONTEXT:
+#   Late mission parameters based on:
+#   - Landsat 5 final years (28+ years operational)
+#   - Terra MODIS degradation (20+ years)
+#   - NOAA AVHRR long-duration missions
+#
+# AGING MECHANISMS:
+#   - Radiation damage: Accumulated hot/dead pixels
+#   - Calibration drift: Thermal cycling over 15+ years
+#   - Memory upsets: Normal cosmic ray SEU rate
+#   - Encoder stress: Hardware aging and thermal issues
+#
+# TRY EXPERIMENTING:
+#   - Reduce amount to 0.001 for less cosmic ray noise
+#   - Increase strength to 0.9 for extreme banding
+#   - Change corruption_type to "channel_shuffle" for color chaos
+#   - Adjust quality to 3 for more severe compression
+#   - Add band_swap operation for packet header errors
