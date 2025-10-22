@@ -1,3 +1,10 @@
+---
+title: Degradr Operations Implementation
+parent: Technical Notes
+nav_order: 1
+has_toc: true
+---
+
 # Degradr Operations: Technical Implementation
 
 ## Overview

@@ -1,0 +1,72 @@
+# Tutorial 01: Landsat 7 SLC-Off Simulation
+#
+# GOAL: Recreate the iconic Landsat 7 Enhanced Thematic Mapper Plus (ETM+)
+# Scan Line Corrector failure that occurred on May 31, 2003.
+#
+# WHAT YOU'LL SEE:
+# - Diagonal wedge-shaped gaps in zig-zag pattern
+# - Gaps widen from center to edges (symmetric)
+# - No gaps at center (nadir point)
+# - ~22% data loss at top/bottom edges (historical value)
+# - Black-filled gaps showing missing data
+#
+# FRAMES: 45 (3 seconds at 15 fps)
+# OPERATIONS: 1 (slc_off)
+# DIFFICULTY: Beginner
+# HISTORICAL: Matches real Landsat 7 failure geometry
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=MzJaP-7N9I0"
+
+segment:
+  start: 192.0    # 3 minutes 12 seconds (3m12s)
+  end: 195.0      # 3 minutes 15 seconds (3m15s)
+  interval: 0.0667  # 15 frames per second = 45 total frames
+
+pipeline:
+  steps:
+    # Simulate Landsat 7 SLC-Off failure
+    # Uses historical gap_width value (0.22 = 22% maximum gap)
+    - name: "slc_off_failure"
+      operation: "slc_off"
+      params:
+        # Historical value: 22% data loss at edges
+        gap_width: 0.22
+
+        # Scan period ~14 rows (ETM+ geometry)
+        scan_period: 14
+
+        # Black fill shows missing data
+        fill_mode: "black"
+
+output:
+  base_dir: "./tutorials/satellite-malfunctions/01-landsat7-slcoff"
+  intermediate_dir: "./tutorials/satellite-malfunctions/01-landsat7-slcoff/intermediate"
+  final_dir: "./tutorials/satellite-malfunctions/01-landsat7-slcoff/final"
+
+# HOW TO RUN:
+#   sevenrad pipeline docs/tutorials/satellite-malfunctions/01-landsat7-slcoff.yaml
+#
+# OUTPUT:
+#   ./tutorials/satellite-malfunctions/01-landsat7-slcoff/final/
+#     └── slc_off_failure_*_step00.jpg (45 images)
+#
+# WHAT TO LOOK FOR:
+#   - Diagonal gaps alternating left/right (zig-zag pattern)
+#   - Gaps are narrow at center, wide at top/bottom edges
+#   - Sharp wedge pattern characteristic of real SLC-Off
+#   - Black gaps showing where satellite missed data
+#
+# SCIENTIFIC ACCURACY:
+#   This simulation matches the real Landsat 7 ETM+ SLC-Off failure:
+#   - May 31, 2003 mechanical failure
+#   - 22% maximum gap width at scene edges
+#   - 14% average data loss across scene
+#   - Diagonal geometry from uncompensated forward motion
+#   - Still operational 21+ years later with this artifact
+#
+# TRY EXPERIMENTING:
+#   - Change fill_mode to "mean" for interpolated gaps
+#   - Reduce gap_width to 0.15 for less severe failure
+#   - Adjust scan_period to 10 for tighter gap pattern
+#   - Use fill_mode: "white" for inverted aesthetic

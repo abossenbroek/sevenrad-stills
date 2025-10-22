@@ -1,0 +1,185 @@
+# Tutorial 04: Satellite Glitch Art
+#
+# GOAL: Create extreme digital aesthetics using exaggerated satellite
+# malfunction parameters for artistic expression and visual experimentation.
+#
+# WHAT YOU'LL SEE:
+# - Massive SLC-Off gaps creating abstract geometry
+# - Color channel chaos from band swaps
+# - Heavy buffer corruption creating digital artifacts
+# - Extreme corduroy striping
+# - Dense cosmic ray noise creating texture
+# - Severe compression creating blocky abstraction
+#
+# FRAMES: 45 (3 seconds at 15 fps)
+# OPERATIONS: 6 (all satellite operations)
+# DIFFICULTY: Advanced
+# AESTHETIC: Digital glitch art, data moshing, satellite failure art
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=MzJaP-7N9I0"
+
+segment:
+  start: 192.0    # 3 minutes 12 seconds (3m12s)
+  end: 195.0      # 3 minutes 15 seconds (3m15s)
+  interval: 0.0667  # 15 frames per second = 45 total frames
+
+pipeline:
+  steps:
+    # Step 1: Extreme SLC-Off gaps
+    # Exaggerated for dramatic diagonal wedges
+    - name: "massive_gaps"
+      operation: "slc_off"
+      params:
+        # 50% maximum gap (vs 22% historical)
+        gap_width: 0.5
+
+        # Tight scan pattern
+        scan_period: 8
+
+        # White fill for high contrast
+        fill_mode: "white"
+
+    # Step 2: Channel chaos from band swaps
+    # Heavy packet corruption creating color chaos
+    - name: "color_chaos"
+      operation: "band_swap"
+      params:
+        # 15 swapped tiles
+        tile_count: 15
+
+        # BGR permutation (dramatic color shift)
+        permutation: "BGR"
+
+        # Large tiles (10-30% of image)
+        tile_size_range: [0.10, 0.30]
+
+        # Reproducible results
+        seed: 42
+
+    # Step 3: Memory corruption mayhem
+    # Severe buffer corruption
+    - name: "buffer_mayhem"
+      operation: "buffer_corruption"
+      params:
+        # 10 corrupted blocks
+        tile_count: 10
+
+        # Channel shuffle for color destruction
+        corruption_type: "channel_shuffle"
+
+        # Maximum severity
+        severity: 1.0
+
+        # Variable tile sizes
+        tile_size_range: [0.05, 0.25]
+
+        # Reproducible results
+        seed: 100
+
+    # Step 4: Heavy detector banding
+    # Extreme calibration failure
+    - name: "extreme_banding"
+      operation: "corduroy"
+      params:
+        # Maximum brightness variation (±20%)
+        strength: 1.0
+
+        # Horizontal stripes for variety
+        orientation: "horizontal"
+
+        # 80% of lines affected
+        density: 0.8
+
+        # Reproducible results
+        seed: 200
+
+    # Step 5: Dense cosmic ray texture
+    # Artificial "static" texture
+    - name: "static_texture"
+      operation: "salt_pepper"
+      params:
+        # 0.5% of pixels (dense texture)
+        amount: 0.005
+
+        # Equal salt/pepper
+        salt_vs_pepper: 0.5
+
+        # Reproducible results
+        seed: 300
+
+    # Step 6: Severe compression destruction
+    # Maximum JPEG artifacts
+    - name: "compression_destruction"
+      operation: "compression_artifact"
+      params:
+        # 20 corrupted tiles
+        tile_count: 20
+
+        # Minimum quality (maximum artifacts)
+        quality: 1
+
+        # Large varied tiles
+        tile_size_range: [0.08, 0.25]
+
+        # Reproducible results
+        seed: 400
+
+output:
+  base_dir: "./tutorials/satellite-malfunctions/04-glitch-art"
+  intermediate_dir: "./tutorials/satellite-malfunctions/04-glitch-art/intermediate"
+  final_dir: "./tutorials/satellite-malfunctions/04-glitch-art/final"
+
+# HOW TO RUN:
+#   sevenrad pipeline docs/tutorials/satellite-malfunctions/04-glitch-art.yaml
+#
+# OUTPUT:
+#   ./tutorials/satellite-malfunctions/04-glitch-art/final/
+#     └── compression_destruction_*_step05.jpg (45 images, full glitch)
+#
+#   ./tutorials/satellite-malfunctions/04-glitch-art/intermediate/
+#     └── massive_gaps_*_step00.jpg (diagonal wedges)
+#     └── color_chaos_*_step01.jpg (+ band swaps)
+#     └── buffer_mayhem_*_step02.jpg (+ buffer corruption)
+#     └── extreme_banding_*_step03.jpg (+ corduroy)
+#     └── static_texture_*_step04.jpg (+ salt & pepper)
+#
+# WHAT TO LOOK FOR:
+#   - Massive white diagonal gaps creating abstract geometry
+#   - Wrong color channels creating surreal palette shifts
+#   - Shuffled RGB channels in random blocks
+#   - Heavy horizontal banding across entire image
+#   - Dense white/black pixel noise creating texture
+#   - Severe 8x8 JPEG blocking in random regions
+#   - Combined effect: Total digital destruction
+#
+# ARTISTIC INTENT:
+#   This tutorial prioritizes visual impact over scientific accuracy.
+#   Parameters are intentionally exaggerated to create:
+#   - Abstract geometric patterns (SLC-Off gaps)
+#   - Color field disruptions (band swaps, buffer corruption)
+#   - Digital texture (salt & pepper, compression)
+#   - Rhythmic visual patterns (corduroy banding)
+#
+# AESTHETIC REFERENCES:
+#   - Glitch art (Rosa Menkman, Phillip Stearns)
+#   - Data moshing aesthetics
+#   - Databending and circuit bending
+#   - Digital decay and corruption aesthetics
+#   - Satellite imagery as abstract art
+#
+# TRY EXPERIMENTING:
+#   - Remove operations to isolate specific effects
+#   - Reorder steps to change layering
+#   - Change SLC-Off fill_mode to "black" for inverted look
+#   - Try buffer_corruption type "invert" for negative blocks
+#   - Adjust tile_count values to control density
+#   - Use different seeds for variation
+#   - Extract single frames for still images
+#
+# PERFORMANCE NOTE:
+#   This pipeline is computationally expensive due to:
+#   - 20 JPEG encode/decode cycles (compression_artifact)
+#   - Multiple array operations per frame
+#   - 45 frames × 6 operations = 270 total operations
+#   Expected runtime: 2-5 minutes depending on hardware
