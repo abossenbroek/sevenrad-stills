@@ -106,3 +106,5 @@ exclude:
   - package*.json
   - Gemfile
   - Gemfile.lock
+  - vendor
+  - node_modules
