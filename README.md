@@ -58,9 +58,27 @@ All checks run automatically via pre-commit hooks on each commit.
 
 ### Running Tests
 
+Run all unit tests (fast):
 ```bash
 pytest
 ```
+
+Run all tests including slow integration tests:
+```bash
+pytest -m "slow or integration"
+```
+
+Skip slow tests:
+```bash
+pytest -m "not slow"
+```
+
+Run only integration tests:
+```bash
+pytest tests/integration/ -v -s
+```
+
+**Note**: Integration tests download real YouTube videos and may take 30-60 seconds to complete.
 
 ### Project Structure
 
@@ -75,9 +93,6 @@ pytest
 ```
 
 ## Artistic Context
-
-### Poetry Style (Dominique de Groen)
-Clinical, marketing-inspired language and exhaustive repetition to offer a critical analysis of late-stage capitalism, ecological crises, and exploitation, creating a bizarre and alienating yet recognizable reality.
 
 ### Image Style
 Images are edited in non-destructive mode, always tracking different steps with incremental filenames.

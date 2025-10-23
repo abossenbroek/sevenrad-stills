@@ -1,0 +1,23 @@
+# Integration test pipeline configuration
+# Tests complete workflow with real YouTube video
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=xMhBKj-usK0"
+
+segment:
+  start: 74.0      # 1m14s
+  end: 81.0        # 1m21s (7 seconds total)
+  interval: 0.033333  # 30fps (1/30 second)
+
+pipeline:
+  steps:
+    - name: "boost_saturation"
+      operation: "saturation"
+      params:
+        mode: "fixed"
+        value: 1.2  # +0.2 saturation (20% boost)
+
+output:
+  base_dir: "/tmp/sevenrad_integration_test"
+  intermediate_dir: "/tmp/sevenrad_integration_test/intermediate"
+  final_dir: "/tmp/sevenrad_integration_test/final"

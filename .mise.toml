@@ -1,2 +1,4 @@
 [tools]
 uv = "latest"
+ffmpeg = "latest"
+ruby = "3.3"

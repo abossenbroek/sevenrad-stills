@@ -1,0 +1,108 @@
+# The Site Configuration
+
+# Site settings
+title: sevenrad-stills
+tagline: Poetic interpretation of digital media
+description: >-
+  Algorithmic transformation for exploring digital media through
+  the artistic voices of Rimbaud and Dominique de Groen.
+  Extract, degrade, transform.
+
+# The base URL of your site
+url: "https://abossenbroek.github.io"
+baseurl: "/sevenrad-stills"
+
+# Change to your timezone
+timezone: Europe/Amsterdam
+
+# The language of the webpage
+lang: en
+
+# GitHub repository
+github:
+  username: abossenbroek
+
+# Social
+social:
+  name: Anton Bossenbroek
+  email: ""
+  links:
+    - https://github.com/abossenbroek/sevenrad-stills
+
+# Just the Docs theme
+theme: just-the-docs
+
+# Color scheme - Ghost in the Shell-inspired cyberpunk aesthetic
+color_scheme: ghost-in-shell
+
+# Default layouts for content
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "default"
+
+# Enable search functionality
+search_enabled: true
+search:
+  heading_level: 2
+  previews: 3
+  preview_words_before: 5
+  preview_words_after: 10
+  tokenizer_separator: /[\s/]+/
+  rel_url: true
+  button: false
+
+# Enable heading anchors
+heading_anchors: true
+
+# Aux links for the upper right navigation
+aux_links:
+  "GitHub Repository":
+    - "https://github.com/abossenbroek/sevenrad-stills"
+
+# Makes Aux links open in a new tab
+aux_links_new_tab: true
+
+# Footer content
+footer_content: "Algorithmic transformation exploring digital media through the artistic voices of Rimbaud and Dominique de Groen."
+
+# Back to top link
+back_to_top: true
+back_to_top_text: "Back to top"
+
+# kramdown settings
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    block:
+      line_numbers: true
+
+# Compress HTML
+compress_html:
+  clippings: all
+  comments: all
+  endings: all
+  profile: false
+  blanklines: false
+  ignore:
+    envs: [development]
+
+# Sass configuration
+sass:
+  style: compressed
+
+# Exclude from processing
+exclude:
+  - "*.gem"
+  - "*.gemspec"
+  - tools
+  - README.md
+  - CHANGELOG.md
+  - LICENSE
+  - rollup.config.js
+  - package*.json
+  - Gemfile
+  - Gemfile.lock

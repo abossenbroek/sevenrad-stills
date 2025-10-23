@@ -225,3 +225,4 @@ __marimo__/
 *.gif
 output/
 temp/
+docs/_site/
