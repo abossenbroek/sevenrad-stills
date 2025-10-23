@@ -1,0 +1,152 @@
+# Tutorial: Vintage Lens Artifacts Effect
+#
+# GOAL: Simulate optical imperfections of vintage camera lenses including
+# circular bokeh blur, chromatic aberration, and subtle color saturation
+# shifts to create a dreamy, vintage photography aesthetic.
+#
+# WHAT YOU'LL SEE:
+# - Circular blur mimicking lens bokeh and soft focus
+# - Chromatic aberration (color fringing) from lens imperfections
+# - Enhanced color saturation for vintage film-like palette
+# - Romantic, soft-focus vintage photography aesthetic
+#
+# ARTISTIC CONTEXT:
+# Vintage lenses from the 1960s-80s often had optical "flaws" that are now
+# prized for their aesthetic qualities: soft bokeh, color fringing, lower
+# contrast, and unique color rendering. This pipeline recreates these optical
+# characteristics through computational means, transforming digital sharpness
+# into analog warmth.
+#
+# FRAMES: 45 (3 seconds at 15 fps)
+# OPERATIONS: 3 (blur_circular → chromatic_aberration → saturation)
+# DIFFICULTY: Beginner
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=MzJaP-7N9I0"
+
+segment:
+  start: 192.0    # 3 minutes 12 seconds (3m12s)
+  end: 195.0      # 3 minutes 15 seconds (3m15s)
+  interval: 0.0667  # 15 frames per second = 45 total frames
+
+pipeline:
+  steps:
+    # STEP 1: Circular Blur (Bokeh Effect)
+    # Creates the soft, circular out-of-focus aesthetic
+    # of vintage lens bokeh and gentle soft-focus effects
+    - name: "vintage_bokeh"
+      operation: "blur_circular"
+      params:
+        # Moderate blur radius for dreamy soft-focus
+        # Small radius (3-5) = subtle, large (10-20) = heavy bokeh
+        radius: 6
+
+    # STEP 2: Chromatic Aberration (Lens Color Fringing)
+    # Vintage lenses often failed to converge all wavelengths
+    # creating colorful halos at high-contrast edges
+    - name: "vintage_fringing"
+      operation: "chromatic_aberration"
+      params:
+        # Moderate horizontal shift
+        # Vintage wide-angle lenses showed this at frame edges
+        shift_x: 4
+
+        # Slight vertical component
+        # Creates more organic, lens-like aberration pattern
+        shift_y: 2
+
+    # STEP 3: Color Saturation Adjustment
+    # Vintage color film had distinctive saturation curves
+    # Often slightly oversaturated with unique color casts
+    - name: "vintage_color"
+      operation: "saturation"
+      params:
+        mode: "fixed"
+        # Boost saturation for warm, nostalgic color palette
+        # value is added to 1.0: 0.15 = 1.15x saturation
+        # Try -0.2 for faded vintage, 0.3 for vivid vintage
+        value: 0.15
+
+output:
+  base_dir: "./tutorials/degradr-effects/lens-artifacts"
+  intermediate_dir: "./tutorials/degradr-effects/lens-artifacts/intermediate"
+  final_dir: "./tutorials/degradr-effects/lens-artifacts/final"
+
+# HOW TO RUN:
+#   sevenrad pipeline docs/tutorials/degradr-effects/lens-artifacts.yaml
+#
+# OUTPUT:
+#   ./tutorials/degradr-effects/lens-artifacts/
+#     ├── intermediate/
+#     │   ├── vintage_bokeh/
+#     │   │   └── vintage_bokeh_*_step00.jpg (45 images)
+#     │   └── vintage_fringing/
+#     │       └── vintage_fringing_*_step01.jpg (45 images)
+#     └── final/
+#         └── vintage_color_*_step02.jpg (45 images)
+#
+# WHAT TO LOOK FOR:
+#   - Overall soft, dreamy quality from circular blur
+#   - Red and blue color separation at high-contrast edges
+#   - Enhanced colors giving warm, nostalgic feel
+#   - "Vintage photography" aesthetic vs sharp digital clarity
+#   - Romantic, film-like rendering of the scene
+#
+# TRY EXPERIMENTING:
+#   - Increase radius to 10-12 for heavier bokeh blur
+#   - Try shift_x: 6, shift_y: 3 for stronger aberration
+#   - Adjust value: -0.25 for faded vintage film look
+#   - Adjust value: 0.4 for technicolor-style oversaturation
+#   - Add blur_gaussian with sigma: 0.5 before circular blur for extra softness
+#   - Add compression after saturation for vintage photo print aesthetic
+#   - Try motion_blur with small kernel_size for motion + softness
+#
+# COMBINING WITH OTHER EFFECTS:
+#   For vintage photo print aesthetic, add after saturation:
+#     - name: "photo_print_texture"
+#       operation: "noise"
+#       params:
+#         mode: "gaussian"
+#         amount: 0.03
+#
+#   For vintage slide film look, add before bokeh:
+#     - name: "slide_grain"
+#       operation: "noise"
+#       params:
+#         mode: "gaussian"
+#         amount: 0.05
+#         seed: 42
+#
+# TECHNICAL NOTES:
+#   - Circular blur uses custom circular kernel via scipy.ndimage.convolve
+#   - Chromatic aberration shifts R/B channels with scipy.ndimage.shift
+#   - Saturation adjusts HSV value space via PIL.ImageEnhance
+#   - All operations preserve alpha channel for RGBA images
+#
+# OPTICAL PHYSICS:
+#   Real chromatic aberration occurs because:
+#   - Glass refractive index varies with wavelength (dispersion)
+#   - Blue light bends more than red light
+#   - Cheap/vintage lenses can't correct for all wavelengths
+#   - Results in colored halos at high-contrast boundaries
+#
+#   Bokeh results from:
+#   - Aperture shape projecting in out-of-focus areas
+#   - Circular apertures create circular blur patterns
+#   - Vintage lenses had distinctive bokeh "character"
+#
+# POETIC INTERPRETATION:
+#   "Glass bends light imperfectly,
+#    colors refuse to converge,
+#    edges blur into halos,
+#    imperfection becomes beauty.
+#
+#    The lens remembers its maker's hand,
+#    each element ground by human tools,
+#    aberrations are signatures,
+#    not errors but character."
+#
+#   This effect celebrates the materiality of optical systems - how
+#   vintage lenses transformed light not through algorithmic perfection
+#   but through physical interaction of photons and glass, creating
+#   unique aesthetic signatures now lost to computational correction.

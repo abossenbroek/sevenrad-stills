@@ -1,0 +1,141 @@
+# Tutorial 04: Progressive Degradation Stages
+#
+# GOAL: Demonstrate progressive degradation from light to heavy, showing
+# how compression artifacts accumulate. Also demonstrates the 'repeat'
+# parameter for flexible pipeline sequencing.
+#
+# WHAT YOU'LL SEE:
+# - Stage 1 (intermediate): Light compression, subtle artifacts
+# - Stage 2 (intermediate): Moderate compression, noticeable blocking
+# - Stage 3 (final): Heavy multi-generation compression, severe artifacts
+# - Clear visual progression showing cumulative degradation
+#
+# FRAMES: 45 (3 seconds at 15 fps)
+# OPERATIONS: 3 stages with increasing degradation
+# DIFFICULTY: Advanced
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=MzJaP-7N9I0"
+
+segment:
+  start: 192.0    # 3 minutes 12 seconds (3m12s)
+  end: 195.0      # 3 minutes 15 seconds (3m15s)
+  interval: 0.0667  # 15 frames per second = 45 total frames
+
+pipeline:
+  steps:
+    # STAGE 1: Light Degradation
+    # Subtle compression, most details preserved
+    - name: "stage_1_light"
+      operation: "compression"
+      params:
+        # Good quality, only mild compression
+        quality: 70
+
+        # Moderate subsampling (4:2:2) - less aggressive than 4:2:0
+        # Better color preservation than subsampling: 2
+        subsampling: 1
+
+    # STAGE 2: Moderate Degradation
+    # Demonstrates the 'repeat' parameter
+    # Applies the same compression twice for cumulative effect
+    - name: "stage_2_moderate"
+      operation: "compression"
+      repeat: 2                       # Apply compression twice
+      params:
+        # Medium quality - noticeable artifacts
+        quality: 50
+
+        # Heavy subsampling (4:2:0) for visible 8x8 blocks
+        subsampling: 2
+
+    # STAGE 3: Heavy Degradation
+    # Uses multi_compress with exponential decay
+    - name: "stage_3_heavy"
+      operation: "multi_compress"
+      params:
+        # 5 compression iterations with quality decay
+        iterations: 5
+
+        # Start at moderate quality
+        quality_start: 40
+
+        # End at low quality
+        quality_end: 20
+
+        # Exponential decay: rapid initial quality drop
+        # Most degradation happens in first 2-3 iterations
+        decay: "exponential"
+
+        # Heavy subsampling throughout
+        subsampling: 2
+
+output:
+  base_dir: "./tutorials/04-progressive-cascade"
+  intermediate_dir: "./tutorials/04-progressive-cascade/intermediate"
+  final_dir: "./tutorials/04-progressive-cascade/final"
+
+# HOW TO RUN:
+#   sevenrad pipeline docs/tutorials/compression-filters/04-progressive-cascade.yaml
+#
+# OUTPUT:
+#   ./tutorials/04-progressive-cascade/
+#     ├── intermediate/
+#     │   ├── stage_1_light/
+#     │   │   └── stage_1_light_*_step00.jpg (45 images)
+#     │   └── stage_2_moderate/
+#     │       └── stage_2_moderate_*_step01.jpg (45 images)
+#     └── final/
+#         └── stage_3_heavy_*_step02.jpg (45 images)
+#
+# WHAT TO LOOK FOR:
+#   - Stage 1: Subtle artifacts, image still high quality
+#   - Stage 2: More noticeable blocking, some detail loss
+#   - Stage 3: Heavy artifacts, significant quality degradation
+#   - Clear progression when comparing all three stages side-by-side
+#   - Each stage builds on previous degradation
+#
+# UNDERSTANDING REPEAT VS. MULTI_COMPRESS:
+#
+#   Using 'repeat':
+#     - Applies the same operation multiple times
+#     - Same parameters each iteration (quality: 50 every time)
+#     - Cumulative degradation with consistent settings
+#     - Good for: Building up artifacts with fixed parameters
+#
+#   Using 'multi_compress':
+#     - Applies compression with changing quality
+#     - Quality decays from start to end value
+#     - Decay curves (linear/exponential) control progression
+#     - Good for: Simulating multi-generation degradation with decay
+#
+# COMPARING THE APPROACHES:
+#
+#   Stage 2 with repeat:
+#     - First application: quality 50
+#     - Second application: quality 50 (same)
+#     - Result: 2x compression at quality 50
+#
+#   If we used multi_compress instead for Stage 2:
+#     iterations: 2
+#     quality_start: 50
+#     quality_end: 40
+#     decay: "linear"
+#     - First iteration: quality 50
+#     - Second iteration: quality 40
+#     - Result: Progressive quality reduction
+#
+# TRY EXPERIMENTING:
+#   - Change stage_1 quality to 85 for even lighter initial compression
+#   - Increase stage_2 repeat to 3 or 4 for more cumulative effect
+#   - Try stage_2 with quality: 40 and repeat: 3 for heavier middle stage
+#   - Change stage_3 decay to "linear" for more consistent degradation
+#   - Adjust stage_3 quality_end to 10 for even heavier final artifacts
+#   - Add a 4th stage with even more extreme settings
+#
+# PRACTICAL APPLICATIONS:
+#   - Creating visual comparisons for documentation
+#   - Understanding how compression accumulates
+#   - Finding the right degradation level for your project
+#   - Demonstrating compression effects to clients
+#   - Artistic exploration of digital decay progression

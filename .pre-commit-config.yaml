@@ -15,5 +15,34 @@ repos:
     hooks:
       - id: mypy
         additional_dependencies:
-          - types-Pillow
-        args: [--strict]
+          - types-Pillow~=10.2
+          - types-PyYAML~=6.0
+          - types-click~=7.1
+          - pydantic~=2.10
+          - yt-dlp~=2024.12
+          - ffmpeg-python~=0.2.0
+          - click~=8.1
+          - pytest~=8.3
+          - scikit-image~=0.24.0
+          - colour-demosaicing~=0.2.0
+          - scipy~=1.14
+          - numpy~=2.1
+        exclude: ^tests/
+
+  # Jekyll validation hooks
+  - repo: https://github.com/sirosen/check-jsonschema
+    rev: 0.30.0
+    hooks:
+      - id: check-jsonschema
+        name: Validate Jekyll frontmatter
+        files: ^docs/_posts/.*\.md$
+        args:
+          - --schemafile
+          - docs/.jekyll-frontmatter-schema.json
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+        name: Validate YAML files
+        files: ^docs/_config\.yml$

@@ -1,0 +1,558 @@
+---
+---
+
+/* ============================================
+   CYBERPUNK AESTHETIC
+   Deep blacks, IBM Plex Mono, Inter
+   Ghost in the Shell inspired
+   ============================================ */
+
+/* Import Fonts */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* ============================================
+   CSS Variables - Cyberpunk Color Scheme
+   ============================================ */
+:root {
+  /* Background colors - Deep blacks */
+  --main-bg: #0a0a0a;
+  --sidebar-bg: #000000;
+  --card-bg: #111111;
+  --code-bg: #0d0d0d;
+  --border-color: #1a1a1a;
+
+  /* Text colors */
+  --text-color: #e0e0e0;
+  --text-muted: #999999;
+  --heading-color: #ffffff;
+
+  /* Accent colors - Cyan & Magenta */
+  --accent-cyan: #00ffff;
+  --accent-magenta: #ff00ff;
+  --accent-purple: #9d4edd;
+  --accent-blue: #3a86ff;
+
+  /* Link colors */
+  --link-color: #00ffff;
+  --link-hover: #ff00ff;
+  --link-visited: #9d4edd;
+
+  /* UI elements */
+  --highlight-bg: rgba(0, 255, 255, 0.1);
+  --glow-cyan: 0 0 10px rgba(0, 255, 255, 0.3);
+  --glow-magenta: 0 0 10px rgba(255, 0, 255, 0.3);
+}
+
+/* ============================================
+   Typography - Inter + IBM Plex Mono
+   ============================================ */
+
+/* Body text - Inter */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  background-color: var(--main-bg) !important;
+  color: var(--text-color) !important;
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  line-height: 1.7;
+}
+
+/* Headings - Inter, heavier weight */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 700 !important;
+  color: var(--heading-color) !important;
+  letter-spacing: -0.02em;
+}
+
+h1 {
+  font-size: 2.5rem;
+  font-weight: 800 !important;
+  text-shadow: var(--glow-cyan);
+}
+
+h2 {
+  font-size: 2rem;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
+}
+
+h3 {
+  font-size: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+/* Monospace - IBM Plex Mono for code */
+code, pre, kbd, samp, tt, .highlight {
+  font-family: 'IBM Plex Mono', 'Courier New', 'Consolas', monospace !important;
+  letter-spacing: 0;
+}
+
+/* ============================================
+   Links - Cyan with Magenta hover
+   ============================================ */
+a {
+  color: var(--link-color) !important;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+a:hover {
+  color: var(--link-hover) !important;
+  text-shadow: var(--glow-magenta);
+}
+
+a:visited {
+  color: var(--link-visited);
+}
+
+/* Link underline effect on hover */
+a:not(.btn):not(.nav-link)::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 1px;
+  bottom: -2px;
+  left: 0;
+  background-color: var(--link-hover);
+  transition: width 0.2s ease;
+}
+
+a:not(.btn):not(.nav-link):hover::after {
+  width: 100%;
+}
+
+/* ============================================
+   Code Blocks
+   ============================================ */
+
+/* Inline code */
+code {
+  background-color: var(--code-bg) !important;
+  color: var(--accent-cyan) !important;
+  padding: 0.2em 0.5em;
+  border-radius: 4px;
+  font-size: 0.9em;
+  border: 1px solid var(--border-color);
+}
+
+/* Code blocks */
+pre {
+  background-color: var(--code-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 6px;
+  padding: 1.5rem !important;
+  overflow-x: auto;
+  box-shadow: inset 0 0 20px rgba(0, 255, 255, 0.05);
+}
+
+pre code {
+  background-color: transparent !important;
+  border: none;
+  padding: 0;
+  font-size: 0.9em;
+  line-height: 1.6;
+}
+
+/* Syntax highlighting */
+.highlight {
+  background-color: var(--code-bg) !important;
+  border-radius: 6px;
+}
+
+/* Line numbers */
+.highlight .lineno {
+  color: var(--text-muted);
+  user-select: none;
+  padding-right: 1rem;
+  border-right: 1px solid var(--border-color);
+  margin-right: 1rem;
+}
+
+/* ============================================
+   Sidebar - Pure black with cyan accents
+   ============================================ */
+#sidebar {
+  background-color: var(--sidebar-bg) !important;
+  border-right: 1px solid var(--accent-cyan) !important;
+  box-shadow: 2px 0 10px rgba(0, 255, 255, 0.1);
+}
+
+#sidebar .site-title a {
+  color: var(--heading-color) !important;
+  font-weight: 800;
+  text-shadow: var(--glow-cyan);
+  letter-spacing: -0.02em;
+}
+
+#sidebar .site-subtitle {
+  color: var(--text-muted) !important;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+}
+
+/* Sidebar navigation */
+#sidebar .nav-item {
+  border-bottom: 1px solid var(--border-color);
+}
+
+#sidebar .nav-link {
+  color: var(--text-color) !important;
+  transition: all 0.2s ease;
+}
+
+#sidebar .nav-link:hover {
+  color: var(--accent-cyan) !important;
+  background-color: rgba(0, 255, 255, 0.05) !important;
+  border-left: 2px solid var(--accent-cyan);
+  padding-left: 1.2rem;
+}
+
+#sidebar .nav-link.active {
+  color: var(--accent-cyan) !important;
+  background-color: rgba(0, 255, 255, 0.1) !important;
+  border-left: 3px solid var(--accent-cyan);
+}
+
+/* ============================================
+   Cards & Panels
+   ============================================ */
+.card {
+  background-color: var(--card-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 4px 30px rgba(0, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+/* ============================================
+   Table of Contents - GitBook style
+   ============================================ */
+#toc-wrapper {
+  border-left: 2px solid var(--accent-cyan) !important;
+  background-color: var(--card-bg);
+  padding: 1rem;
+  border-radius: 6px;
+}
+
+#toc-wrapper .toc-link {
+  color: var(--text-color) !important;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+#toc-wrapper .toc-link:hover {
+  color: var(--accent-cyan) !important;
+}
+
+#toc-wrapper .toc-link.active {
+  color: var(--accent-cyan) !important;
+  font-weight: 600;
+}
+
+/* ============================================
+   Tables
+   ============================================ */
+table {
+  background-color: var(--card-bg);
+  border-collapse: collapse;
+}
+
+table thead {
+  background-color: var(--code-bg);
+  border-bottom: 2px solid var(--accent-cyan);
+}
+
+table thead th {
+  color: var(--heading-color);
+  font-weight: 600;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+table tbody tr {
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color 0.2s ease;
+}
+
+table tbody tr:hover {
+  background-color: var(--highlight-bg);
+}
+
+table tbody td {
+  padding: 0.75rem;
+  color: var(--text-color);
+}
+
+/* ============================================
+   Blockquotes
+   ============================================ */
+blockquote {
+  border-left: 4px solid var(--accent-magenta) !important;
+  padding-left: 1.5rem;
+  margin: 1.5rem 0;
+  color: var(--text-color);
+  background-color: rgba(255, 0, 255, 0.05);
+  padding: 1rem 1.5rem;
+  border-radius: 4px;
+  font-style: italic;
+}
+
+blockquote p {
+  margin: 0;
+}
+
+/* ============================================
+   Images - Cyan glow effect
+   ============================================ */
+img {
+  border-radius: 6px;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+img:hover {
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.4);
+  transform: scale(1.02);
+}
+
+/* Image captions */
+figcaption {
+  color: var(--text-muted);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.85rem;
+  text-align: center;
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+/* ============================================
+   Buttons
+   ============================================ */
+.btn {
+  background-color: var(--code-bg);
+  border: 1px solid var(--accent-cyan);
+  color: var(--accent-cyan) !important;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  padding: 0.5rem 1.5rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.9rem;
+}
+
+.btn:hover {
+  background-color: var(--accent-cyan);
+  color: var(--main-bg) !important;
+  box-shadow: var(--glow-cyan);
+  transform: translateY(-1px);
+}
+
+/* ============================================
+   Badges/Tags
+   ============================================ */
+.badge, .tag {
+  background-color: var(--code-bg);
+  color: var(--accent-cyan);
+  border: 1px solid var(--accent-cyan);
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge:hover, .tag:hover {
+  background-color: rgba(0, 255, 255, 0.1);
+  box-shadow: var(--glow-cyan);
+}
+
+/* ============================================
+   Search
+   ============================================ */
+#search-input {
+  background-color: var(--code-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-color) !important;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+#search-input:focus {
+  border-color: var(--accent-cyan) !important;
+  box-shadow: var(--glow-cyan) !important;
+}
+
+/* ============================================
+   Post List
+   ============================================ */
+.post-preview {
+  border-bottom: 1px solid var(--border-color);
+  padding: 1.5rem 0;
+  transition: all 0.2s ease;
+}
+
+.post-preview:hover {
+  border-left: 3px solid var(--accent-cyan);
+  padding-left: 1rem;
+  background-color: var(--highlight-bg);
+}
+
+.post-title {
+  color: var(--heading-color) !important;
+  font-weight: 700;
+}
+
+.post-meta {
+  color: var(--text-muted);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.85rem;
+}
+
+/* ============================================
+   Scrollbar - Cyberpunk style
+   ============================================ */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: var(--main-bg);
+  border-left: 1px solid var(--border-color);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--accent-cyan);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--accent-magenta);
+  box-shadow: var(--glow-magenta);
+}
+
+/* ============================================
+   Scan-line effect (subtle)
+   ============================================ */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 255, 255, 0.01),
+    rgba(0, 255, 255, 0.01) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  pointer-events: none;
+  z-index: 9999;
+  animation: scanlines 8s linear infinite;
+}
+
+@keyframes scanlines {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(10px);
+  }
+}
+
+/* ============================================
+   Category/Tag Pills
+   ============================================ */
+.categories a, .tags a {
+  background-color: var(--code-bg);
+  color: var(--accent-cyan) !important;
+  border: 1px solid var(--accent-cyan);
+  padding: 0.3rem 0.8rem;
+  border-radius: 4px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8rem;
+  display: inline-block;
+  margin: 0.25rem;
+  transition: all 0.2s ease;
+}
+
+.categories a:hover, .tags a:hover {
+  background-color: var(--accent-cyan);
+  color: var(--main-bg) !important;
+  box-shadow: var(--glow-cyan);
+}
+
+/* ============================================
+   Footer
+   ============================================ */
+footer {
+  background-color: var(--sidebar-bg);
+  border-top: 1px solid var(--accent-cyan);
+  color: var(--text-muted);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.85rem;
+}
+
+footer a {
+  color: var(--accent-cyan) !important;
+}
+
+/* ============================================
+   Pagination
+   ============================================ */
+.pagination .page-link {
+  background-color: var(--code-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-color) !important;
+}
+
+.pagination .page-link:hover {
+  background-color: var(--accent-cyan);
+  color: var(--main-bg) !important;
+  border-color: var(--accent-cyan);
+}
+
+.pagination .page-item.active .page-link {
+  background-color: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+  color: var(--main-bg) !important;
+}
+
+/* ============================================
+   Responsive Adjustments
+   ============================================ */
+@media (max-width: 768px) {
+  h1 {
+    font-size: 2rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  body {
+    font-size: 0.95rem;
+  }
+
+  /* Disable scan-line effect on mobile for performance */
+  body::before {
+    display: none;
+  }
+}

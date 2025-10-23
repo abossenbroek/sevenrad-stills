@@ -1,0 +1,50 @@
+# Tutorial 01: Complete Grayscale Conversion
+#
+# GOAL: Demonstrate complete desaturation to black and white
+#
+# WHAT YOU'LL SEE:
+# - Full black and white conversion
+# - Complete removal of all color information
+# - Focus on luminance, form, and composition
+#
+# FRAMES: 15 (1 second at 15 fps)
+# OPERATIONS: 1 (saturation)
+# DIFFICULTY: Beginner
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=MzJaP-7N9I0"
+
+segment:
+  start: 192.0    # 3 minutes 12 seconds
+  end: 193.0      # 3 minutes 13 seconds
+  interval: 0.0667  # 15 frames per second
+
+pipeline:
+  steps:
+    - name: "grayscale"
+      operation: "saturation"
+      params:
+        mode: "fixed"
+        value: -1.0    # Factor = 0.0 → complete grayscale
+
+output:
+  base_dir: "./tutorials/saturation-variations/01-grayscale"
+  intermediate_dir: "./tutorials/saturation-variations/01-grayscale/intermediate"
+  final_dir: "./tutorials/saturation-variations/01-grayscale/final"
+
+# HOW TO RUN:
+#   sevenrad pipeline docs/tutorials/saturation-variations/01-grayscale.yaml
+#
+# OUTPUT:
+#   ./tutorials/saturation-variations/01-grayscale/final/
+#     └── grayscale_*_step00.jpg (15 images)
+#
+# WHAT TO LOOK FOR:
+#   - All color information removed
+#   - Pure black and white conversion
+#   - Tonal relationships preserved
+#
+# TRY EXPERIMENTING:
+#   - Compare with value: -0.8 for near-grayscale
+#   - Combine with noise for film grain effect
+#   - Add blur_gaussian for dreamy B&W aesthetic

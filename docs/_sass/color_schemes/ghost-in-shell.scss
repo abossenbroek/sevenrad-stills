@@ -1,0 +1,46 @@
+// Ghost in the Shell-inspired dark theme
+// True dark backgrounds with high contrast text and cyan accents
+
+// Dark color palette - various shades of dark gray/black
+$dark-bg-primary: #0a0a0a;       // Near black - main background
+$dark-bg-secondary: #1a1a1a;     // Dark gray - sidebar
+$dark-bg-tertiary: #2a2a2a;      // Lighter dark gray - code blocks
+$dark-bg-hover: #333333;         // Hover state background
+
+// High contrast text colors
+$text-primary: #e8e8e8;          // Near white - primary text
+$text-secondary: #b8b8b8;        // Light gray - secondary text
+$text-muted: #888888;            // Medium gray - muted text
+
+// Accent colors - cyan highlights only
+$accent-cyan: #00d4ff;           // Bright cyan - links and highlights
+$accent-cyan-dim: #00a8cc;       // Dimmer cyan - borders
+
+// Border colors
+$border-dark: #404040;           // Dark border
+$border-light: #555555;          // Lighter border
+
+// Override theme variables with dark palette
+$body-background-color: $dark-bg-primary;
+$sidebar-color: $dark-bg-secondary;
+$link-color: $accent-cyan;
+$btn-primary-color: $accent-cyan;
+$base-button-color: $dark-bg-tertiary;
+
+// Text colors - HIGH CONTRAST
+$body-text-color: $text-primary;
+$body-heading-color: $text-primary;
+$nav-list-link-color: $text-primary;
+$search-result-preview-color: $text-secondary;
+
+// Code blocks
+$code-background-color: $dark-bg-tertiary;
+$border-color: $border-dark;
+
+// Search and navigation
+$search-background-color: $dark-bg-secondary;
+$nav-child-link-color: $accent-cyan;
+
+// Tables and content
+$table-background-color: $dark-bg-tertiary;
+$feedback-color: $accent-cyan;
