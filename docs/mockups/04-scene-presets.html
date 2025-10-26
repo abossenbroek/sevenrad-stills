@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scene/Preset System - RYTM Style</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            padding: 20px;
+            line-height: 1.4;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 30px;
+            color: #fff;
+            font-weight: 300;
+            letter-spacing: 0.5px;
+        }
+
+        /* Scene Slot Row */
+        .scene-slots {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #222;
+            border-radius: 8px;
+        }
+
+        .scene-slot {
+            width: 100px;
+            height: 80px;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            background: #2a2a2a;
+        }
+
+        .scene-slot.empty {
+            border: 2px dashed #444;
+            background: transparent;
+        }
+
+        .scene-slot.filled {
+            border: 2px solid #555;
+            background: #2a2a2a;
+        }
+
+        .scene-slot.active {
+            border: 2px solid #ff6b35;
+            background: #332211;
+            box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
+        }
+
+        .scene-slot:hover:not(.empty) {
+            border-color: #ff6b35;
+            transform: translateY(-2px);
+        }
+
+        .scene-slot.empty:hover {
+            border-color: #666;
+        }
+
+        .scene-letter {
+            font-size: 24px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .scene-slot.empty .scene-letter {
+            color: #555;
+        }
+
+        .scene-name {
+            font-size: 10px;
+            color: #aaa;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 90px;
+            margin-bottom: 2px;
+        }
+
+        .effect-count {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: #ff6b35;
+            color: #fff;
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .scene-slot.empty .effect-count {
+            display: none;
+        }
+
+        /* Main Content Area */
+        .content-area {
+            display: flex;
+            gap: 20px;
+        }
+
+        /* Scene Detail Panel */
+        .scene-detail {
+            flex: 1;
+            background: #222;
+            border-radius: 8px;
+            padding: 24px;
+        }
+
+        .scene-header {
+            margin-bottom: 24px;
+        }
+
+        .scene-title-input {
+            font-size: 20px;
+            font-weight: 500;
+            color: #fff;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid #444;
+            padding: 8px 0;
+            width: 100%;
+            margin-bottom: 8px;
+            outline: none;
+        }
+
+        .scene-title-input:focus {
+            border-bottom-color: #ff6b35;
+        }
+
+        .scene-meta {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .effect-list {
+            margin-bottom: 24px;
+        }
+
+        .effect-list h3 {
+            font-size: 14px;
+            font-weight: 500;
+            color: #aaa;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .effect-item {
+            background: #2a2a2a;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 3px solid #ff6b35;
+        }
+
+        .effect-name {
+            font-size: 14px;
+            color: #fff;
+        }
+
+        .effect-multiplier {
+            background: #333;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            color: #ff6b35;
+            margin-left: 8px;
+        }
+
+        .effect-params {
+            font-size: 12px;
+            color: #888;
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: #ff6b35;
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: #ff8555;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #333;
+            color: #e0e0e0;
+        }
+
+        .btn-secondary:hover {
+            background: #444;
+        }
+
+        .btn-danger {
+            background: #d32f2f;
+            color: #fff;
+        }
+
+        .btn-danger:hover {
+            background: #f44336;
+        }
+
+        /* Context Menu */
+        .context-menu {
+            position: absolute;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 8px 0;
+            min-width: 160px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            top: 200px;
+            right: 40px;
+        }
+
+        .context-menu-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #e0e0e0;
+            transition: all 0.15s;
+        }
+
+        .context-menu-item:hover {
+            background: #333;
+            color: #ff6b35;
+        }
+
+        .context-menu-item.danger {
+            color: #f44336;
+        }
+
+        .context-menu-divider {
+            height: 1px;
+            background: #444;
+            margin: 4px 0;
+        }
+
+        /* Bottom Actions */
+        .bottom-actions {
+            margin-top: 30px;
+            padding: 20px;
+            background: #222;
+            border-radius: 8px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn-large {
+            padding: 14px 24px;
+            font-size: 14px;
+        }
+
+        /* Keyboard Shortcuts */
+        .shortcuts-hint {
+            margin-top: 30px;
+            padding: 16px;
+            background: #222;
+            border-radius: 8px;
+            border-left: 3px solid #ff6b35;
+        }
+
+        .shortcuts-hint h3 {
+            font-size: 12px;
+            font-weight: 500;
+            color: #aaa;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .shortcut-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .shortcut-item {
+            font-size: 12px;
+            color: #ccc;
+        }
+
+        .key {
+            background: #333;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-family: monospace;
+            margin-right: 8px;
+            color: #ff6b35;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state-text {
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .empty-state-hint {
+            font-size: 13px;
+            color: #555;
+        }
+
+        /* Side Panel */
+        .side-panel {
+            width: 280px;
+            background: #222;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .side-panel h3 {
+            font-size: 14px;
+            font-weight: 500;
+            color: #aaa;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .scene-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .scene-list-item {
+            padding: 12px;
+            background: #2a2a2a;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+            border-left: 3px solid transparent;
+        }
+
+        .scene-list-item:hover {
+            background: #333;
+            border-left-color: #ff6b35;
+        }
+
+        .scene-list-item.active {
+            background: #332211;
+            border-left-color: #ff6b35;
+        }
+
+        .scene-list-name {
+            font-size: 13px;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .scene-list-info {
+            font-size: 11px;
+            color: #888;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .content-area {
+                flex-direction: column;
+            }
+
+            .side-panel {
+                width: 100%;
+            }
+
+            .scene-slots {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Scene / Preset System</h1>
+
+        <!-- Scene Slot Row -->
+        <div class="scene-slots">
+            <div class="scene-slot active" data-slot="A">
+                <div class="effect-count">4 FX</div>
+                <div class="scene-letter">A</div>
+                <div class="scene-name">VHS Look</div>
+            </div>
+
+            <div class="scene-slot filled" data-slot="B">
+                <div class="effect-count">6 FX</div>
+                <div class="scene-letter">B</div>
+                <div class="scene-name">Glitch Heavy</div>
+            </div>
+
+            <div class="scene-slot filled" data-slot="C">
+                <div class="effect-count">2 FX</div>
+                <div class="scene-letter">C</div>
+                <div class="scene-name">Subtle Grain</div>
+            </div>
+
+            <div class="scene-slot empty" data-slot="D">
+                <div class="scene-letter">D</div>
+            </div>
+
+            <div class="scene-slot empty" data-slot="E">
+                <div class="scene-letter">E</div>
+            </div>
+
+            <div class="scene-slot empty" data-slot="F">
+                <div class="scene-letter">F</div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="content-area">
+            <!-- Scene Detail Panel -->
+            <div class="scene-detail">
+                <div class="scene-header">
+                    <input type="text" class="scene-title-input" value="VHS Look" placeholder="Scene name...">
+                    <div class="scene-meta">Created: Oct 25, 2025 • Last modified: 2 hours ago</div>
+                </div>
+
+                <div class="effect-list">
+                    <h3>Effects in Scene (4)</h3>
+
+                    <div class="effect-item">
+                        <div>
+                            <span class="effect-name">Saturation</span>
+                            <span class="effect-multiplier">×4</span>
+                        </div>
+                        <div class="effect-params">Factor: 1.5</div>
+                    </div>
+
+                    <div class="effect-item">
+                        <div>
+                            <span class="effect-name">Compression</span>
+                            <span class="effect-multiplier">×3</span>
+                        </div>
+                        <div class="effect-params">Quality: 45</div>
+                    </div>
+
+                    <div class="effect-item">
+                        <div>
+                            <span class="effect-name">Noise</span>
+                            <span class="effect-multiplier">×2</span>
+                        </div>
+                        <div class="effect-params">Amount: 0.3</div>
+                    </div>
+
+                    <div class="effect-item">
+                        <div>
+                            <span class="effect-name">ChromaticAberration</span>
+                            <span class="effect-multiplier">×1</span>
+                        </div>
+                        <div class="effect-params">Offset: 3px</div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-primary">Load Scene</button>
+                    <button class="btn btn-secondary">Update Scene</button>
+                    <button class="btn btn-secondary">Rename</button>
+                    <button class="btn btn-secondary">Export JSON</button>
+                    <button class="btn btn-danger">Delete</button>
+                </div>
+            </div>
+
+            <!-- Side Panel -->
+            <div class="side-panel">
+                <h3>Quick Actions</h3>
+                <div class="scene-list">
+                    <div class="scene-list-item active">
+                        <div class="scene-list-name">VHS Look</div>
+                        <div class="scene-list-info">Slot A • 4 effects</div>
+                    </div>
+                    <div class="scene-list-item">
+                        <div class="scene-list-name">Glitch Heavy</div>
+                        <div class="scene-list-info">Slot B • 6 effects</div>
+                    </div>
+                    <div class="scene-list-item">
+                        <div class="scene-list-name">Subtle Grain</div>
+                        <div class="scene-list-info">Slot C • 2 effects</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Context Menu (Example - normally hidden) -->
+        <div class="context-menu">
+            <div class="context-menu-item">Load</div>
+            <div class="context-menu-item">Update</div>
+            <div class="context-menu-item">Rename</div>
+            <div class="context-menu-divider"></div>
+            <div class="context-menu-item">Duplicate</div>
+            <div class="context-menu-item">Export</div>
+            <div class="context-menu-divider"></div>
+            <div class="context-menu-item danger">Delete</div>
+        </div>
+
+        <!-- Bottom Actions -->
+        <div class="bottom-actions">
+            <button class="btn btn-primary btn-large">💾 Save Current as New Scene</button>
+            <button class="btn btn-secondary btn-large">📥 Import Scene</button>
+            <button class="btn btn-danger btn-large">🗑️ Clear All Scenes</button>
+        </div>
+
+        <!-- Keyboard Shortcuts -->
+        <div class="shortcuts-hint">
+            <h3>Keyboard Shortcuts</h3>
+            <div class="shortcut-list">
+                <div class="shortcut-item">
+                    <span class="key">⌘1</span> - <span class="key">⌘6</span> Load scenes A-F
+                </div>
+                <div class="shortcut-item">
+                    <span class="key">⌘S</span> Save current state to active scene
+                </div>
+                <div class="shortcut-item">
+                    <span class="key">⌘⇧S</span> Save current state as new scene
+                </div>
+                <div class="shortcut-item">
+                    <span class="key">⌘E</span> Export active scene to JSON
+                </div>
+                <div class="shortcut-item">
+                    <span class="key">⌘I</span> Import scene from JSON
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Interactive behaviors
+        document.addEventListener('DOMContentLoaded', function() {
+            // Scene slot click handlers
+            const sceneSlots = document.querySelectorAll('.scene-slot');
+            sceneSlots.forEach(slot => {
+                slot.addEventListener('click', function() {
+                    // Remove active from all slots
+                    sceneSlots.forEach(s => s.classList.remove('active'));
+
+                    // Add active to clicked slot (if not empty)
+                    if (!this.classList.contains('empty')) {
+                        this.classList.add('active');
+                    }
+                });
+
+                // Context menu on right-click
+                slot.addEventListener('contextmenu', function(e) {
+                    if (!this.classList.contains('empty')) {
+                        e.preventDefault();
+                        const contextMenu = document.querySelector('.context-menu');
+                        contextMenu.style.display = 'block';
+                        contextMenu.style.left = e.pageX + 'px';
+                        contextMenu.style.top = e.pageY + 'px';
+                    }
+                });
+            });
+
+            // Close context menu on click outside
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.context-menu')) {
+                    const contextMenu = document.querySelector('.context-menu');
+                    contextMenu.style.display = 'none';
+                }
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (e.metaKey || e.ctrlKey) {
+                    // Cmd/Ctrl + 1-6 for scene loading
+                    if (e.key >= '1' && e.key <= '6') {
+                        e.preventDefault();
+                        const slotIndex = parseInt(e.key) - 1;
+                        const slot = sceneSlots[slotIndex];
+                        if (!slot.classList.contains('empty')) {
+                            slot.click();
+                            console.log(`Loading scene ${String.fromCharCode(65 + slotIndex)}`);
+                        }
+                    }
+
+                    // Cmd/Ctrl + S for save
+                    if (e.key === 's') {
+                        e.preventDefault();
+                        console.log('Saving current state to active scene');
+                    }
+
+                    // Cmd/Ctrl + E for export
+                    if (e.key === 'e') {
+                        e.preventDefault();
+                        console.log('Exporting active scene to JSON');
+                    }
+
+                    // Cmd/Ctrl + I for import
+                    if (e.key === 'i') {
+                        e.preventDefault();
+                        console.log('Importing scene from JSON');
+                    }
+                }
+            });
+
+            // Button interactions
+            document.querySelectorAll('.btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    console.log('Button clicked:', this.textContent.trim());
+                });
+            });
+
+            // Scene list item clicks
+            document.querySelectorAll('.scene-list-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    document.querySelectorAll('.scene-list-item').forEach(i => i.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+
+            // Input field auto-resize
+            const titleInput = document.querySelector('.scene-title-input');
+            titleInput.addEventListener('input', function() {
+                this.style.width = (this.value.length + 1) + 'ch';
+            });
+        });
+    </script>
+</body>
+</html>
