@@ -233,6 +233,9 @@ class GaussianBlurGPUOperation(BaseImageOperation):
         """
         Apply separable Gaussian blur to a numpy array using GPU.
 
+        Optimized to allocate GPU fields once and reuse them for all channels,
+        eliminating expensive allocation/deallocation overhead.
+
         Args:
             img_array: Input image array (can be 2D grayscale or 3D RGB).
             sigma: Blur sigma value.
@@ -250,24 +253,24 @@ class GaussianBlurGPUOperation(BaseImageOperation):
         h, w = img_array.shape[:2]
         is_color = img_array.ndim == RGB_CHANNELS
 
-        # Compute Gaussian kernel weights on CPU
+        # Compute Gaussian kernel weights on CPU once
         kernel_weights = compute_gaussian_kernel_1d(kernel_size, sigma)
 
-        # Create Taichi field for kernel and copy weights
+        # Create Taichi fields ONCE - major performance optimization
         kernel_field = ti.field(dtype=ti.f32, shape=kernel_size)
         kernel_field.from_numpy(kernel_weights)
 
+        # Allocate GPU fields once outside loop
+        input_field = ti.field(dtype=ti.f32, shape=(h, w))
+        temp_field = ti.field(dtype=ti.f32, shape=(h, w))
+        output_field = ti.field(dtype=ti.f32, shape=(h, w))
+
         if is_color:
-            # Process each channel separately
+            # Process each channel, reusing GPU fields
             result = np.zeros_like(img_array, dtype=np.float32)
 
             for c in range(RGB_CHANNELS):
-                # Create Taichi fields for this channel
-                input_field = ti.field(dtype=ti.f32, shape=(h, w))
-                temp_field = ti.field(dtype=ti.f32, shape=(h, w))
-                output_field = ti.field(dtype=ti.f32, shape=(h, w))
-
-                # Copy channel data to GPU
+                # Reuse existing fields - just copy new channel data
                 input_field.from_numpy(img_array[:, :, c].astype(np.float32))
 
                 # Apply separable filter: horizontal then vertical
@@ -280,11 +283,6 @@ class GaussianBlurGPUOperation(BaseImageOperation):
             return result
 
         # Grayscale image
-        input_field = ti.field(dtype=ti.f32, shape=(h, w))
-        temp_field = ti.field(dtype=ti.f32, shape=(h, w))
-        output_field = ti.field(dtype=ti.f32, shape=(h, w))
-
-        # Copy data to GPU
         input_field.from_numpy(img_array.astype(np.float32))
 
         # Apply separable filter: horizontal then vertical
