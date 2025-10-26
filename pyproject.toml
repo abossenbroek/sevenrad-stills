@@ -80,6 +80,7 @@ ignore = [
 "src/sevenrad_stills/cli/commands.py" = ["PLR0913"]  # Click commands have many options
 "src/sevenrad_stills/operations/blur_circular_gpu.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
 "src/sevenrad_stills/operations/band_swap_gpu.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
+"src/sevenrad_stills/operations/buffer_corruption_gpu.py" = ["ANN201", "PLR0913", "PLR0915", "C901", "PLR0912"]  # Taichi kernels have special signatures, apply method handles multiple corruption types
 
 [tool.pytest.ini_options]
 markers = [
@@ -124,5 +125,6 @@ follow_imports = "skip"
 module = [
     "sevenrad_stills.operations.blur_circular_gpu",
     "sevenrad_stills.operations.band_swap_gpu",
+    "sevenrad_stills.operations.buffer_corruption_gpu",
 ]
 ignore_errors = true
