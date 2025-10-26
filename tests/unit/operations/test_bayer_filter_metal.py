@@ -9,8 +9,8 @@ from PIL import Image
 from sevenrad_stills.operations.bayer_filter import BayerFilterOperation
 
 try:
-    from sevenrad_stills.operations.bayer_filter_metal_malvar import (
-        BayerFilterMetalMalvarOperation,
+    from sevenrad_stills.operations.bayer_filter_metal import (
+        BayerFilterMetalOperation,
     )
 
     METAL_AVAILABLE = True
@@ -25,11 +25,11 @@ def bayer_op_cpu() -> BayerFilterOperation:
 
 
 @pytest.fixture
-def bayer_op_metal_malvar() -> BayerFilterMetalMalvarOperation:
-    """Create a Metal Malvar Bayer filter operation instance."""
+def bayer_op_metal() -> BayerFilterMetalOperation:
+    """Create a Metal Bayer filter operation instance."""
     if not METAL_AVAILABLE:
         pytest.skip("Metal not available")
-    return BayerFilterMetalMalvarOperation()
+    return BayerFilterMetalOperation()
 
 
 def create_test_image(size: tuple[int, int]) -> Image.Image:
@@ -46,14 +46,14 @@ class TestMetalMalvarQuality:
     def test_malvar_matches_cpu_closely(
         self,
         bayer_op_cpu: BayerFilterOperation,
-        bayer_op_metal_malvar: BayerFilterMetalMalvarOperation,
+        bayer_op_metal: BayerFilterMetalOperation,
     ) -> None:
         """Test that Metal Malvar matches CPU output very closely."""
         image = create_test_image((512, 512))
         params = {"pattern": "RGGB"}
 
         cpu_result = bayer_op_cpu.apply(image, params)
-        metal_result = bayer_op_metal_malvar.apply(image, params)
+        metal_result = bayer_op_metal.apply(image, params)
 
         cpu_array = np.array(cpu_result, dtype=np.float32)
         metal_array = np.array(metal_result, dtype=np.float32)
@@ -82,7 +82,7 @@ class TestMetalMalvarQuality:
     def test_malvar_performance(
         self,
         bayer_op_cpu: BayerFilterOperation,
-        bayer_op_metal_malvar: BayerFilterMetalMalvarOperation,
+        bayer_op_metal: BayerFilterMetalOperation,
     ) -> None:
         """Test that Metal Malvar maintains performance advantage."""
         import time
@@ -93,7 +93,7 @@ class TestMetalMalvarQuality:
         # Warmup
         for _ in range(3):
             bayer_op_cpu.apply(image, params)
-            bayer_op_metal_malvar.apply(image, params)
+            bayer_op_metal.apply(image, params)
 
         # Time CPU
         cpu_times = []
@@ -106,7 +106,7 @@ class TestMetalMalvarQuality:
         metal_times = []
         for _ in range(5):
             start = time.perf_counter()
-            bayer_op_metal_malvar.apply(image, params)
+            bayer_op_metal.apply(image, params)
             metal_times.append(time.perf_counter() - start)
 
         cpu_avg = np.mean(cpu_times)
