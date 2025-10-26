@@ -114,21 +114,20 @@ class TestBayerFilterQuality:
                 taichi_result, metal_result, "Metal vs Taichi"
             )
 
-            # Both GPU implementations use edge-directed demosaicing,
-            # which differs from CPU's Malvar2004 algorithm
+            # Taichi uses edge-directed demosaicing, which differs from CPU's Malvar2004
             assert (
                 taichi_stats["mean"] < 50
             ), f"{pattern}: Taichi mean diff too high: {taichi_stats['mean']:.2f}"
 
-            # Metal uses same algorithm as Taichi
+            # Metal uses Malvar2004 (same as CPU), should match very closely
             assert (
-                metal_stats["mean"] < 50
+                metal_stats["mean"] < 10
             ), f"{pattern}: Metal mean diff too high: {metal_stats['mean']:.2f}"
 
-            # Metal and Taichi should produce similar output
-            # (both use edge-directed demosaicing, but may differ on edge cases)
-            assert metal_taichi_stats["mean"] < 15, (
-                f"{pattern}: Metal and Taichi should be reasonably close - "
+            # Metal (Malvar2004) and Taichi (edge-directed) use different algorithms
+            # They should differ similar to how Taichi differs from CPU
+            assert metal_taichi_stats["mean"] < 50, (
+                f"{pattern}: Metal/Taichi diff too high - "
                 f"got mean diff {metal_taichi_stats['mean']:.2f}"
             )
 

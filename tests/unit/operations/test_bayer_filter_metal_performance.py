@@ -242,9 +242,8 @@ class TestMetalPerformance:
         print(f"  Mean difference: {mean_diff:.2f}")
         print(f"  Max difference:  {max_diff:.2f}")
 
-        # Metal uses edge-directed demosaicing vs CPU's Malvar2004,
-        # so differences are expected
-        assert mean_diff < 50, f"Mean difference too high: {mean_diff:.2f}"
+        # Metal uses Malvar2004 (same as CPU), should match very closely
+        assert mean_diff < 10, f"Mean difference too high: {mean_diff:.2f}"
         assert max_diff <= 255, f"Max difference too high: {max_diff:.2f}"
 
 
