@@ -70,17 +70,6 @@ struct TileDescriptor {
         }
     }
 
-    // Convert flat array to simd_float8 array for Metal
-    private func flatToSimd8(_ flat: [Float]) -> [simd_float8] {
-        var result = [simd_float8]()
-        for i in stride(from: 0, to: flat.count, by: 8) {
-            result.append(simd_float8(
-                flat[i], flat[i+1], flat[i+2], flat[i+3],
-                flat[i+4], flat[i+5], flat[i+6], flat[i+7]
-            ))
-        }
-        return result
-    }
 
     // Main entry point: apply compression artifacts to image
     @objc public func applyCompressionArtifacts(
@@ -161,12 +150,8 @@ struct TileDescriptor {
         ]
 
         // Scale quantization matrices
-        let scaledLuma = scaleQuantizationMatrix(jpegQuantLuma, quality: quality)
-        let scaledChroma = scaleQuantizationMatrix(jpegQuantChroma, quality: quality)
-
-        // Convert to simd_float8 arrays
-        let quantLumaSimd = flatToSimd8(scaledLuma)
-        let quantChromaSimd = flatToSimd8(scaledChroma)
+        var scaledLuma = scaleQuantizationMatrix(jpegQuantLuma, quality: quality)
+        var scaledChroma = scaleQuantizationMatrix(jpegQuantChroma, quality: quality)
 
         // Create tile descriptors buffer
         var tileDescriptors = tiles.map { tile -> TileDescriptor in
@@ -188,12 +173,9 @@ struct TileDescriptor {
         }
 
         // Create quantization matrix buffers
-        var quantLumaArray = quantLumaSimd
-        var quantChromaArray = quantChromaSimd
-
         guard let quantLumaBuffer = device.makeBuffer(
-            bytes: &quantLumaArray,
-            length: MemoryLayout<simd_float8>.stride * quantLumaArray.count,
+            bytes: &scaledLuma,
+            length: MemoryLayout<Float>.stride * scaledLuma.count,
             options: .storageModeShared
         ) else {
             print("Error: Failed to create quant luma buffer")
@@ -201,8 +183,8 @@ struct TileDescriptor {
         }
 
         guard let quantChromaBuffer = device.makeBuffer(
-            bytes: &quantChromaArray,
-            length: MemoryLayout<simd_float8>.stride * quantChromaArray.count,
+            bytes: &scaledChroma,
+            length: MemoryLayout<Float>.stride * scaledChroma.count,
             options: .storageModeShared
         ) else {
             print("Error: Failed to create quant chroma buffer")
@@ -278,4 +260,57 @@ struct TileDescriptor {
 
         return true
     }
+}
+
+// MARK: - C-Compatible FFI Boundary
+
+// Global instance for C function to use
+private var globalMetalInstance: MetalCompressionArtifact?
+
+// C-compatible wrapper function for Python ctypes
+@_cdecl("metal_compression_apply")
+public func metal_compression_apply(
+    imageData: UnsafeMutablePointer<UInt8>,
+    width: Int32,
+    height: Int32,
+    channels: Int32,
+    tilesFlat: UnsafePointer<Int32>,
+    numTiles: Int32,
+    quality: Int32
+) -> Bool {
+    // Lazy initialization of Metal instance
+    if globalMetalInstance == nil {
+        globalMetalInstance = MetalCompressionArtifact()
+    }
+
+    guard let instance = globalMetalInstance else {
+        print("Error: Failed to initialize Metal instance")
+        return false
+    }
+
+    // Convert flat tiles array to Swift [[Int]]
+    // Format: [y_start, y_end, x_start, x_end, y_start, y_end, x_start, x_end, ...]
+    var tiles: [[Int]] = []
+    tiles.reserveCapacity(Int(numTiles))
+
+    for i in 0..<Int(numTiles) {
+        let offset = i * 4
+        let tile = [
+            Int(tilesFlat[offset]),     // y_start
+            Int(tilesFlat[offset + 1]), // y_end
+            Int(tilesFlat[offset + 2]), // x_start
+            Int(tilesFlat[offset + 3])  // x_end
+        ]
+        tiles.append(tile)
+    }
+
+    // Call the Swift implementation
+    return instance.applyCompressionArtifacts(
+        imageData: imageData,
+        width: Int(width),
+        height: Int(height),
+        channels: Int(channels),
+        tiles: tiles,
+        quality: Int(quality)
+    )
 }

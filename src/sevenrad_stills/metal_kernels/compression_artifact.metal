@@ -2,12 +2,6 @@
 // compression_artifact.metal
 // GPU-optimized JPEG compression artifact simulation using Metal
 //
-// Single-pass compute pipeline for maximum performance:
-// - Batched tile processing (all tiles in one kernel dispatch)
-// - SIMD-optimized 2D DCT/IDCT
-// - Zero-copy texture operations
-// - Threadgroup memory for shared data
-//
 
 #include <metal_stdlib>
 using namespace metal;
@@ -52,11 +46,7 @@ inline float3 ycbcr_to_rgb(float3 ycbcr) {
 }
 
 // 1D DCT-II (forward transform)
-// Uses optimized SIMD operations for 8-element vectors
-inline void dct_1d(thread float8 &data, thread float8 &out) {
-    // DCT-II formula: X[k] = sum(x[n] * cos(pi * k * (2n + 1) / 16))
-    // Normalized: multiply by sqrt(1/8) for k=0, sqrt(2/8) for k>0
-
+inline void dct_1d(thread const float *data, thread float *out) {
     for (int k = 0; k < 8; k++) {
         float sum = 0.0;
         for (int n = 0; n < 8; n++) {
@@ -67,7 +57,7 @@ inline void dct_1d(thread float8 &data, thread float8 &out) {
 }
 
 // 1D IDCT-II (inverse transform)
-inline void idct_1d(thread float8 &data, thread float8 &out) {
+inline void idct_1d(thread const float *data, thread float *out) {
     for (int n = 0; n < 8; n++) {
         float sum = data[0] * SQRT_1_8;
         for (int k = 1; k < 8; k++) {
@@ -78,24 +68,24 @@ inline void idct_1d(thread float8 &data, thread float8 &out) {
 }
 
 // 2D DCT using separable transform (rows then columns)
-inline void dct_2d_8x8(thread float8 block[8], thread float8 out[8]) {
-    float8 temp[8];
+inline void dct_2d_8x8(thread const float block[8][8], thread float out[8][8]) {
+    float temp[8][8];
 
     // DCT on rows
     for (int i = 0; i < 8; i++) {
         dct_1d(block[i], temp[i]);
     }
 
-    // DCT on columns (transpose, DCT, transpose back)
+    // DCT on columns (extract column, DCT, write back)
     for (int j = 0; j < 8; j++) {
-        float8 col = float8(
-            temp[0][j], temp[1][j], temp[2][j], temp[3][j],
-            temp[4][j], temp[5][j], temp[6][j], temp[7][j]
-        );
-        float8 col_out;
+        float col[8];
+        for (int i = 0; i < 8; i++) {
+            col[i] = temp[i][j];
+        }
+
+        float col_out[8];
         dct_1d(col, col_out);
 
-        // Write back transposed
         for (int i = 0; i < 8; i++) {
             out[i][j] = col_out[i];
         }
@@ -103,8 +93,8 @@ inline void dct_2d_8x8(thread float8 block[8], thread float8 out[8]) {
 }
 
 // 2D IDCT using separable transform
-inline void idct_2d_8x8(thread float8 block[8], thread float8 out[8]) {
-    float8 temp[8];
+inline void idct_2d_8x8(thread const float block[8][8], thread float out[8][8]) {
+    float temp[8][8];
 
     // IDCT on rows
     for (int i = 0; i < 8; i++) {
@@ -113,11 +103,12 @@ inline void idct_2d_8x8(thread float8 block[8], thread float8 out[8]) {
 
     // IDCT on columns
     for (int j = 0; j < 8; j++) {
-        float8 col = float8(
-            temp[0][j], temp[1][j], temp[2][j], temp[3][j],
-            temp[4][j], temp[5][j], temp[6][j], temp[7][j]
-        );
-        float8 col_out;
+        float col[8];
+        for (int i = 0; i < 8; i++) {
+            col[i] = temp[i][j];
+        }
+
+        float col_out[8];
         idct_1d(col, col_out);
 
         for (int i = 0; i < 8; i++) {
@@ -128,26 +119,25 @@ inline void idct_2d_8x8(thread float8 block[8], thread float8 out[8]) {
 
 // Quantize and dequantize (lossy step)
 inline void quantize_dequantize(
-    thread float8 block[8],
-    constant float8 quant_matrix[8],
-    thread float8 out[8]
+    thread const float block[8][8],
+    constant const float *quant_matrix,
+    thread float out[8][8]
 ) {
     for (int i = 0; i < 8; i++) {
-        // Quantize: divide and round
-        float8 quantized = round(block[i] / quant_matrix[i]);
-        // Dequantize: multiply back (information already lost)
-        out[i] = quantized * quant_matrix[i];
+        for (int j = 0; j < 8; j++) {
+            int idx = i * 8 + j;
+            float quantized = round(block[i][j] / quant_matrix[idx]);
+            out[i][j] = quantized * quant_matrix[idx];
+        }
     }
 }
 
 // Main compression artifact kernel
-// Processes all tiles in a single pass
-// Threadgroup layout: (tile_idx, block_y, block_x) where each thread handles one 8x8 block
 kernel void apply_compression_artifacts(
     texture2d<float, access::read_write> image [[texture(0)]],
     constant TileDescriptor *tiles [[buffer(0)]],
-    constant float8 *quant_luma [[buffer(1)]],
-    constant float8 *quant_chroma [[buffer(2)]],
+    constant float *quant_luma [[buffer(1)]],
+    constant float *quant_chroma [[buffer(2)]],
     constant uint &num_tiles [[buffer(3)]],
     uint3 gid [[thread_position_in_grid]]
 ) {
@@ -156,27 +146,27 @@ kernel void apply_compression_artifacts(
     uint block_x = gid.z;
 
     // Bounds check
-    if (tile_idx >= num_tiles) return;
+    if (tile_idx >= num_tiles) {
+        return;
+    }
 
     TileDescriptor tile = tiles[tile_idx];
-
-    // Calculate block position in image
     uint img_y = tile.y_start + block_y * BLOCK_SIZE;
     uint img_x = tile.x_start + block_x * BLOCK_SIZE;
 
-    // Check if block is fully within tile (skip partial blocks)
+    // Check if block is fully within tile
     if (img_y + BLOCK_SIZE > tile.y_end || img_x + BLOCK_SIZE > tile.x_end) {
         return;
     }
 
     // Load 8x8 block from image and convert to YCbCr
-    float8 y_block[8], cb_block[8], cr_block[8];
+    float y_block[8][8], cb_block[8][8], cr_block[8][8];
 
     for (int i = 0; i < 8; i++) {
         for (int j = 0; j < 8; j++) {
             uint2 coord = uint2(img_x + j, img_y + i);
             float4 rgba = image.read(coord);
-            float3 rgb = rgba.rgb * 255.0; // Convert to 0-255 range
+            float3 rgb = rgba.rgb * 255.0;
             float3 ycbcr = rgb_to_ycbcr(rgb);
 
             // Center around 0 for DCT
@@ -187,24 +177,24 @@ kernel void apply_compression_artifacts(
     }
 
     // Apply DCT to each channel
-    float8 y_dct[8], cb_dct[8], cr_dct[8];
+    float y_dct[8][8], cb_dct[8][8], cr_dct[8][8];
     dct_2d_8x8(y_block, y_dct);
     dct_2d_8x8(cb_block, cb_dct);
     dct_2d_8x8(cr_block, cr_dct);
 
-    // Quantize and dequantize (this is where compression artifacts come from)
-    float8 y_quant[8], cb_quant[8], cr_quant[8];
+    // Quantize and dequantize
+    float y_quant[8][8], cb_quant[8][8], cr_quant[8][8];
     quantize_dequantize(y_dct, quant_luma, y_quant);
     quantize_dequantize(cb_dct, quant_chroma, cb_quant);
     quantize_dequantize(cr_dct, quant_chroma, cr_quant);
 
     // Apply IDCT
-    float8 y_idct[8], cb_idct[8], cr_idct[8];
+    float y_idct[8][8], cb_idct[8][8], cr_idct[8][8];
     idct_2d_8x8(y_quant, y_idct);
     idct_2d_8x8(cb_quant, cb_idct);
     idct_2d_8x8(cr_quant, cr_idct);
 
-    // Write back to image (convert YCbCr to RGB)
+    // Write back to image
     for (int i = 0; i < 8; i++) {
         for (int j = 0; j < 8; j++) {
             // Uncenter from 0
@@ -215,13 +205,11 @@ kernel void apply_compression_artifacts(
             );
 
             float3 rgb = ycbcr_to_rgb(ycbcr);
-
-            // Clamp to valid range and convert back to 0-1
-            rgb = clamp(rgb, 0.0, 255.0) / 255.0;
+            rgb = clamp(rgb / 255.0, 0.0, 1.0);
 
             uint2 coord = uint2(img_x + j, img_y + i);
-            float4 rgba = float4(rgb, 1.0);
-            image.write(rgba, coord);
+            float4 rgba = image.read(coord);
+            image.write(float4(rgb, rgba.a), coord);
         }
     }
 }

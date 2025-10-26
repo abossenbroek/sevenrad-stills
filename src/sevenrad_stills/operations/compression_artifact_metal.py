@@ -29,7 +29,7 @@ class MetalCompressionArtifact:
     """
     Wrapper for the Metal compression artifact implementation.
 
-    Loads the compiled Swift dylib and provides Python interface.
+    Loads the compiled Swift dylib and provides Python interface via C FFI.
     """
 
     def __init__(self) -> None:
@@ -52,45 +52,22 @@ class MetalCompressionArtifact:
         # Load the dynamic library
         self.lib = ctypes.CDLL(str(dylib_path))
 
-        # Get the Objective-C runtime functions we need
-        self._setup_objc_bridge()
+        # Setup C function signature
+        self._setup_c_function()
 
-    def _setup_objc_bridge(self) -> None:
-        """Set up Objective-C bridge using ctypes."""
-        # Load Objective-C runtime
-        objc = ctypes.CDLL("/usr/lib/libobjc.A.dylib")
-
-        # Get runtime functions
-        self.objc_getClass = objc.objc_getClass
-        self.objc_getClass.restype = ctypes.c_void_p
-        self.objc_getClass.argtypes = [ctypes.c_char_p]
-
-        self.sel_registerName = objc.sel_registerName
-        self.sel_registerName.restype = ctypes.c_void_p
-        self.sel_registerName.argtypes = [ctypes.c_char_p]
-
-        self.objc_msgSend = objc.objc_msgSend
-        self.objc_msgSend.restype = ctypes.c_void_p
-        self.objc_msgSend.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
-
-        # Get our Swift class
-        self.metal_class = self.objc_getClass(
-            b"MetalCompressionArtifact.MetalCompressionArtifact"
-        )
-        if not self.metal_class:
-            msg = "Failed to load MetalCompressionArtifact class"
-            raise RuntimeError(msg)
-
-        # Create instance
-        alloc_sel = self.sel_registerName(b"alloc")
-        init_sel = self.sel_registerName(b"init")
-
-        instance = self.objc_msgSend(self.metal_class, alloc_sel)
-        self.instance = self.objc_msgSend(instance, init_sel)
-
-        if not self.instance:
-            msg = "Failed to initialize MetalCompressionArtifact instance"
-            raise RuntimeError(msg)
+    def _setup_c_function(self) -> None:
+        """Set up C function signature for metal_compression_apply."""
+        self.apply_func = self.lib.metal_compression_apply
+        self.apply_func.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),  # imageData
+            ctypes.c_int32,  # width
+            ctypes.c_int32,  # height
+            ctypes.c_int32,  # channels
+            ctypes.POINTER(ctypes.c_int32),  # tilesFlat
+            ctypes.c_int32,  # numTiles
+            ctypes.c_int32,  # quality
+        ]
+        self.apply_func.restype = ctypes.c_bool
 
     def apply(
         self,
@@ -107,7 +84,7 @@ class MetalCompressionArtifact:
             quality: JPEG quality (1-20)
 
         Returns:
-            Modified image as numpy array
+            Modified image as numpy array (modified in-place)
 
         """
         # Ensure contiguous array
@@ -118,55 +95,33 @@ class MetalCompressionArtifact:
         num_dims = 3
         channels = image_data.shape[2] if len(image_data.shape) == num_dims else 1
 
-        # Get selector for our method
-        apply_sel = self.sel_registerName(
-            b"applyCompressionArtifactsWithImageData:width:height:"
-            b"channels:tiles:quality:"
-        )
-
-        # Prepare arguments
-        image_ptr = image_data.ctypes.data_as(ctypes.POINTER(ctypes.c_uint8))
-
-        # Convert tiles to NSArray (simplified: just pass as flat array)
+        # Flatten tiles array for C interface
+        # Format: [y_start, y_end, x_start, x_end, y_start, y_end, x_start, x_end, ...]
         tiles_flat = []
         for tile in tiles:
             tiles_flat.extend(tile)
 
-        tiles_array = (ctypes.c_int * len(tiles_flat))(*tiles_flat)
+        tiles_array = (ctypes.c_int32 * len(tiles_flat))(*tiles_flat)
 
-        # Call the method using objc_msgSend with proper types
-        objc = ctypes.CDLL("/usr/lib/libobjc.A.dylib")
-        objc_msgsend_typed = objc.objc_msgSend
-        objc_msgsend_typed.argtypes = [
-            ctypes.c_void_p,  # self
-            ctypes.c_void_p,  # selector
-            ctypes.POINTER(ctypes.c_uint8),  # imageData
-            ctypes.c_int,  # width
-            ctypes.c_int,  # height
-            ctypes.c_int,  # channels
-            ctypes.POINTER(ctypes.c_int),  # tiles
-            ctypes.c_int,  # num_tiles
-            ctypes.c_int,  # quality
-        ]
-        objc_msgsend_typed.restype = ctypes.c_bool
+        # Get pointer to image data
+        image_ptr = image_data.ctypes.data_as(ctypes.POINTER(ctypes.c_uint8))
 
-        success = objc_msgsend_typed(
-            self.instance,
-            apply_sel,
+        # Call the C function
+        success = self.apply_func(
             image_ptr,
-            w,
-            h,
-            channels,
+            ctypes.c_int32(w),
+            ctypes.c_int32(h),
+            ctypes.c_int32(channels),
             tiles_array,
-            len(tiles),
-            quality,
+            ctypes.c_int32(len(tiles)),
+            ctypes.c_int32(quality),
         )
 
         if not success:
             msg = "Metal operation failed"
             raise RuntimeError(msg)
 
-        return image_data
+        return image_data  # Modified in-place by Metal
 
 
 class CompressionArtifactMetalOperation(BaseImageOperation):
