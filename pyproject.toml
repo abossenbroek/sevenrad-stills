@@ -81,6 +81,9 @@ ignore = [
 "src/sevenrad_stills/operations/blur_circular_gpu.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
 "src/sevenrad_stills/operations/band_swap_gpu.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
 "src/sevenrad_stills/operations/buffer_corruption_gpu.py" = ["ANN201", "PLR0913", "PLR0915", "C901", "PLR0912"]  # Taichi kernels have special signatures, apply method handles multiple corruption types
+"src/sevenrad_stills/operations/buffer_corruption_gpu_optimized.py" = ["ANN201", "PLR0913", "PLR0915", "C901", "PLR0912"]  # Taichi kernels have special signatures
+"profile_buffer_corruption.py" = ["T201", "ANN401", "PLR2004"]  # Profiling script uses print
+"benchmark_optimized.py" = ["T201", "ANN401", "PLR2004"]  # Benchmark script uses print
 
 [tool.pytest.ini_options]
 markers = [
@@ -126,5 +129,8 @@ module = [
     "sevenrad_stills.operations.blur_circular_gpu",
     "sevenrad_stills.operations.band_swap_gpu",
     "sevenrad_stills.operations.buffer_corruption_gpu",
+    "sevenrad_stills.operations.buffer_corruption_gpu_optimized",
+    "profile_buffer_corruption",
+    "benchmark_optimized",
 ]
 ignore_errors = true
