@@ -34,7 +34,7 @@ VALID_PERMUTATIONS = {
 
 
 @ti.func  # type: ignore[misc]
-def swap_channels(  # type: ignore[no-untyped-def]  # noqa: ANN201, PLR0913
+def swap_channels(  # type: ignore[no-untyped-def]
     img: ti.types.ndarray(),  # type: ignore[valid-type]
     y: ti.i32,
     x: ti.i32,
@@ -69,7 +69,7 @@ def swap_channels(  # type: ignore[no-untyped-def]  # noqa: ANN201, PLR0913
 
 
 @ti.kernel  # type: ignore[misc]
-def apply_band_swap_batch(  # type: ignore[no-untyped-def]  # noqa: PLR0913, ANN201
+def apply_band_swap_batch(  # type: ignore[no-untyped-def]
     img: ti.types.ndarray(),  # type: ignore[valid-type]
     tiles: ti.types.ndarray(),  # type: ignore[valid-type]
     num_tiles: ti.i32,
