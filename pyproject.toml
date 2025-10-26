@@ -79,12 +79,18 @@ ignore = [
 "tests/unit/operations/test_band_swap_performance.py" = ["S101", "ANN", "PLR2004", "S108", "T201"]  # Allow print in performance tests
 "tests/unit/operations/test_compression_artifact_gpu.py" = ["S101", "ANN", "PLR2004", "S108", "T201"]  # Allow print in GPU tests
 "tests/unit/operations/test_compression_performance.py" = ["S101", "ANN", "PLR2004", "S108", "T201"]  # Allow print in performance tests
+"tests/unit/operations/test_downscale_performance.py" = ["S101", "ANN", "PLR2004", "S108", "T201"]  # Allow print in performance tests
+"tests/unit/operations/test_downscale_metal.py" = ["ARG002"]  # Fixtures used for side effects (skip checks)
+"tests/unit/operations/test_corduroy_performance.py" = ["S101", "ANN", "PLR2004", "S108", "T201"]  # Allow print in performance tests
 "src/sevenrad_stills/cli/commands.py" = ["PLR0913"]  # Click commands have many options
 "src/sevenrad_stills/operations/blur_circular_gpu.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
 "src/sevenrad_stills/operations/band_swap_gpu.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
 "src/sevenrad_stills/operations/compression_artifact_gpu.py" = ["ANN201", "PLR0913", "C901", "PLR0915"]  # Taichi kernels have special signatures and complexity
 "src/sevenrad_stills/operations/compression_gpu.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
 "src/sevenrad_stills/operations/compression_metal.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
+"src/sevenrad_stills/operations/downscale_gpu.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
+"src/sevenrad_stills/operations/downscale_metal.py" = ["ANN201"]  # Metal operations have special signatures
+"src/sevenrad_stills/operations/corduroy_gpu.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
 
 [tool.pytest.ini_options]
 markers = [
@@ -107,6 +113,11 @@ check_untyped_defs = true
 no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = "sevenrad_stills.operations.bayer_filter_gpu"
+warn_unused_ignores = false
+disallow_untyped_defs = false
 warn_no_return = true
 follow_imports = "normal"
 
@@ -129,8 +140,20 @@ follow_imports = "skip"
 module = [
     "sevenrad_stills.operations.blur_circular_gpu",
     "sevenrad_stills.operations.band_swap_gpu",
+<<<<<<< HEAD
     "sevenrad_stills.operations.compression_artifact_gpu",
+=======
+    "sevenrad_stills.operations.downscale_gpu",
+    "sevenrad_stills.operations.downscale_metal",
+>>>>>>> origin/develop
     "sevenrad_stills.operations.compression_gpu",
     "sevenrad_stills.operations.compression_metal",
+    "sevenrad_stills.operations.corduroy_gpu",
+    "sevenrad_stills.operations.corduroy_metal",
 ]
 ignore_errors = true
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+]
