@@ -149,6 +149,8 @@ module = [
     "sevenrad_stills.operations.downscale_metal",
     "sevenrad_stills.operations.corduroy_gpu",
     "sevenrad_stills.operations.corduroy_metal",
+    "sevenrad_stills.operations.noise_gpu",
+    "sevenrad_stills.operations.noise_metal",
 ]
 ignore_errors = true
 
