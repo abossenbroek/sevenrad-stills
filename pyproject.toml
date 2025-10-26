@@ -21,6 +21,7 @@ dependencies = [
     "pydantic-settings~=2.6",
     "pyyaml~=6.0",
     "click~=8.1",
+    "taichi~=1.7",
 ]
 
 [project.optional-dependencies]
@@ -74,12 +75,15 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "ANN", "PLR2004", "S108"]  # Allow assert, annotations, magic values, and /tmp in tests
+"tests/unit/operations/test_blur_circular_performance.py" = ["S101", "ANN", "PLR2004", "S108", "T201"]  # Allow print in performance tests
 "src/sevenrad_stills/cli/commands.py" = ["PLR0913"]  # Click commands have many options
+"src/sevenrad_stills/operations/blur_circular_gpu.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
 
 [tool.pytest.ini_options]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests requiring external resources",
+    "mac: marks tests that only run on macOS",
 ]
 # Exclude slow and integration tests by default
 # Run with: pytest -m "slow or integration" to include them
@@ -108,6 +112,12 @@ module = [
     "scipy.*",
     "skimage.*",
     "colour_demosaicing.*",
+    "taichi.*",
 ]
 ignore_missing_imports = true
 follow_imports = "skip"
+
+# Skip mypy for Taichi GPU code (Taichi's type system is incompatible with mypy)
+[[tool.mypy.overrides]]
+module = "sevenrad_stills.operations.blur_circular_gpu"
+ignore_errors = true
