@@ -142,10 +142,11 @@ module = [
     "sevenrad_stills.operations.chromatic_aberration_gpu",
     "sevenrad_stills.operations.buffer_corruption_gpu",
     "sevenrad_stills.operations.buffer_corruption_metal",
-    "sevenrad_stills.operations.downscale_gpu",
-    "sevenrad_stills.operations.downscale_metal",
+    "sevenrad_stills.operations.compression_artifact_gpu",
     "sevenrad_stills.operations.compression_gpu",
     "sevenrad_stills.operations.compression_metal",
+    "sevenrad_stills.operations.downscale_gpu",
+    "sevenrad_stills.operations.downscale_metal",
     "sevenrad_stills.operations.corduroy_gpu",
     "sevenrad_stills.operations.corduroy_metal",
 ]
