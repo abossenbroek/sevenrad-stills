@@ -22,9 +22,9 @@ dependencies = [
     "pyyaml~=6.0",
     "click~=8.1",
     "taichi~=1.7",
-    "mlx~=0.29",
-    "pyobjc-framework-metal>=12.0",
-    "pyobjc-framework-metalperformanceshaders>=12.0",
+    "mlx~=0.29; sys_platform == 'darwin'",
+    "pyobjc-framework-metal>=12.0; sys_platform == 'darwin'",
+    "pyobjc-framework-metalperformanceshaders>=12.0; sys_platform == 'darwin'",
 ]
 
 [project.optional-dependencies]
