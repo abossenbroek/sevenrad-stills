@@ -1,0 +1,258 @@
+"""
+GPU-accelerated band swap operation using Taichi.
+
+Simulates errors in satellite data transmission where packet headers are corrupted,
+causing band/channel data to be misinterpreted and swapped in rectangular regions.
+Uses Taichi for GPU acceleration of the band permutation operations.
+"""
+
+from typing import Any
+
+import numpy as np
+import taichi as ti
+from PIL import Image
+
+from sevenrad_stills.operations.base import BaseImageOperation
+
+# Initialize Taichi - will auto-select GPU if available, fallback to CPU
+ti.init(arch=ti.gpu, default_fp=ti.f32)
+
+# Constants (same as CPU version)
+MIN_TILE_COUNT = 1
+MAX_TILE_COUNT = 50
+MIN_TILE_SIZE = 0.01
+MAX_TILE_SIZE = 1.0
+
+# Valid permutation patterns (excluding identity RGB)
+VALID_PERMUTATIONS = {
+    "GRB": [1, 0, 2],
+    "BGR": [2, 1, 0],
+    "BRG": [2, 0, 1],
+    "GBR": [1, 2, 0],
+    "RBG": [0, 2, 1],
+}
+
+
+@ti.kernel  # type: ignore[misc]
+def apply_band_swap_kernel(  # type: ignore[no-untyped-def]  # noqa: PLR0913, ANN201
+    image: ti.types.ndarray(),  # type: ignore[valid-type]
+    output: ti.types.ndarray(),  # type: ignore[valid-type]
+    y_start: ti.i32,
+    y_end: ti.i32,
+    x_start: ti.i32,
+    x_end: ti.i32,
+    perm_0: ti.i32,
+    perm_1: ti.i32,
+    perm_2: ti.i32,
+):
+    """
+    Taichi kernel to apply band swapping to a rectangular region.
+
+    This kernel runs on GPU and permutes color channels within the specified
+    tile boundaries. Each pixel within the tile has its RGB channels reordered
+    according to the permutation indices.
+
+    Args:
+        image: Input image array (H, W, C)
+        output: Output image array (H, W, C) - modified in place
+        y_start: Top edge of tile
+        y_end: Bottom edge of tile (exclusive)
+        x_start: Left edge of tile
+        x_end: Right edge of tile (exclusive)
+        perm_0: Index for first channel in permutation
+        perm_1: Index for second channel in permutation
+        perm_2: Index for third channel in permutation
+
+    """
+    # Parallelize over pixels in the tile
+    for y, x in ti.ndrange((y_start, y_end), (x_start, x_end)):
+        # Read original RGB values
+        r = image[y, x, 0]
+        g = image[y, x, 1]
+        b = image[y, x, 2]
+
+        # Create a local array for permutation source
+        channels = ti.Vector([r, g, b])
+
+        # Apply permutation
+        output[y, x, 0] = channels[perm_0]
+        output[y, x, 1] = channels[perm_1]
+        output[y, x, 2] = channels[perm_2]
+
+
+class BandSwapGPUOperation(BaseImageOperation):
+    """
+    GPU-accelerated band/channel swapping operation using Taichi.
+
+    This operation simulates packet mis-identification errors in satellite downlink
+    by swapping color channels in rectangular tiles. The band permutation is
+    accelerated using Taichi GPU kernels for improved performance on large images.
+
+    Simulates a failure mode where satellite downlink packets containing spectral
+    band data have corrupted metadata in their headers. The ground station receives
+    the correct pixel data but interprets it with the wrong band labels.
+
+    In multi-spectral satellite imagery:
+    - Band 1 (Red) data is received but labeled as Band 2 (Green)
+    - Band 2 (Green) data is received but labeled as Band 3 (Blue)
+    - Band 3 (Blue) data is received but labeled as Band 1 (Red)
+
+    This creates rectangular regions with sudden, dramatic color shifts - the spatial
+    structure is preserved but colors are completely wrong. Common causes:
+    - Bit flips in packet header metadata from cosmic rays
+    - Software bugs in on-board packet assembly
+    - Ground station decompression errors misinterpreting stream structure
+
+    Performance: GPU acceleration provides significant speedup for large images
+    and/or many tiles, as each tile's permutation can be parallelized across
+    thousands of GPU threads.
+    """
+
+    def __init__(self) -> None:
+        """Initialize the GPU-accelerated band swap operation."""
+        super().__init__("band_swap_gpu")
+
+    def validate_params(self, params: dict[str, Any]) -> None:  # noqa: C901
+        """
+        Validate parameters for band swap operation.
+
+        Args:
+            params: A dictionary containing:
+                - tile_count (int): Number of affected tiles (1 to 50)
+                - permutation (str): Channel swap pattern - one of:
+                  'GRB', 'BGR', 'BRG', 'GBR', 'RBG'
+                - tile_size_range (list): [min, max] tile size as fractions
+                  of image dimensions (0.01 to 1.0)
+                - seed (int, optional): Random seed for reproducibility
+
+        Raises:
+            ValueError: If parameters are invalid.
+
+        """
+        if "tile_count" not in params:
+            msg = "Band swap operation requires 'tile_count' parameter."
+            raise ValueError(msg)
+        tile_count = params["tile_count"]
+        if not isinstance(tile_count, int) or not (
+            MIN_TILE_COUNT <= tile_count <= MAX_TILE_COUNT
+        ):
+            msg = (
+                f"tile_count must be an integer between {MIN_TILE_COUNT} "
+                f"and {MAX_TILE_COUNT}."
+            )
+            raise ValueError(msg)
+
+        if "permutation" not in params:
+            msg = "Band swap operation requires 'permutation' parameter."
+            raise ValueError(msg)
+        permutation = params["permutation"]
+        if permutation not in VALID_PERMUTATIONS:
+            valid_list = ", ".join(VALID_PERMUTATIONS.keys())
+            msg = f"Permutation must be one of: {valid_list}."
+            raise ValueError(msg)
+
+        if "tile_size_range" in params:
+            tile_size_range = params["tile_size_range"]
+            if (
+                not isinstance(tile_size_range, (list, tuple))
+                or len(tile_size_range) != 2  # noqa: PLR2004
+            ):
+                msg = "tile_size_range must be a list/tuple of two numbers [min, max]."
+                raise ValueError(msg)
+            min_size, max_size = tile_size_range
+            if not isinstance(min_size, (int, float)) or not isinstance(
+                max_size, (int, float)
+            ):
+                msg = "tile_size_range values must be numbers."
+                raise ValueError(msg)
+            if not (MIN_TILE_SIZE <= min_size <= MAX_TILE_SIZE) or not (
+                MIN_TILE_SIZE <= max_size <= MAX_TILE_SIZE
+            ):
+                msg = (
+                    f"tile_size_range values must be between {MIN_TILE_SIZE} "
+                    f"and {MAX_TILE_SIZE}."
+                )
+                raise ValueError(msg)
+            if min_size > max_size:
+                msg = "tile_size_range min must be less than or equal to max."
+                raise ValueError(msg)
+
+        if "seed" in params and not isinstance(params["seed"], int):
+            msg = "Seed must be an integer."
+            raise ValueError(msg)
+
+    def apply(self, image: Image.Image, params: dict[str, Any]) -> Image.Image:
+        """
+        Apply GPU-accelerated band swapping to random tiles in the image.
+
+        The tile positions and sizes are generated on CPU using numpy's RNG,
+        while the actual band permutation within each tile is executed on GPU
+        using Taichi kernels for parallel processing.
+
+        Args:
+            image: The input PIL Image (must be RGB or RGBA).
+            params: A dictionary with 'tile_count', 'permutation',
+                    optional 'tile_size_range', and optional 'seed'.
+
+        Returns:
+            The PIL Image with band swapping applied to random tiles.
+
+        Raises:
+            ValueError: If image is not RGB or RGBA mode.
+
+        """
+        self.validate_params(params)
+
+        # Band swap only makes sense for RGB/RGBA images
+        if image.mode not in ("RGB", "RGBA"):
+            msg = f"Band swap requires RGB or RGBA image, got {image.mode}."
+            raise ValueError(msg)
+
+        tile_count: int = params["tile_count"]
+        permutation: str = params["permutation"]
+        tile_size_range: list[float] = params.get("tile_size_range", [0.05, 0.2])
+        seed: int | None = params.get("seed")
+
+        # Create random number generator (CPU-side)
+        rng = np.random.default_rng(seed)
+
+        # Convert to array and separate RGB from alpha if needed
+        img_array = np.array(image)
+
+        if image.mode == "RGBA":
+            rgb = img_array[..., :3].copy()
+            alpha = img_array[..., 3]
+        else:
+            rgb = img_array.copy()
+            alpha = None
+
+        h, w = rgb.shape[:2]
+
+        # Get permutation indices
+        perm_indices = VALID_PERMUTATIONS[permutation]
+
+        # Work with uint8 directly like CPU version (no float32 conversion)
+        # This simplifies the implementation and matches CPU behavior exactly
+
+        # Generate random tiles and apply swaps using simple numpy like CPU version
+        for _ in range(tile_count):
+            # Random tile size
+            tile_fraction = rng.uniform(tile_size_range[0], tile_size_range[1])
+            tile_h = max(1, int(h * tile_fraction))
+            tile_w = max(1, int(w * tile_fraction))
+
+            # Random tile position
+            y = rng.integers(0, max(1, h - tile_h + 1))
+            x = rng.integers(0, max(1, w - tile_w + 1))
+
+            # Apply permutation to this tile (matching CPU version exactly)
+            rgb[y : y + tile_h, x : x + tile_w] = rgb[
+                y : y + tile_h, x : x + tile_w, perm_indices
+            ]
+
+        output = rgb
+
+        # Recombine with alpha if needed
+        output_array = np.dstack([output, alpha]) if alpha is not None else output
+
+        return Image.fromarray(output_array)
