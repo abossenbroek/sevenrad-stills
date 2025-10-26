@@ -101,8 +101,10 @@ class TestDownscalePerformance:
         self, large_image: Image.Image
     ) -> None:
         """Test that Metal is competitive with Taichi GPU for large images."""
-        if not METAL_AVAILABLE:
-            pytest.skip("Metal framework not available")
+        try:
+            import Metal  # type: ignore[import-not-found]
+        except ImportError:
+            pytest.skip("Metal framework not available (requires PyObjC)")
 
         gpu_op = DownscaleGPUOperation()
         metal_op = DownscaleMetalOperation()
@@ -132,8 +134,10 @@ class TestDownscalePerformance:
 
     def test_performance_hierarchy_large_image(self, large_image: Image.Image) -> None:
         """Test performance characteristics of all implementations."""
-        if not METAL_AVAILABLE:
-            pytest.skip("Metal framework not available")
+        try:
+            import Metal  # type: ignore[import-not-found]
+        except ImportError:
+            pytest.skip("Metal framework not available (requires PyObjC)")
 
         cpu_op = DownscaleOperation()
         gpu_op = DownscaleGPUOperation()
@@ -230,8 +234,10 @@ class TestDownscalePerformance:
 
     def test_numerical_accuracy_metal_vs_cpu(self, medium_image: Image.Image) -> None:
         """Test that Metal results are numerically close to CPU results."""
-        if not METAL_AVAILABLE:
-            pytest.skip("Metal framework not available")
+        try:
+            import Metal  # type: ignore[import-not-found]
+        except ImportError:
+            pytest.skip("Metal framework not available (requires PyObjC)")
 
         cpu_op = DownscaleOperation()
         metal_op = DownscaleMetalOperation()
@@ -267,8 +273,10 @@ class TestDownscalePerformance:
 
     def test_numerical_accuracy_metal_vs_gpu(self, medium_image: Image.Image) -> None:
         """Test that Metal and GPU results are numerically close."""
-        if not METAL_AVAILABLE:
-            pytest.skip("Metal framework not available")
+        try:
+            import Metal  # type: ignore[import-not-found]
+        except ImportError:
+            pytest.skip("Metal framework not available (requires PyObjC)")
 
         gpu_op = DownscaleGPUOperation()
         metal_op = DownscaleMetalOperation()
@@ -302,8 +310,10 @@ class TestDownscalePerformance:
 
     def test_nearest_neighbor_accuracy(self, medium_image: Image.Image) -> None:
         """Test that nearest neighbor is pixel-perfect across all implementations."""
-        if not METAL_AVAILABLE:
-            pytest.skip("Metal framework not available")
+        try:
+            import Metal  # type: ignore[import-not-found]
+        except ImportError:
+            pytest.skip("Metal framework not available (requires PyObjC)")
 
         cpu_op = DownscaleOperation()
         gpu_op = DownscaleGPUOperation()
@@ -340,8 +350,10 @@ class TestDownscalePerformance:
 
     def test_extreme_downscale_performance(self) -> None:
         """Test performance with extreme downscaling."""
-        if not METAL_AVAILABLE:
-            pytest.skip("Metal framework not available")
+        try:
+            import Metal  # type: ignore[import-not-found]
+        except ImportError:
+            pytest.skip("Metal framework not available (requires PyObjC)")
 
         cpu_op = DownscaleOperation()
         gpu_op = DownscaleGPUOperation()

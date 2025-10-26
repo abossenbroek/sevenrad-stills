@@ -78,6 +78,7 @@ ignore = [
 "tests/unit/operations/test_blur_circular_performance.py" = ["S101", "ANN", "PLR2004", "S108", "T201"]  # Allow print in performance tests
 "tests/unit/operations/test_band_swap_performance.py" = ["S101", "ANN", "PLR2004", "S108", "T201"]  # Allow print in performance tests
 "tests/unit/operations/test_downscale_performance.py" = ["S101", "ANN", "PLR2004", "S108", "T201"]  # Allow print in performance tests
+"tests/unit/operations/test_downscale_metal.py" = ["ARG002"]  # Fixtures used for side effects (skip checks)
 "src/sevenrad_stills/cli/commands.py" = ["PLR0913"]  # Click commands have many options
 "src/sevenrad_stills/operations/blur_circular_gpu.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
 "src/sevenrad_stills/operations/band_swap_gpu.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
@@ -131,3 +132,8 @@ module = [
     "sevenrad_stills.operations.downscale_metal",
 ]
 ignore_errors = true
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+]
