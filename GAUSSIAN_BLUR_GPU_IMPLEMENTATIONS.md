@@ -63,19 +63,21 @@ This document summarizes the GPU-accelerated implementations of Gaussian blur fo
 1. **MLX** (Winner) - 4.88x-7.06x speedup
    - Best for: Production workloads on Apple Silicon
    - Apple's ML framework with highly optimized Metal backend
+   - Highest accuracy (MAE < 2.0)
 
-2. **Taichi GPU** - 2.19x-3.51x speedup
-   - Best for: Cross-platform GPU code (also works on CUDA, Vulkan)
-   - Python-native with good performance after optimization
-
-3. **MPS** - 3.13x-3.41x speedup
+2. **MPS** - 3.13x-3.41x speedup
    - Best for: Integration with existing Metal pipelines
    - Apple's production-grade blur implementation
-   - Lower accuracy due to different edge handling
+   - Slightly lower accuracy due to different edge handling (MAE < 3.0)
+
+3. **Taichi GPU** - 2.31x-2.55x speedup
+   - Best for: Cross-platform GPU code (also works on CUDA, Vulkan)
+   - Python-native with good performance after optimization
+   - High accuracy (MAE < 2.0)
 
 4. **CPU (scipy)** - Baseline
    - Best for: Small images or compatibility
-   - Excellent numerical accuracy
+   - Excellent numerical accuracy (reference implementation)
 
 ## Key Findings
 
