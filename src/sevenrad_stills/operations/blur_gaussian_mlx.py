@@ -11,11 +11,17 @@ performance through highly-optimized convolution kernels.
 
 from typing import Any
 
-import mlx.core as mx
 import numpy as np
 from PIL import Image
 
 from sevenrad_stills.operations.base import BaseImageOperation
+
+# Import MLX framework (macOS only)
+try:
+    import mlx.core as mx
+except ImportError as e:
+    msg = "MLX framework requires macOS with Apple Silicon"
+    raise ImportError(msg) from e
 
 # Constants
 RGB_CHANNELS = 3  # Number of color channels in RGB image
