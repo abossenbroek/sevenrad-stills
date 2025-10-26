@@ -22,24 +22,30 @@ ti.init(arch=ti.gpu, default_fp=ti.f32)
 
 
 @ti.kernel  # type: ignore[misc]
-def apply_channel_shift(  # type: ignore[no-untyped-def]
-    input_channel: ti.types.ndarray(),  # type: ignore[valid-type]
-    output_channel: ti.types.ndarray(),  # type: ignore[valid-type]
+def apply_chromatic_aberration_fused(  # type: ignore[no-untyped-def]
+    input_img: ti.types.ndarray(),  # type: ignore[valid-type]
+    output_img: ti.types.ndarray(),  # type: ignore[valid-type]
     shift_y: ti.i32,
     shift_x: ti.i32,
     height: ti.i32,
     width: ti.i32,
 ):
     """
-    GPU kernel to shift a single channel with constant boundary mode.
+    Optimized fused GPU kernel processing all RGB channels in a single pass.
 
-    This kernel reads from input_channel and writes shifted values to output_channel.
-    Pixels that would read from outside the image boundaries are set to 0 (black),
-    matching scipy's mode='constant', cval=0 behavior.
+    This kernel eliminates the need for multiple kernel launches and array copies
+    by processing all three channels together. It provides better memory coalescing
+    and reduces GPU overhead significantly.
+
+    Performance optimizations:
+    - Single kernel launch for all channels (vs 2 separate launches)
+    - Direct RGB array processing (no channel extraction/copying)
+    - Better memory coalescing with contiguous RGB reads/writes
+    - Reduced CPU-GPU synchronization overhead
 
     Args:
-        input_channel: Input channel array (H, W)
-        output_channel: Output channel array (H, W)
+        input_img: Input RGB image array (H, W, 3)
+        output_img: Output RGB image array (H, W, 3)
         shift_y: Vertical shift in pixels (positive = down)
         shift_x: Horizontal shift in pixels (positive = right)
         height: Image height
@@ -47,15 +53,26 @@ def apply_channel_shift(  # type: ignore[no-untyped-def]
 
     """
     for i, j in ti.ndrange(height, width):
-        # Calculate source position (reverse shift)
-        src_i = i - shift_y
-        src_j = j - shift_x
+        # Red channel: shift in positive direction
+        src_r_i = i - shift_y
+        src_r_j = j - shift_x
 
-        # Check if source is within bounds (constant boundary mode)
-        if 0 <= src_i < height and 0 <= src_j < width:
-            output_channel[i, j] = input_channel[src_i, src_j]
+        if 0 <= src_r_i < height and 0 <= src_r_j < width:
+            output_img[i, j, 0] = input_img[src_r_i, src_r_j, 0]
         else:
-            output_channel[i, j] = 0  # Constant value (black)
+            output_img[i, j, 0] = 0
+
+        # Green channel: no shift (reference channel)
+        output_img[i, j, 1] = input_img[i, j, 1]
+
+        # Blue channel: shift in negative direction (opposite of red)
+        src_b_i = i + shift_y
+        src_b_j = j + shift_x
+
+        if 0 <= src_b_i < height and 0 <= src_b_j < width:
+            output_img[i, j, 2] = input_img[src_b_i, src_b_j, 2]
+        else:
+            output_img[i, j, 2] = 0
 
 
 class ChromaticAberrationGPUOperation(BaseImageOperation):
@@ -99,11 +116,14 @@ class ChromaticAberrationGPUOperation(BaseImageOperation):
 
     def apply(self, image: Image.Image, params: dict[str, Any]) -> Image.Image:
         """
-        Apply GPU-accelerated chromatic aberration.
+        Apply GPU-accelerated chromatic aberration with optimized fused kernel.
 
         The green channel is kept as reference, while red and blue channels
-        are shifted in opposite directions to create color fringing. The shift
-        operation is parallelized on GPU for improved performance.
+        are shifted in opposite directions to create color fringing. All three
+        channels are processed in a single fused GPU kernel for maximum performance.
+
+        Performance: Uses a single kernel launch processing all RGB channels together,
+        eliminating overhead from multiple kernel launches and array copies.
 
         Args:
             image: The input PIL Image.
@@ -123,43 +143,31 @@ class ChromaticAberrationGPUOperation(BaseImageOperation):
         img_array = np.array(image)
         height, width = img_array.shape[:2]
 
-        # Create output array
-        output_array = np.zeros_like(img_array)
-
-        # Process RGB channels with GPU acceleration
-        # Define shifts for R, G, B channels. G channel is kept as reference.
-        # R is shifted one way, B is shifted the other.
-        shifts = {
-            0: (shift_y, shift_x),  # Red channel shift
-            1: (0, 0),  # Green channel (no shift)
-            2: (-shift_y, -shift_x),  # Blue channel shift
-        }
-
-        for i in range(3):  # Iterate through R, G, B
-            if shifts[i] == (0, 0):
-                # Green channel - direct copy (no shift)
-                output_array[..., i] = img_array[..., i]
-            else:
-                # Red or Blue channel - apply GPU shift
-                # Taichi requires contiguous arrays
-                input_channel = np.ascontiguousarray(img_array[..., i])
-                output_channel = np.ascontiguousarray(output_array[..., i])
-
-                sy, sx = shifts[i]
-                apply_channel_shift(
-                    input_channel,
-                    output_channel,
-                    sy,
-                    sx,
-                    height,
-                    width,
-                )
-
-                # Copy result back
-                output_array[..., i] = output_channel
-
-        # Preserve alpha channel if it exists
+        # Separate RGB from alpha if needed
         if image.mode == "RGBA":
-            output_array[..., 3] = img_array[..., 3]
+            rgb = np.ascontiguousarray(img_array[..., :3])
+            alpha = img_array[..., 3]
+        else:
+            rgb = np.ascontiguousarray(img_array)
+            alpha = None
+
+        # Create output array (contiguous for GPU)
+        output_rgb = np.zeros_like(rgb)
+
+        # Single fused kernel launch for all RGB channels
+        apply_chromatic_aberration_fused(
+            rgb,
+            output_rgb,
+            shift_y,
+            shift_x,
+            height,
+            width,
+        )
+
+        # Recombine with alpha if needed
+        if alpha is not None:
+            output_array = np.dstack([output_rgb, alpha])
+        else:
+            output_array = output_rgb
 
         return Image.fromarray(output_array)
