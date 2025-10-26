@@ -31,17 +31,21 @@ def apply_chromatic_aberration_fused(  # type: ignore[no-untyped-def]
     width: ti.i32,
 ):
     """
-    Optimized fused GPU kernel processing all RGB channels in a single pass.
+    Highly optimized fused GPU kernel with branchless operations.
 
-    This kernel eliminates the need for multiple kernel launches and array copies
-    by processing all three channels together. It provides better memory coalescing
-    and reduces GPU overhead significantly.
+    This kernel processes all RGB channels in a single pass with advanced
+    optimizations for Metal GPU architecture:
 
     Performance optimizations:
     - Single kernel launch for all channels (vs 2 separate launches)
     - Direct RGB array processing (no channel extraction/copying)
     - Better memory coalescing with contiguous RGB reads/writes
     - Reduced CPU-GPU synchronization overhead
+    - Branchless boundary checking using conditional arithmetic
+    - Minimized memory accesses and ALU operations
+
+    The branchless approach replaces if/else with arithmetic operations that
+    are more efficient on GPU architectures, avoiding warp divergence.
 
     Args:
         input_img: Input RGB image array (H, W, 3)
@@ -57,22 +61,33 @@ def apply_chromatic_aberration_fused(  # type: ignore[no-untyped-def]
         src_r_i = i - shift_y
         src_r_j = j - shift_x
 
-        if 0 <= src_r_i < height and 0 <= src_r_j < width:
-            output_img[i, j, 0] = input_img[src_r_i, src_r_j, 0]
-        else:
-            output_img[i, j, 0] = 0
+        # Branchless boundary check: use conditional to avoid divergence
+        in_bounds_r = (
+            (src_r_i >= 0) & (src_r_i < height) & (src_r_j >= 0) & (src_r_j < width)
+        )
+        # If out of bounds, read from (0,0) but multiply result by 0
+        safe_r_i = ti.max(0, ti.min(height - 1, src_r_i))
+        safe_r_j = ti.max(0, ti.min(width - 1, src_r_j))
+        output_img[i, j, 0] = input_img[safe_r_i, safe_r_j, 0] * ti.cast(
+            in_bounds_r, ti.u8
+        )
 
-        # Green channel: no shift (reference channel)
+        # Green channel: no shift (reference channel) - direct copy
         output_img[i, j, 1] = input_img[i, j, 1]
 
         # Blue channel: shift in negative direction (opposite of red)
         src_b_i = i + shift_y
         src_b_j = j + shift_x
 
-        if 0 <= src_b_i < height and 0 <= src_b_j < width:
-            output_img[i, j, 2] = input_img[src_b_i, src_b_j, 2]
-        else:
-            output_img[i, j, 2] = 0
+        # Branchless boundary check for blue channel
+        in_bounds_b = (
+            (src_b_i >= 0) & (src_b_i < height) & (src_b_j >= 0) & (src_b_j < width)
+        )
+        safe_b_i = ti.max(0, ti.min(height - 1, src_b_i))
+        safe_b_j = ti.max(0, ti.min(width - 1, src_b_j))
+        output_img[i, j, 2] = input_img[safe_b_i, safe_b_j, 2] * ti.cast(
+            in_bounds_b, ti.u8
+        )
 
 
 class ChromaticAberrationGPUOperation(BaseImageOperation):
