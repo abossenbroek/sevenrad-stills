@@ -1,14 +1,14 @@
 # Metal GPU-Accelerated Compression Artifact Implementation
 
-## Status: Partially Implemented
+## Status: ✅ Complete and Working
 
-This directory contains a high-performance Metal implementation for JPEG compression artifact simulation. The Metal shaders and Swift wrapper are complete and compiled, but the Python bridge requires additional setup.
+This directory contains a high-performance Metal implementation for JPEG compression artifact simulation using a C-compatible FFI interface.
 
 ## What's Implemented
 
 ### ✅ Complete
 1. **Metal Compute Shader** (`compression_artifact.metal`)
-   - SIMD-optimized 2D DCT/IDCT using `simd_float8`
+   - 2D DCT/IDCT using standard Metal arrays
    - Single-pass compute pipeline for all tiles
    - YCbCr color space conversion
    - Quantization/dequantization with JPEG matrices
@@ -17,17 +17,18 @@ This directory contains a high-performance Metal implementation for JPEG compres
    - Metal pipeline setup and management
    - Texture creation and data transfer
    - Buffer management for tiles and quantization matrices
+   - C-compatible FFI wrapper with `@_cdecl`
    - Compiled to `build/libMetalCompressionArtifact.dylib`
 
-3. **Build System** (`build.sh`)
+3. **Python Bridge** (`compression_artifact_metal.py`)
+   - Clean ctypes-based C FFI interface
+   - Zero external dependencies (no PyObjC needed)
+   - Flat array tile format for C compatibility
+   - In-place image modification for performance
+
+4. **Build System** (`build.sh`)
    - Compiles Swift → dylib
    - Copies Metal shaders to build directory
-
-### 🚧 In Progress
-4. **Python Bridge** (`compression_artifact_metal.py`)
-   - Basic structure complete
-   - Requires PyObjC or improved ctypes bridge
-   - Alternative: Rewrite Swift wrapper with C-compatible interface
 
 ## Architecture
 
@@ -67,60 +68,47 @@ This creates:
 - `build/libMetalCompressionArtifact.dylib`
 - `build/compression_artifact.metal`
 
-## Completing the Python Bridge
+## Implementation Details
 
-### Option 1: PyObjC (Recommended)
+### C-Compatible FFI Interface
 
-Add dependency:
-```toml
-[project.dependencies]
-pyobjc-framework-Metal = "~=10.0"  # macOS only
-```
+The implementation uses a clean C-compatible interface via `@_cdecl` in Swift:
 
-Then use PyObjC to call Swift class directly:
-```python
-from Foundation import NSBundle
-import objc
-
-# Load dylib
-bundle = NSBundle.bundleWithPath_("build/")
-MetalClass = objc.lookUpClass("MetalCompressionArtifact")
-instance = MetalClass.alloc().init()
-
-# Call method
-success = instance.applyCompressionArtifactsWithImageData_width_height_...()
-```
-
-### Option 2: C-Compatible Interface
-
-Modify Swift wrapper to expose C functions:
+**Swift side** (`MetalCompressionArtifact.swift`):
 ```swift
 @_cdecl("metal_compression_apply")
 public func metal_compression_apply(
     imageData: UnsafeMutablePointer<UInt8>,
     width: Int32,
     height: Int32,
-    // ...
-) -> Bool {
-    // Call Swift implementation
-}
+    channels: Int32,
+    tilesFlat: UnsafePointer<Int32>,
+    numTiles: Int32,
+    quality: Int32
+) -> Bool
 ```
 
-Then use ctypes directly:
+**Python side** (`compression_artifact_metal.py`):
 ```python
-lib = ctypes.CDLL("build/libMetalCompressionArtifact.dylib")
-lib.metal_compression_apply.argtypes = [...]
-lib.metal_compression_apply(...)
+self.lib = ctypes.CDLL(str(dylib_path))
+self.apply_func = self.lib.metal_compression_apply
+self.apply_func.argtypes = [
+    ctypes.POINTER(ctypes.c_uint8),  # imageData
+    ctypes.c_int32,  # width
+    ctypes.c_int32,  # height
+    ctypes.c_int32,  # channels
+    ctypes.POINTER(ctypes.c_int32),  # tilesFlat
+    ctypes.c_int32,  # numTiles
+    ctypes.c_int32,  # quality
+]
+self.apply_func.restype = ctypes.c_bool
 ```
 
-### Option 3: Subprocess Wrapper
-
-Create standalone CLI tool that calls Metal:
-```bash
-metal_compress input.png --tiles=tiles.json --quality=5 --output=output.png
-```
-
-Call from Python via subprocess.
+This approach provides:
+- ✅ Zero external dependencies (no PyObjC)
+- ✅ Minimal overhead (direct C function calls)
+- ✅ Clean, maintainable interface
+- ✅ Standard FFI pattern used across Python ecosystem
 
 ## Testing
 
