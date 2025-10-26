@@ -5,15 +5,32 @@ import platform
 import numpy as np
 import pytest
 from PIL import Image
-from sevenrad_stills.operations.downscale_metal import DownscaleMetalOperation
+
+# Check if Metal is available
+try:
+    from sevenrad_stills.operations.downscale_metal import DownscaleMetalOperation
+
+    METAL_AVAILABLE = True
+except ImportError:
+    METAL_AVAILABLE = False
+    # Create a placeholder class for type checking when Metal is not available
+    DownscaleMetalOperation = None  # type: ignore[misc,assignment]
 
 
 @pytest.mark.skipif(
-    platform.system() != "Darwin",
-    reason="Metal tests only run on Mac",
+    platform.system() != "Darwin" or not METAL_AVAILABLE,
+    reason="Metal tests only run on Mac with PyObjC Metal bindings",
 )
 class TestDownscaleMetalOperation:
     """Tests for DownscaleMetalOperation class."""
+
+    @pytest.fixture
+    def check_metal(self) -> None:
+        """Check if Metal is actually available at runtime."""
+        try:
+            import Metal  # type: ignore[import-not-found]
+        except ImportError:
+            pytest.skip("Metal framework not available (requires PyObjC)")
 
     @pytest.fixture
     def operation(self) -> DownscaleMetalOperation:
@@ -128,7 +145,10 @@ class TestDownscaleMetalOperation:
             operation.validate_params(params)
 
     def test_apply_basic(
-        self, operation: DownscaleMetalOperation, test_image: Image.Image
+        self,
+        check_metal: None,
+        operation: DownscaleMetalOperation,
+        test_image: Image.Image,
     ) -> None:
         """Test applying Metal downscale."""
         params = {"scale": 0.5}
@@ -138,7 +158,10 @@ class TestDownscaleMetalOperation:
         assert result.mode == "RGB"
 
     def test_apply_without_upscale(
-        self, operation: DownscaleMetalOperation, test_image: Image.Image
+        self,
+        check_metal: None,
+        operation: DownscaleMetalOperation,
+        test_image: Image.Image,
     ) -> None:
         """Test applying downscale without upscaling."""
         params = {"scale": 0.5, "upscale": False}
@@ -147,7 +170,10 @@ class TestDownscaleMetalOperation:
         assert result.mode == "RGB"
 
     def test_apply_produces_change(
-        self, operation: DownscaleMetalOperation, test_image: Image.Image
+        self,
+        check_metal: None,
+        operation: DownscaleMetalOperation,
+        test_image: Image.Image,
     ) -> None:
         """Test that Metal downscale actually changes the image."""
         params = {"scale": 0.1, "upscale_method": "nearest"}
@@ -157,7 +183,7 @@ class TestDownscaleMetalOperation:
         assert not np.array_equal(np.array(test_image), np.array(result))
 
     def test_nearest_method_creates_pixelation(
-        self, operation: DownscaleMetalOperation
+        self, check_metal: None, operation: DownscaleMetalOperation
     ) -> None:
         """Test that nearest neighbor creates visible pixelation."""
         test_img = Image.new("RGB", (100, 100), color=(100, 150, 200))
@@ -180,7 +206,10 @@ class TestDownscaleMetalOperation:
         assert np.all(block == block[0, 0])
 
     def test_bilinear_method_smoother(
-        self, operation: DownscaleMetalOperation, test_image: Image.Image
+        self,
+        check_metal: None,
+        operation: DownscaleMetalOperation,
+        test_image: Image.Image,
     ) -> None:
         """Test that bilinear interpolation is smoother than nearest."""
         # Use gradient image (test_image fixture) to show interpolation differences
@@ -202,7 +231,9 @@ class TestDownscaleMetalOperation:
         # Results should differ due to interpolation method
         assert not np.array_equal(np.array(result_nearest), np.array(result_bilinear))
 
-    def test_rgba_preserves_alpha(self, operation: DownscaleMetalOperation) -> None:
+    def test_rgba_preserves_alpha(
+        self, check_metal: None, operation: DownscaleMetalOperation
+    ) -> None:
         """Test that RGBA images preserve alpha channel."""
         rgba_image = Image.new("RGBA", (100, 100), color=(100, 150, 200, 200))
         params = {"scale": 0.5}
@@ -211,7 +242,9 @@ class TestDownscaleMetalOperation:
         assert result.mode == "RGBA"
         assert result.size == (100, 100)
 
-    def test_grayscale_raises_error(self, operation: DownscaleMetalOperation) -> None:
+    def test_grayscale_raises_error(
+        self, check_metal: None, operation: DownscaleMetalOperation
+    ) -> None:
         """Test that grayscale images raise an error."""
         gray_image = Image.new("L", (100, 100), color=128)
         params = {"scale": 0.5}
@@ -219,7 +252,9 @@ class TestDownscaleMetalOperation:
         with pytest.raises(ValueError, match="Metal downscale requires RGB or RGBA"):
             operation.apply(gray_image, params)
 
-    def test_extreme_downscale(self, operation: DownscaleMetalOperation) -> None:
+    def test_extreme_downscale(
+        self, check_metal: None, operation: DownscaleMetalOperation
+    ) -> None:
         """Test extreme downscaling to minimum size."""
         test_img = Image.new("RGB", (100, 100), color=(100, 150, 200))
         params = {"scale": 0.01, "upscale": False}
@@ -229,7 +264,10 @@ class TestDownscaleMetalOperation:
         assert result.size == (1, 1)
 
     def test_no_downscale(
-        self, operation: DownscaleMetalOperation, test_image: Image.Image
+        self,
+        check_metal: None,
+        operation: DownscaleMetalOperation,
+        test_image: Image.Image,
     ) -> None:
         """Test that scale=1.0 produces similar output."""
         params = {"scale": 1.0}
@@ -241,7 +279,9 @@ class TestDownscaleMetalOperation:
         )
         assert np.mean(diff) < 2.0  # Average difference less than 2 pixel values
 
-    def test_multiple_channels(self, operation: DownscaleMetalOperation) -> None:
+    def test_multiple_channels(
+        self, check_metal: None, operation: DownscaleMetalOperation
+    ) -> None:
         """Test that all RGB channels are processed correctly."""
         # Create image with different values per channel
         test_img = Image.new("RGB", (100, 100), color=(255, 0, 0))  # Pure red
@@ -255,7 +295,9 @@ class TestDownscaleMetalOperation:
         assert np.all(result_array[:, :, 1] < 50)  # G low
         assert np.all(result_array[:, :, 2] < 50)  # B low
 
-    def test_metal_produces_valid_output(self, test_image: Image.Image) -> None:
+    def test_metal_produces_valid_output(
+        self, check_metal: None, test_image: Image.Image
+    ) -> None:
         """Test that Metal version produces valid, reasonable output."""
         metal_op = DownscaleMetalOperation()
 
@@ -276,7 +318,7 @@ class TestDownscaleMetalOperation:
         assert not np.array_equal(original_array, metal_array)
 
     def test_downscale_maintains_aspect_ratio(
-        self, operation: DownscaleMetalOperation
+        self, check_metal: None, operation: DownscaleMetalOperation
     ) -> None:
         """Test that downscaling maintains aspect ratio."""
         # Create rectangular image

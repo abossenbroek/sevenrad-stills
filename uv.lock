@@ -802,6 +802,11 @@ dev = [
     { name = "types-pyyaml" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = "~=8.1" },
@@ -823,6 +828,9 @@ requires-dist = [
     { name = "yt-dlp", specifier = "~=2025.10" },
 ]
 provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8.4.2" }]
 
 [[package]]
 name = "taichi"
