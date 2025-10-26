@@ -33,51 +33,83 @@ VALID_PERMUTATIONS = {
 }
 
 
-@ti.kernel  # type: ignore[misc]
-def apply_band_swap_kernel(  # type: ignore[no-untyped-def]  # noqa: PLR0913, ANN201
-    image: ti.types.ndarray(),  # type: ignore[valid-type]
-    output: ti.types.ndarray(),  # type: ignore[valid-type]
-    y_start: ti.i32,
-    y_end: ti.i32,
-    x_start: ti.i32,
-    x_end: ti.i32,
+@ti.func  # type: ignore[misc]
+def swap_channels(  # type: ignore[no-untyped-def]  # noqa: ANN201, PLR0913
+    img: ti.types.ndarray(),  # type: ignore[valid-type]
+    y: ti.i32,
+    x: ti.i32,
     perm_0: ti.i32,
     perm_1: ti.i32,
     perm_2: ti.i32,
 ):
     """
-    Taichi kernel to apply band swapping to a rectangular region.
-
-    This kernel runs on GPU and permutes color channels within the specified
-    tile boundaries. Each pixel within the tile has its RGB channels reordered
-    according to the permutation indices.
+    Device function to swap channels at a single pixel.
 
     Args:
-        image: Input image array (H, W, C)
-        output: Output image array (H, W, C) - modified in place
-        y_start: Top edge of tile
-        y_end: Bottom edge of tile (exclusive)
-        x_start: Left edge of tile
-        x_end: Right edge of tile (exclusive)
-        perm_0: Index for first channel in permutation
-        perm_1: Index for second channel in permutation
-        perm_2: Index for third channel in permutation
+        img: Image array (H, W, 3)
+        y: Y coordinate
+        x: X coordinate
+        perm_0: First channel index
+        perm_1: Second channel index
+        perm_2: Third channel index
 
     """
-    # Parallelize over pixels in the tile
-    for y, x in ti.ndrange((y_start, y_end), (x_start, x_end)):
-        # Read original RGB values
-        r = image[y, x, 0]
-        g = image[y, x, 1]
-        b = image[y, x, 2]
+    # Read original RGB values into temp vars
+    r = img[y, x, 0]
+    g = img[y, x, 1]
+    b = img[y, x, 2]
 
-        # Create a local array for permutation source
-        channels = ti.Vector([r, g, b])
+    # Create channel vector and apply permutation
+    channels = ti.Vector([r, g, b])
 
-        # Apply permutation
-        output[y, x, 0] = channels[perm_0]
-        output[y, x, 1] = channels[perm_1]
-        output[y, x, 2] = channels[perm_2]
+    # Write back permuted channels
+    img[y, x, 0] = channels[perm_0]
+    img[y, x, 1] = channels[perm_1]
+    img[y, x, 2] = channels[perm_2]
+
+
+@ti.kernel  # type: ignore[misc]
+def apply_band_swap_batch(  # type: ignore[no-untyped-def]  # noqa: PLR0913, ANN201
+    img: ti.types.ndarray(),  # type: ignore[valid-type]
+    tiles: ti.types.ndarray(),  # type: ignore[valid-type]
+    num_tiles: ti.i32,
+    max_tile_h: ti.i32,
+    max_tile_w: ti.i32,
+    perm_0: ti.i32,
+    perm_1: ti.i32,
+    perm_2: ti.i32,
+):
+    """
+    GPU kernel to process all tiles in a single batch.
+
+    Processes all tiles with a single kernel launch to minimize overhead.
+    Uses 2D parallelization to avoid expensive division/modulo operations.
+
+    Args:
+        img: Image array (H, W, 3) to modify in-place
+        tiles: Tile coordinates array (N, 4) [y_start, y_end, x_start, x_end]
+        num_tiles: Number of tiles
+        max_tile_h: Maximum tile height
+        max_tile_w: Maximum tile width
+        perm_0: First channel index
+        perm_1: Second channel index
+        perm_2: Third channel index
+
+    """
+    # Parallelize over tiles and 2D pixel coordinates (avoids expensive div/mod)
+    for tile_idx, local_y, local_x in ti.ndrange(num_tiles, max_tile_h, max_tile_w):
+        y_start = tiles[tile_idx, 0]
+        y_end = tiles[tile_idx, 1]
+        x_start = tiles[tile_idx, 2]
+        x_end = tiles[tile_idx, 3]
+
+        # Check if this pixel is within the tile bounds
+        y = y_start + local_y
+        x = x_start + local_x
+
+        if y < y_end and x < x_end:
+            # Apply permutation
+            swap_channels(img, y, x, perm_0, perm_1, perm_2)
 
 
 class BandSwapGPUOperation(BaseImageOperation):
@@ -231,15 +263,11 @@ class BandSwapGPUOperation(BaseImageOperation):
         # Get permutation indices
         perm_indices = VALID_PERMUTATIONS[permutation]
 
-        # NOTE: Currently using NumPy for array operations instead of Taichi GPU kernel.
-        # The Taichi kernel (apply_band_swap_kernel) is available but has challenges
-        # with in-place array modifications. For this use case (small random tiles),
-        # NumPy's optimized C implementation is already very efficient and the overhead
-        # of GPU kernel launches would likely outweigh benefits. Future optimization
-        # could leverage GPU for full-image or large-tile operations.
-
-        # Generate random tiles and apply swaps
-        for _ in range(tile_count):
+        # Generate all tile coordinates upfront (CPU side)
+        tiles: np.ndarray = np.zeros((tile_count, 4), dtype=np.int32)
+        max_tile_h = 0
+        max_tile_w = 0
+        for i in range(tile_count):
             # Random tile size
             tile_fraction = rng.uniform(tile_size_range[0], tile_size_range[1])
             tile_h = max(1, int(h * tile_fraction))
@@ -249,10 +277,24 @@ class BandSwapGPUOperation(BaseImageOperation):
             y = rng.integers(0, max(1, h - tile_h + 1))
             x = rng.integers(0, max(1, w - tile_w + 1))
 
-            # Apply permutation to this tile (using NumPy's optimized indexing)
-            rgb[y : y + tile_h, x : x + tile_w] = rgb[
-                y : y + tile_h, x : x + tile_w, perm_indices
-            ]
+            # Store tile coordinates [y_start, y_end, x_start, x_end]
+            tiles[i] = [y, y + tile_h, x, x + tile_w]
+
+            # Track maximum tile dimensions for efficient GPU parallelization
+            max_tile_h = max(max_tile_h, tile_h)
+            max_tile_w = max(max_tile_w, tile_w)
+
+        # Process all tiles in a single GPU kernel launch (no type conversion needed)
+        apply_band_swap_batch(
+            rgb,
+            tiles,
+            tile_count,
+            max_tile_h,
+            max_tile_w,
+            perm_indices[0],
+            perm_indices[1],
+            perm_indices[2],
+        )
 
         output = rgb
 
