@@ -263,26 +263,34 @@ class BandSwapGPUOperation(BaseImageOperation):
         # Get permutation indices
         perm_indices = VALID_PERMUTATIONS[permutation]
 
-        # Generate all tile coordinates upfront (CPU side)
-        tiles: np.ndarray = np.zeros((tile_count, 4), dtype=np.int32)
-        max_tile_h = 0
-        max_tile_w = 0
-        for i in range(tile_count):
-            # Random tile size
-            tile_fraction = rng.uniform(tile_size_range[0], tile_size_range[1])
-            tile_h = max(1, int(h * tile_fraction))
-            tile_w = max(1, int(w * tile_fraction))
+        # Generate tile coordinates using NumPy vectorization (faster than loops)
+        tile_fractions = rng.uniform(
+            tile_size_range[0], tile_size_range[1], size=tile_count
+        )
+        tile_heights = np.maximum(1, (h * tile_fractions).astype(np.int32))
+        tile_widths = np.maximum(1, (w * tile_fractions).astype(np.int32))
 
-            # Random tile position
-            y = rng.integers(0, max(1, h - tile_h + 1))
-            x = rng.integers(0, max(1, w - tile_w + 1))
+        # Random positions for all tiles
+        y_starts = rng.integers(
+            0, np.maximum(1, h - tile_heights + 1), size=tile_count, dtype=np.int32
+        )
+        x_starts = rng.integers(
+            0, np.maximum(1, w - tile_widths + 1), size=tile_count, dtype=np.int32
+        )
 
-            # Store tile coordinates [y_start, y_end, x_start, x_end]
-            tiles[i] = [y, y + tile_h, x, x + tile_w]
+        # Build tile array [y_start, y_end, x_start, x_end]
+        tiles: np.ndarray = np.column_stack(
+            [
+                y_starts,
+                y_starts + tile_heights,
+                x_starts,
+                x_starts + tile_widths,
+            ]
+        ).astype(np.int32)
 
-            # Track maximum tile dimensions for efficient GPU parallelization
-            max_tile_h = max(max_tile_h, tile_h)
-            max_tile_w = max(max_tile_w, tile_w)
+        # Calculate max dimensions for GPU parallelization
+        max_tile_h = int(tile_heights.max())
+        max_tile_w = int(tile_widths.max())
 
         # Process all tiles in a single GPU kernel launch (no type conversion needed)
         apply_band_swap_batch(
