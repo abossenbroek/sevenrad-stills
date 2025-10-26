@@ -34,24 +34,24 @@ PATTERN_GRBG = 2
 PATTERN_GBRG = 3
 
 
-@ti.func  # type: ignore
-def safe_get_channel(  # noqa: PLR0913
+@ti.func  # type: ignore[misc]
+def safe_get_channel(  # type: ignore[valid-type]  # noqa: ANN201, PLR0913
     field: ti.template(), i: ti.i32, j: ti.i32, c: ti.i32, h: ti.i32, w: ti.i32
-) -> ti.f32:  # type: ignore
+):
     """Safely get field channel value with bounds checking."""
     ii = ti.max(0, ti.min(h - 1, i))
     jj = ti.max(0, ti.min(w - 1, j))
     return field[ii, jj, c]
 
 
-@ti.kernel  # type: ignore
-def bayer_filter_fast(  # type: ignore  # noqa: C901, PLR0912, PLR0915
+@ti.kernel  # type: ignore[misc]
+def bayer_filter_fast(  # type: ignore[valid-type]  # noqa: ANN201, C901, PLR0912, PLR0915
     rgb_in: ti.template(),
     rgb_out: ti.template(),
     pattern_id: ti.i32,
     h: ti.i32,
     w: ti.i32,
-) -> None:
+):
     """
     Optimized single-pass Bayer filter with edge-directed demosaicing.
 
@@ -314,18 +314,18 @@ class BayerFilterGPUOperation(BaseImageOperation):
         }
         pattern_id = pattern_map[pattern]
 
-        # Create Taichi fields
-        rgb_input = ti.field(dtype=ti.f32, shape=(height, width, 3))
-        rgb_output = ti.field(dtype=ti.f32, shape=(height, width, 3))
+        # Create Taichi fields sized to the image
+        rgb_in = ti.field(dtype=ti.f32, shape=(height, width, 3))
+        rgb_out = ti.field(dtype=ti.f32, shape=(height, width, 3))
 
-        # Copy to GPU
-        rgb_input.from_numpy(img_array)
+        # Transfer data to GPU
+        rgb_in.from_numpy(img_array)
 
         # Execute single-pass kernel
-        bayer_filter_fast(rgb_input, rgb_output, pattern_id, height, width)
+        bayer_filter_fast(rgb_in, rgb_out, pattern_id, height, width)
 
-        # Copy back
-        result_array = rgb_output.to_numpy()
+        # Transfer result back from GPU
+        result_array = rgb_out.to_numpy()
 
         # Convert to uint8
         result_array_uint8 = np.clip(result_array * 255.0, 0, 255).astype(np.uint8)
