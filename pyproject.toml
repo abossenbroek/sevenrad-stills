@@ -79,10 +79,11 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "ANN", "PLR2004", "S108", "T201", "ARG002", "E501"]  # Allow assert, annotations, magic values, /tmp, print, unused fixtures, and line length in tests
 "src/sevenrad_stills/cli/commands.py" = ["PLR0913"]  # Click commands have many options
-"src/sevenrad_stills/operations/*_gpu.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
+"src/sevenrad_stills/operations/*_gpu.py" = ["ANN201", "PLR0913", "PLR0915", "C901", "PLR0912"]  # Taichi kernels have special signatures, some apply methods handle multiple operation types
 "src/sevenrad_stills/operations/*_metal.py" = ["ANN201", "PLR0913"]  # Metal operations have special signatures
 "src/sevenrad_stills/operations/*_mlx.py" = ["ANN201", "PLR0913"]  # MLX operations have special signatures
 "src/sevenrad_stills/operations/*_mps.py" = ["ANN201", "PLR0913"]  # MPS operations have special signatures
+"src/sevenrad_stills/operations/buffer_corruption_metal.py" = ["PLR0915", "PLR2004", "T201", "RUF001", "RUF002", "RUF003", "E501", "ANN401"]  # Metal GPU implementation uses debug prints, unicode chars, and PyObjC Any types
 
 [tool.pytest.ini_options]
 markers = [
@@ -139,6 +140,8 @@ module = [
     "sevenrad_stills.operations.blur_gaussian_mps",
     "sevenrad_stills.operations.band_swap_gpu",
     "sevenrad_stills.operations.chromatic_aberration_gpu",
+    "sevenrad_stills.operations.buffer_corruption_gpu",
+    "sevenrad_stills.operations.buffer_corruption_metal",
     "sevenrad_stills.operations.downscale_gpu",
     "sevenrad_stills.operations.downscale_metal",
     "sevenrad_stills.operations.compression_gpu",
