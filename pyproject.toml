@@ -87,6 +87,8 @@ ignore = [
 "src/sevenrad_stills/operations/downscale_metal.py" = ["ANN201"]  # Metal operations have special signatures
 "src/sevenrad_stills/operations/compression_gpu.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
 "src/sevenrad_stills/operations/compression_metal.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
+"src/sevenrad_stills/operations/corduroy_gpu.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
+"tests/unit/operations/test_corduroy_performance.py" = ["S101", "ANN", "PLR2004", "S108", "T201"]  # Allow print in performance tests
 
 [tool.pytest.ini_options]
 markers = [
@@ -135,6 +137,8 @@ module = [
     "sevenrad_stills.operations.downscale_metal",
     "sevenrad_stills.operations.compression_gpu",
     "sevenrad_stills.operations.compression_metal",
+    "sevenrad_stills.operations.corduroy_gpu",
+    "sevenrad_stills.operations.corduroy_metal",
 ]
 ignore_errors = true
 
