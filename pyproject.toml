@@ -126,6 +126,9 @@ follow_imports = "skip"
 module = [
     "sevenrad_stills.operations.blur_circular_gpu",
     "sevenrad_stills.operations.band_swap_gpu",
+<<<<<<< HEAD
     "sevenrad_stills.operations.compression_artifact_gpu",
+=======
+>>>>>>> origin/develop
 ]
 ignore_errors = true
