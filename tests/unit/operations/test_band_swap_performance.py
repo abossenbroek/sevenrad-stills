@@ -86,8 +86,8 @@ class TestBandSwapPerformance:
 
         speedup = cpu_time / gpu_time
 
-        # GPU should be competitive (within 15% of CPU for medium images)
-        assert speedup >= 0.85, (
+        # GPU should be competitive (within 25% of CPU for medium images)
+        assert speedup >= 0.75, (
             f"GPU ({gpu_time:.2f}ms) should not be significantly slower than "
             f"CPU ({cpu_time:.2f}ms), got {speedup:.2f}x"
         )

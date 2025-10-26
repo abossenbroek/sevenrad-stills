@@ -1,4 +1,6 @@
-"""Tests for GPU-accelerated band swap operation."""
+"""Tests for GPU-accelerated band swap operation (Mac only)."""
+
+import platform
 
 import numpy as np
 import pytest
@@ -6,6 +8,10 @@ from PIL import Image
 from sevenrad_stills.operations.band_swap_gpu import BandSwapGPUOperation
 
 
+@pytest.mark.skipif(
+    platform.system() != "Darwin",
+    reason="GPU tests only run on Mac (Metal backend)",
+)
 class TestBandSwapGPUOperation:
     """Tests for BandSwapGPUOperation class."""
 
