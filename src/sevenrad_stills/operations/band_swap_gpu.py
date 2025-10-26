@@ -231,10 +231,14 @@ class BandSwapGPUOperation(BaseImageOperation):
         # Get permutation indices
         perm_indices = VALID_PERMUTATIONS[permutation]
 
-        # Work with uint8 directly like CPU version (no float32 conversion)
-        # This simplifies the implementation and matches CPU behavior exactly
+        # NOTE: Currently using NumPy for array operations instead of Taichi GPU kernel.
+        # The Taichi kernel (apply_band_swap_kernel) is available but has challenges
+        # with in-place array modifications. For this use case (small random tiles),
+        # NumPy's optimized C implementation is already very efficient and the overhead
+        # of GPU kernel launches would likely outweigh benefits. Future optimization
+        # could leverage GPU for full-image or large-tile operations.
 
-        # Generate random tiles and apply swaps using simple numpy like CPU version
+        # Generate random tiles and apply swaps
         for _ in range(tile_count):
             # Random tile size
             tile_fraction = rng.uniform(tile_size_range[0], tile_size_range[1])
@@ -245,7 +249,7 @@ class BandSwapGPUOperation(BaseImageOperation):
             y = rng.integers(0, max(1, h - tile_h + 1))
             x = rng.integers(0, max(1, w - tile_w + 1))
 
-            # Apply permutation to this tile (matching CPU version exactly)
+            # Apply permutation to this tile (using NumPy's optimized indexing)
             rgb[y : y + tile_h, x : x + tile_w] = rgb[
                 y : y + tile_h, x : x + tile_w, perm_indices
             ]
