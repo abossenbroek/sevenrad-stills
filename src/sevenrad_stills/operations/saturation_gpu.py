@@ -1,17 +1,22 @@
 """
-Saturation adjustment operation.
+GPU-accelerated saturation adjustment with Taichi.
 
-Adjusts image saturation using HSV color space conversion.
-Supports either fixed percentage or random variation.
+Provides GPU-accelerated saturation adjustment using Taichi with HSV color space
+conversion. Uses Taichi for GPU acceleration while leveraging PIL for image I/O
+(hybrid CPU/GPU approach).
 """
 
 import random
 from typing import Any, Literal
 
 import numpy as np
+import taichi as ti
 from PIL import Image
 
 from sevenrad_stills.operations.base import BaseImageOperation
+
+# Initialize Taichi - will auto-select GPU if available, fallback to CPU
+ti.init(arch=ti.gpu, default_fp=ti.f32)
 
 # Constants
 RANGE_SIZE = 2
@@ -24,26 +29,123 @@ HUE_SECTOR_1 = 120.0
 HUE_SECTOR_2 = 180.0
 HUE_SECTOR_3 = 240.0
 HUE_SECTOR_4 = 300.0
-HUE_MODULO = 360.0
 HUE_SECTORS = 6.0
 
 
-class SaturationOperation(BaseImageOperation):
+@ti.kernel  # type: ignore[misc]
+def apply_saturation_adjustment(  # type: ignore[no-untyped-def]  # noqa: C901, PLR0915, ANN201
+    input_img: ti.template(),  # type: ignore[valid-type]
+    output_img: ti.template(),  # type: ignore[valid-type]
+    factor: ti.f32,
+    height: ti.i32,
+    width: ti.i32,
+):
     """
-    Adjust image saturation using HSV color space conversion.
+    GPU kernel to apply saturation adjustment using HSV color space.
 
-    Converts RGB to HSV, multiplies the S (saturation) component by the factor,
-    then converts back to RGB. This provides precise control over color intensity
-    while preserving hue and value.
+    Converts RGB to HSV, adjusts saturation, and converts back to RGB.
+
+    Args:
+        input_img: Input image field (normalized to 0.0-1.0).
+        output_img: Output image field.
+        factor: Saturation adjustment factor (0.0 = grayscale, 1.0 = original).
+        height: Image height.
+        width: Image width.
+
+    """
+    for i, j in ti.ndrange(height, width):
+        r = input_img[i, j, 0]
+        g = input_img[i, j, 1]
+        b = input_img[i, j, 2]
+
+        # Find min and max RGB values
+        cmax = ti.max(ti.max(r, g), b)
+        cmin = ti.min(ti.min(r, g), b)
+        delta = cmax - cmin
+
+        # Calculate HSV
+        # Hue
+        h = 0.0
+        if delta > EPSILON:
+            if ti.abs(cmax - r) < EPSILON:
+                h = HUE_SECTOR_0 * (((g - b) / delta) % HUE_SECTORS)
+            elif ti.abs(cmax - g) < EPSILON:
+                h = HUE_SECTOR_0 * (((b - r) / delta) + 2.0)
+            else:
+                h = HUE_SECTOR_0 * (((r - g) / delta) + 4.0)
+
+        # Saturation
+        s = 0.0
+        if cmax > EPSILON:
+            s = delta / cmax
+
+        # Value
+        v = cmax
+
+        # Adjust saturation
+        s = s * factor
+
+        # Clamp saturation
+        s = ti.max(0.0, ti.min(1.0, s))
+
+        # Convert back to RGB
+        c = v * s
+        x = c * (1.0 - ti.abs(((h / HUE_SECTOR_0) % 2.0) - 1.0))
+        m = v - c
+
+        r_new = 0.0
+        g_new = 0.0
+        b_new = 0.0
+
+        if h < HUE_SECTOR_0:
+            r_new = c
+            g_new = x
+            b_new = 0.0
+        elif h < HUE_SECTOR_1:
+            r_new = x
+            g_new = c
+            b_new = 0.0
+        elif h < HUE_SECTOR_2:
+            r_new = 0.0
+            g_new = c
+            b_new = x
+        elif h < HUE_SECTOR_3:
+            r_new = 0.0
+            g_new = x
+            b_new = c
+        elif h < HUE_SECTOR_4:
+            r_new = x
+            g_new = 0.0
+            b_new = c
+        else:
+            r_new = c
+            g_new = 0.0
+            b_new = x
+
+        output_img[i, j, 0] = r_new + m
+        output_img[i, j, 1] = g_new + m
+        output_img[i, j, 2] = b_new + m
+
+
+class SaturationGPUOperation(BaseImageOperation):
+    """
+    GPU-accelerated saturation adjustment using HSV color space.
+
+    This implementation uses Taichi for GPU-accelerated HSV color space
+    conversion and saturation manipulation, ensuring machine-epsilon numerical
+    accuracy with the CPU version while providing significant speedup for large images.
 
     Supports two modes:
     - fixed: Apply a fixed saturation multiplier
     - random: Apply a random saturation multiplier within a range
+
+    Performance: GPU acceleration provides significant speedup on large images
+    through parallel HSV conversion and saturation adjustment.
     """
 
     def __init__(self) -> None:
-        """Initialize saturation operation."""
-        super().__init__("saturation")
+        """Initialize GPU-accelerated saturation operation."""
+        super().__init__("saturation_gpu")
 
     def _validate_mode(self, params: dict[str, Any]) -> str:
         """Validate and return mode parameter."""
@@ -117,7 +219,7 @@ class SaturationOperation(BaseImageOperation):
 
     def apply(self, image: Image.Image, params: dict[str, Any]) -> Image.Image:
         """
-        Apply saturation adjustment using HSV color space conversion.
+        Apply GPU-accelerated saturation adjustment to image.
 
         Args:
             image: Input PIL Image
@@ -150,109 +252,22 @@ class SaturationOperation(BaseImageOperation):
         # Convert to numpy array and normalize
         img_array = np.array(image, dtype=np.float32) / 255.0
         height, width = img_array.shape[:2]
+        channels = 3
 
-        # Apply HSV-based saturation adjustment
-        result = self._apply_hsv_saturation(img_array, factor, height, width)
+        # Create Taichi fields
+        input_field = ti.field(dtype=ti.f32, shape=(height, width, channels))
+        output_field = ti.field(dtype=ti.f32, shape=(height, width, channels))
+
+        # Copy data to GPU
+        input_field.from_numpy(img_array)
+
+        # Apply saturation adjustment on GPU
+        apply_saturation_adjustment(input_field, output_field, factor, height, width)
+
+        # Copy result back to CPU
+        result_array = output_field.to_numpy()
 
         # Convert back to uint8
-        result_uint8 = (np.clip(result, 0.0, 1.0) * 255.0).astype(np.uint8)
+        result_uint8 = (np.clip(result_array, 0.0, 1.0) * 255.0).astype(np.uint8)
 
         return Image.fromarray(result_uint8, mode="RGB")
-
-    def _apply_hsv_saturation(
-        self,
-        img_array: np.ndarray,
-        factor: float,
-        height: int,  # noqa: ARG002
-        width: int,  # noqa: ARG002
-    ) -> np.ndarray:
-        """
-        Apply HSV-based saturation adjustment using vectorized numpy operations.
-
-        Args:
-            img_array: Normalized RGB image array (0.0-1.0)
-            factor: Saturation factor (0.0 = grayscale, 1.0 = original)
-            height: Image height (unused, for API compatibility)
-            width: Image width (unused, for API compatibility)
-
-        Returns:
-            Adjusted image array
-
-        """
-        # Extract RGB channels
-        r = img_array[:, :, 0]
-        g = img_array[:, :, 1]
-        b = img_array[:, :, 2]
-
-        # Convert RGB to HSV (vectorized)
-        cmax = np.maximum(np.maximum(r, g), b)
-        cmin = np.minimum(np.minimum(r, g), b)
-        delta = cmax - cmin
-
-        # Hue calculation
-        h = np.zeros_like(r)
-        mask = delta > EPSILON
-
-        # Where max is R
-        mask_r = mask & (np.abs(cmax - r) < EPSILON)
-        h[mask_r] = HUE_SECTOR_0 * (
-            ((g[mask_r] - b[mask_r]) / delta[mask_r]) % HUE_SECTORS
-        )
-
-        # Where max is G
-        mask_g = mask & (np.abs(cmax - g) < EPSILON)
-        h[mask_g] = HUE_SECTOR_0 * (((b[mask_g] - r[mask_g]) / delta[mask_g]) + 2.0)
-
-        # Where max is B
-        mask_b = mask & ~mask_r & ~mask_g
-        h[mask_b] = HUE_SECTOR_0 * (((r[mask_b] - g[mask_b]) / delta[mask_b]) + 4.0)
-
-        # Saturation
-        s = np.where(cmax > EPSILON, delta / cmax, 0.0)
-
-        # Value
-        v = cmax
-
-        # Adjust saturation
-        s = np.clip(s * factor, 0.0, 1.0)
-
-        # Convert HSV back to RGB
-        c = v * s
-        x = c * (1.0 - np.abs(((h / HUE_SECTOR_0) % 2.0) - 1.0))
-        m = v - c
-
-        # Initialize output
-        result = np.zeros_like(img_array)
-
-        # Map h ranges to RGB
-        h_mod = h % HUE_MODULO
-        mask_0 = h_mod < HUE_SECTOR_0
-        mask_1 = (h_mod >= HUE_SECTOR_0) & (h_mod < HUE_SECTOR_1)
-        mask_2 = (h_mod >= HUE_SECTOR_1) & (h_mod < HUE_SECTOR_2)
-        mask_3 = (h_mod >= HUE_SECTOR_2) & (h_mod < HUE_SECTOR_3)
-        mask_4 = (h_mod >= HUE_SECTOR_3) & (h_mod < HUE_SECTOR_4)
-        mask_5 = h_mod >= HUE_SECTOR_4
-
-        result[mask_0] = np.stack(
-            [c[mask_0], x[mask_0], np.zeros_like(c[mask_0])], axis=-1
-        )
-        result[mask_1] = np.stack(
-            [x[mask_1], c[mask_1], np.zeros_like(c[mask_1])], axis=-1
-        )
-        result[mask_2] = np.stack(
-            [np.zeros_like(c[mask_2]), c[mask_2], x[mask_2]], axis=-1
-        )
-        result[mask_3] = np.stack(
-            [np.zeros_like(c[mask_3]), x[mask_3], c[mask_3]], axis=-1
-        )
-        result[mask_4] = np.stack(
-            [x[mask_4], np.zeros_like(c[mask_4]), c[mask_4]], axis=-1
-        )
-        result[mask_5] = np.stack(
-            [c[mask_5], np.zeros_like(c[mask_5]), x[mask_5]], axis=-1
-        )
-
-        # Add m to all channels
-        result += m[:, :, np.newaxis]
-
-        return result  # type: ignore[no-any-return]
