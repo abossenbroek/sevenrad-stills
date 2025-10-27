@@ -22,9 +22,7 @@ dependencies = [
     "pyyaml~=6.0",
     "click~=8.1",
     "taichi~=1.7",
-    "mlx~=0.29; sys_platform == 'darwin'",
-    "pyobjc-framework-metal>=12.0; sys_platform == 'darwin'",
-    "pyobjc-framework-metalperformanceshaders>=12.0; sys_platform == 'darwin'",
+    "scipy>=1.16.2",
 ]
 
 [project.optional-dependencies]
@@ -77,13 +75,21 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "ANN", "PLR2004", "S108", "T201", "ARG002", "E501"]  # Allow assert, annotations, magic values, /tmp, print, unused fixtures, and line length in tests
+"tests/*" = ["S101", "ANN", "PLR2004", "S108"]  # Allow assert, annotations, magic values, and /tmp in tests
+"tests/unit/operations/test_blur_circular_performance.py" = ["S101", "ANN", "PLR2004", "S108", "T201"]  # Allow print in performance tests
+"tests/unit/operations/test_band_swap_performance.py" = ["S101", "ANN", "PLR2004", "S108", "T201"]  # Allow print in performance tests
+"tests/unit/operations/test_downscale_performance.py" = ["S101", "ANN", "PLR2004", "S108", "T201"]  # Allow print in performance tests
+"tests/unit/operations/test_compression_performance.py" = ["S101", "ANN", "PLR2004", "S108", "T201"]  # Allow print in performance tests
+"tests/unit/operations/test_downscale_metal.py" = ["ARG002"]  # Fixtures used for side effects (skip checks)
 "src/sevenrad_stills/cli/commands.py" = ["PLR0913"]  # Click commands have many options
-"src/sevenrad_stills/operations/*_gpu.py" = ["ANN201", "PLR0913", "PLR0915", "C901", "PLR0912"]  # Taichi kernels have special signatures, some apply methods handle multiple operation types
-"src/sevenrad_stills/operations/*_metal.py" = ["ANN201", "PLR0913"]  # Metal operations have special signatures
-"src/sevenrad_stills/operations/*_mlx.py" = ["ANN201", "PLR0913"]  # MLX operations have special signatures
-"src/sevenrad_stills/operations/*_mps.py" = ["ANN201", "PLR0913"]  # MPS operations have special signatures
-"src/sevenrad_stills/operations/buffer_corruption_metal.py" = ["PLR0915", "PLR2004", "T201", "RUF001", "RUF002", "RUF003", "E501", "ANN401"]  # Metal GPU implementation uses debug prints, unicode chars, and PyObjC Any types
+"src/sevenrad_stills/operations/blur_circular_gpu.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
+"src/sevenrad_stills/operations/band_swap_gpu.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
+"src/sevenrad_stills/operations/downscale_gpu.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
+"src/sevenrad_stills/operations/downscale_metal.py" = ["ANN201"]  # Metal operations have special signatures
+"src/sevenrad_stills/operations/compression_gpu.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
+"src/sevenrad_stills/operations/compression_metal.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
+"src/sevenrad_stills/operations/corduroy_gpu.py" = ["ANN201", "PLR0913"]  # Taichi kernels have special signatures
+"tests/unit/operations/test_corduroy_performance.py" = ["S101", "ANN", "PLR2004", "S108", "T201"]  # Allow print in performance tests
 
 [tool.pytest.ini_options]
 markers = [
@@ -106,11 +112,6 @@ check_untyped_defs = true
 no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
-
-[[tool.mypy.overrides]]
-module = "sevenrad_stills.operations.bayer_filter_gpu"
-warn_unused_ignores = false
-disallow_untyped_defs = false
 warn_no_return = true
 follow_imports = "normal"
 
@@ -124,29 +125,19 @@ module = [
     "skimage.*",
     "colour_demosaicing.*",
     "taichi.*",
-    "mlx.*",
-    "Metal.*",
-    "MetalPerformanceShaders.*",
 ]
 ignore_missing_imports = true
 follow_imports = "skip"
 
-# Skip mypy for GPU code (Taichi/MLX/MPS type systems incompatible with mypy)
+# Skip mypy for Taichi GPU code (Taichi's type system is incompatible with mypy)
 [[tool.mypy.overrides]]
 module = [
     "sevenrad_stills.operations.blur_circular_gpu",
-    "sevenrad_stills.operations.blur_gaussian_gpu",
-    "sevenrad_stills.operations.blur_gaussian_mlx",
-    "sevenrad_stills.operations.blur_gaussian_mps",
     "sevenrad_stills.operations.band_swap_gpu",
-    "sevenrad_stills.operations.chromatic_aberration_gpu",
-    "sevenrad_stills.operations.buffer_corruption_gpu",
-    "sevenrad_stills.operations.buffer_corruption_metal",
-    "sevenrad_stills.operations.compression_artifact_gpu",
-    "sevenrad_stills.operations.compression_gpu",
-    "sevenrad_stills.operations.compression_metal",
     "sevenrad_stills.operations.downscale_gpu",
     "sevenrad_stills.operations.downscale_metal",
+    "sevenrad_stills.operations.compression_gpu",
+    "sevenrad_stills.operations.compression_metal",
     "sevenrad_stills.operations.corduroy_gpu",
     "sevenrad_stills.operations.corduroy_metal",
 ]

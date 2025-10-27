@@ -879,6 +879,7 @@ dependencies = [
     { name = "pyobjc-framework-metalperformanceshaders", marker = "sys_platform == 'darwin'" },
     { name = "pyyaml" },
     { name = "scikit-image" },
+    { name = "scipy" },
     { name = "taichi" },
     { name = "yt-dlp" },
 ]
@@ -917,6 +918,7 @@ requires-dist = [
     { name = "pyyaml", specifier = "~=6.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "~=0.8.4" },
     { name = "scikit-image", specifier = "~=0.24.0" },
+    { name = "scipy", specifier = ">=1.16.2" },
     { name = "taichi", specifier = "~=1.7" },
     { name = "types-click", marker = "extra == 'dev'", specifier = "~=7.1" },
     { name = "types-pyyaml", marker = "extra == 'dev'", specifier = "~=6.0" },
