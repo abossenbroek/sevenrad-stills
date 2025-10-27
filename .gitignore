@@ -226,3 +226,6 @@ __marimo__/
 output/
 temp/
 docs/_site/
+
+# Tutorial pipeline outputs (regenerate locally using YAML configs)
+tutorials/
