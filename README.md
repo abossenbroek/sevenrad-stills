@@ -166,6 +166,17 @@ pipeline:
 
 **Workaround**: Use GPU backend for these operations until Metal implementations are fixed.
 
+### What Remains To Be Implemented
+
+**GPU Backend**: 1/16 operations missing
+- `multi_compress` - CPU only (low priority, complex JPEG integration required)
+
+**Metal Backend**: 7/16 operations need work
+- 4 not yet implemented: `band_swap`, `blur_circular`, `blur_gaussian`, `chromatic_aberration`
+- 3 have runtime bugs: `slc_off`, `motion_blur`, `downscale`
+
+See [docs/BACKEND_TODO.md](docs/BACKEND_TODO.md) for detailed implementation roadmap and contribution guidelines.
+
 ### When to Use Each Backend
 
 **CPU**:

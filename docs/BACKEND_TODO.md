@@ -2,6 +2,32 @@
 
 This document tracks missing backend implementations and provides guidance for contributors.
 
+## Summary: What Remains To Be Implemented
+
+### GPU Backend: 1 Operation Missing
+- **multi_compress** - CPU only (iterative JPEG compression/decompression)
+  - Low priority - complex to implement with GPU
+  - Requires libjpeg integration or custom JPEG implementation
+
+### Metal Backend: 7 Items Remaining
+
+**4 Operations Not Yet Implemented:**
+1. **band_swap** - Medium priority, low complexity (2-4 hours)
+2. **blur_circular** - Medium priority, medium complexity (4-6 hours)
+3. **blur_gaussian** - High priority, medium complexity (4-6 hours)
+4. **chromatic_aberration** - High priority, low complexity (2-4 hours)
+
+**3 Operations With Runtime Bugs:**
+5. **slc_off** - High priority, needs debugging (4-8 hours)
+6. **motion_blur** - High priority, MLX API fix (2-4 hours)
+7. **downscale** - High priority, Metal FFI fix (4-8 hours)
+
+**Total**: 7/16 Metal operations need work (4 missing + 3 broken)
+
+**Workaround**: Use GPU backend for all missing/broken Metal operations.
+
+---
+
 ## Current Status
 
 ### Complete (All 3 Backends)
