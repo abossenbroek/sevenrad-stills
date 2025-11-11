@@ -50,6 +50,8 @@ from sevenrad_stills.operations.motion_blur import MotionBlurOperation
 from sevenrad_stills.operations.motion_blur_gpu import MotionBlurGPUOperation
 from sevenrad_stills.operations.motion_blur_metal import MotionBlurMetalOperation
 from sevenrad_stills.operations.multi_compress import MultiCompressOperation
+from sevenrad_stills.operations.multi_compress_gpu import MultiCompressGPUOperation
+from sevenrad_stills.operations.multi_compress_metal import MultiCompressMetalOperation
 from sevenrad_stills.operations.noise import NoiseOperation
 from sevenrad_stills.operations.noise_gpu import NoiseGPUOperation
 from sevenrad_stills.operations.noise_metal import NoiseMetalOperation
@@ -144,8 +146,10 @@ register_backend("motion_blur", "cpu", MotionBlurOperation)
 register_backend("motion_blur", "gpu", MotionBlurGPUOperation)
 register_backend("motion_blur", "metal", MotionBlurMetalOperation)
 
-# multi_compress: CPU only
+# multi_compress: CPU + GPU + Metal
 register_backend("multi_compress", "cpu", MultiCompressOperation)
+register_backend("multi_compress", "gpu", MultiCompressGPUOperation)
+register_backend("multi_compress", "metal", MultiCompressMetalOperation)
 
 # noise: CPU + GPU + Metal
 register_backend("noise", "cpu", NoiseOperation)

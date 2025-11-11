@@ -58,7 +58,7 @@ Not all operations have implementations for all backends. Here's the current sup
 | corduroy              | ✓   | ✓            | ✓     |
 | downscale             | ✓   | ✓            | ⚠     |
 | motion_blur           | ✓   | ✓            | ⚠     |
-| multi_compress        | ✓   | ✗            | ✗     |
+| multi_compress        | ✓   | ✓            | ✓     |
 | noise                 | ✓   | ✓            | ✓     |
 | salt_pepper           | ✓   | ✓            | ✓     |
 | saturation            | ✓   | ✓            | ✓     |

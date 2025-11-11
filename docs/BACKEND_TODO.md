@@ -4,10 +4,9 @@ This document tracks missing backend implementations and provides guidance for c
 
 ## Summary: What Remains To Be Implemented
 
-### GPU Backend: 1 Operation Missing
-- **multi_compress** - CPU only (iterative JPEG compression/decompression)
-  - Low priority - complex to implement with GPU
-  - Requires libjpeg integration or custom JPEG implementation
+### GPU Backend: ✅ Complete (16/16 operations)
+All operations now have GPU implementations! The last operation, `multi_compress`,
+was added with GPU and Metal support, achieving 100% GPU coverage.
 
 ### Metal Backend: 7 Items Remaining
 
@@ -40,12 +39,13 @@ These operations have CPU, GPU (Taichi), and Metal implementations:
 - ✅ corduroy
 - ✅ downscale
 - ✅ motion_blur
+- ✅ multi_compress
 - ✅ noise
 - ✅ salt_pepper
 - ✅ saturation
 - ✅ slc_off
 
-**Total: 11/16 operations** (69% complete)
+**Total: 12/16 operations** (75% complete)
 
 ### Missing Metal Implementations
 
@@ -107,15 +107,10 @@ These operations have Metal implementations but encounter runtime errors:
 
 ### Missing GPU Implementations
 
-5. **multi_compress** (CPU only)
-   - Priority: Low (iterative process, less GPU benefit)
-   - Complexity: High
-   - Estimated effort: 8-12 hours
-   - Notes:
-     - Involves JPEG compression which requires libjpeg integration
-     - May require C/C++ bridge similar to compression_artifact_metal
-     - Consider if GPU acceleration provides significant benefit
-   - Status: Research phase (WIP branch: `feature/migrate_multi_compress`)
+None! All 16 operations now have GPU implementations. 🎉
+
+The `multi_compress` operation was the last to receive GPU and Metal support,
+achieving 100% GPU coverage across all image operations.
 
 ## Implementation Guidelines
 

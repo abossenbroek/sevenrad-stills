@@ -128,7 +128,10 @@ follow_imports = "skip"
 [[tool.mypy.overrides]]
 module = [
     "sevenrad_stills.operations.blur_circular_gpu",
+    "sevenrad_stills.operations.blur_gaussian_gpu",
     "sevenrad_stills.operations.band_swap_gpu",
+    "sevenrad_stills.operations.buffer_corruption_gpu",
+    "sevenrad_stills.operations.compression_artifact_gpu",
     "sevenrad_stills.operations.downscale_gpu",
     "sevenrad_stills.operations.downscale_metal",
     "sevenrad_stills.operations.compression_gpu",

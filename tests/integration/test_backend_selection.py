@@ -48,7 +48,7 @@ class TestBackendRegistration:
             assert op in operation.name
 
     def test_gpu_backend_for_supported_operations(self) -> None:
-        """GPU backend should be available for most operations."""
+        """GPU backend should be available for all operations."""
         gpu_operations = [
             "band_swap",
             "bayer_filter",
@@ -61,6 +61,7 @@ class TestBackendRegistration:
             "corduroy",
             "downscale",
             "motion_blur",
+            "multi_compress",
             "noise",
             "salt_pepper",
             "saturation",
@@ -83,6 +84,7 @@ class TestBackendRegistration:
             "corduroy",
             "downscale",
             "motion_blur",
+            "multi_compress",
             "noise",
             "salt_pepper",
             "saturation",
@@ -97,18 +99,20 @@ class TestBackendRegistration:
 
     def test_unsupported_backend_raises_error(self) -> None:
         """Requesting unsupported backend should raise error."""
+        # Test operation that has CPU+GPU but not Metal
         with pytest.raises(BackendNotAvailableError) as exc_info:
-            get_backend_implementation("multi_compress", "gpu")
+            get_backend_implementation("band_swap", "metal")
 
-        assert "multi_compress" in str(exc_info.value)
-        assert "gpu" in str(exc_info.value)
+        assert "band_swap" in str(exc_info.value)
+        assert "metal" in str(exc_info.value)
         assert "cpu" in str(exc_info.value).lower()
+        assert "gpu" in str(exc_info.value).lower()
 
 
 class TestPipelineConfiguration:
     """Test backend configuration in pipeline models."""
 
-    def test_default_backend_is_cpu(self, tmp_path: Path) -> None:
+    def test_default_backend_is_cpu(self) -> None:
         """Pipeline should default to CPU backend if not specified."""
         # Test YAML would normally not include backend field
         config = PipelineConfig.model_validate(
@@ -129,7 +133,7 @@ class TestPipelineConfiguration:
 
         assert config.backend == "cpu"
 
-    def test_backend_can_be_set_to_gpu(self, tmp_path: Path) -> None:
+    def test_backend_can_be_set_to_gpu(self) -> None:
         """Backend can be configured as GPU."""
         config = PipelineConfig.model_validate(
             {
@@ -151,7 +155,7 @@ class TestPipelineConfiguration:
         assert config.backend == "gpu"
 
     @pytest.mark.mac
-    def test_backend_can_be_set_to_metal(self, tmp_path: Path) -> None:
+    def test_backend_can_be_set_to_metal(self) -> None:
         """Backend can be configured as Metal."""
         config = PipelineConfig.model_validate(
             {
@@ -172,7 +176,7 @@ class TestPipelineConfiguration:
 
         assert config.backend == "metal"
 
-    def test_invalid_backend_rejected(self, tmp_path: Path) -> None:
+    def test_invalid_backend_rejected(self) -> None:
         """Invalid backend should be rejected by Pydantic."""
         with pytest.raises(
             ValueError, match=r"Input should be 'cpu', 'gpu' or 'metal'"

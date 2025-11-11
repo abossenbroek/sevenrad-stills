@@ -146,7 +146,7 @@ pipeline:
 | corduroy              | ✅  | ✅  | ✅    |                                |
 | downscale             | ✅  | ✅  | ⚠️    | Metal has runtime issues       |
 | motion_blur           | ✅  | ✅  | ⚠️    | Metal has runtime issues       |
-| multi_compress        | ✅  | ❌  | ❌    | CPU only                       |
+| multi_compress        | ✅  | ✅  | ✅    |                                |
 | noise                 | ✅  | ✅  | ✅    |                                |
 | salt_pepper           | ✅  | ✅  | ✅    |                                |
 | saturation            | ✅  | ✅  | ✅    |                                |
@@ -168,8 +168,7 @@ pipeline:
 
 ### What Remains To Be Implemented
 
-**GPU Backend**: 1/16 operations missing
-- `multi_compress` - CPU only (low priority, complex JPEG integration required)
+**GPU Backend**: ✅ 16/16 operations (100% complete!)
 
 **Metal Backend**: 7/16 operations need work
 - 4 not yet implemented: `band_swap`, `blur_circular`, `blur_gaussian`, `chromatic_aberration`
