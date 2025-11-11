@@ -12,6 +12,7 @@ from sevenrad_stills.operations.band_swap import BandSwapOperation
 
 # Import GPU variants
 from sevenrad_stills.operations.band_swap_gpu import BandSwapGPUOperation
+from sevenrad_stills.operations.band_swap_metal import BandSwapMetalOperation
 from sevenrad_stills.operations.base import ImageOperation, OperationRegistry
 from sevenrad_stills.operations.bayer_filter import BayerFilterOperation
 from sevenrad_stills.operations.bayer_filter_gpu import BayerFilterGPUOperation
@@ -94,9 +95,10 @@ register_operation(SaturationOperation)
 register_operation(SlcOffOperation)
 
 # Register backend-specific implementations
-# band_swap: CPU + GPU
+# band_swap: CPU + GPU + Metal
 register_backend("band_swap", "cpu", BandSwapOperation)
 register_backend("band_swap", "gpu", BandSwapGPUOperation)
+register_backend("band_swap", "metal", BandSwapMetalOperation)
 
 # bayer_filter: CPU + GPU + Metal
 register_backend("bayer_filter", "cpu", BayerFilterOperation)

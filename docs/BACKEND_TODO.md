@@ -8,20 +8,19 @@ This document tracks missing backend implementations and provides guidance for c
 All operations now have GPU implementations! The last operation, `multi_compress`,
 was added with GPU and Metal support, achieving 100% GPU coverage.
 
-### Metal Backend: 7 Items Remaining
+### Metal Backend: 6 Items Remaining
 
-**4 Operations Not Yet Implemented:**
-1. **band_swap** - Medium priority, low complexity (2-4 hours)
-2. **blur_circular** - Medium priority, medium complexity (4-6 hours)
-3. **blur_gaussian** - High priority, medium complexity (4-6 hours)
-4. **chromatic_aberration** - High priority, low complexity (2-4 hours)
+**3 Operations Not Yet Implemented:**
+1. **blur_circular** - Medium priority, medium complexity (4-6 hours)
+2. **blur_gaussian** - High priority, medium complexity (4-6 hours)
+3. **chromatic_aberration** - High priority, low complexity (2-4 hours)
 
 **3 Operations With Runtime Bugs:**
 5. **slc_off** - High priority, needs debugging (4-8 hours)
 6. **motion_blur** - High priority, MLX API fix (2-4 hours)
 7. **downscale** - High priority, Metal FFI fix (4-8 hours)
 
-**Total**: 7/16 Metal operations need work (4 missing + 3 broken)
+**Total**: 6/16 Metal operations need work (3 missing + 3 broken)
 
 **Workaround**: Use GPU backend for all missing/broken Metal operations.
 
@@ -32,6 +31,7 @@ was added with GPU and Metal support, achieving 100% GPU coverage.
 ### Complete (All 3 Backends)
 These operations have CPU, GPU (Taichi), and Metal implementations:
 
+- ✅ band_swap
 - ✅ bayer_filter
 - ✅ buffer_corruption
 - ✅ compression
@@ -45,32 +45,26 @@ These operations have CPU, GPU (Taichi), and Metal implementations:
 - ✅ saturation
 - ✅ slc_off
 
-**Total: 12/16 operations** (75% complete)
+**Total: 13/16 operations** (81% complete)
 
 ### Missing Metal Implementations
 
 These operations have CPU and GPU but need Metal:
 
-1. **band_swap** (CPU + GPU only)
-   - Priority: Medium
-   - Complexity: Low
-   - Estimated effort: 2-4 hours
-   - Reference: `band_swap_gpu.py` for algorithm
-
-2. **blur_circular** (CPU + GPU only)
+1. **blur_circular** (CPU + GPU only)
    - Priority: Medium
    - Complexity: Medium
    - Estimated effort: 4-6 hours
    - Reference: `blur_circular_gpu.py` for circular distance calculations
 
-3. **blur_gaussian** (CPU + GPU only)
+2. **blur_gaussian** (CPU + GPU only)
    - Priority: High (commonly used)
    - Complexity: Medium
    - Estimated effort: 4-6 hours
    - Note: May use MLX or MPS variants as reference
    - Reference: `blur_gaussian_gpu.py`
 
-4. **chromatic_aberration** (CPU + GPU only)
+3. **chromatic_aberration** (CPU + GPU only)
    - Priority: High (popular effect)
    - Complexity: Low
    - Estimated effort: 2-4 hours
@@ -238,9 +232,7 @@ Recommended implementation order based on usage and impact:
 
 1. **chromatic_aberration_metal** (High usage, low complexity)
 2. **blur_gaussian_metal** (High usage, medium complexity)
-3. **band_swap_metal** (Medium usage, low complexity)
-4. **blur_circular_metal** (Medium usage, medium complexity)
-5. **multi_compress_gpu** (Low priority, high complexity)
+3. **blur_circular_metal** (Medium usage, medium complexity)
 
 ## Contributing
 
