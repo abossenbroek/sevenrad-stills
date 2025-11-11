@@ -56,19 +56,20 @@ Not all operations have implementations for all backends. Here's the current sup
 | compression           | ✓   | ✓            | ✓     |
 | compression_artifact  | ✓   | ✓            | ✓     |
 | corduroy              | ✓   | ✓            | ✓     |
-| downscale             | ✓   | ✓            | ✓     |
-| motion_blur           | ✓   | ✓            | ✓     |
+| downscale             | ✓   | ✓            | ⚠     |
+| motion_blur           | ✓   | ✓            | ⚠     |
 | multi_compress        | ✓   | ✗            | ✗     |
 | noise                 | ✓   | ✓            | ✓     |
 | salt_pepper           | ✓   | ✓            | ✓     |
 | saturation            | ✓   | ✓            | ✓     |
-| slc_off               | ✓   | ✓            | ✓     |
+| slc_off               | ✓   | ✓            | ⚠     |
 
 *Note: buffer_corruption Metal implementation exists but needs wrapper class to be registered
 
 **Legend:**
-- ✓ = Implementation available
+- ✓ = Implementation available and working
 - ✗ = Not yet implemented
+- ⚠ = Implemented but has runtime errors (see Known Issues below)
 
 ## Error Handling
 
@@ -144,6 +145,44 @@ pipeline:
         quality_end: 45
 ```
 
+## Known Issues
+
+### Metal Runtime Errors
+
+Some Metal operations have known runtime issues (pre-existing bugs, not related to backend configuration):
+
+**slc_off_metal**
+- **Error**: "converting to a C array"
+- **Workaround**: Use `backend: gpu` for this operation
+- **Status**: Under investigation - likely NumPy/Metal FFI conversion issue
+
+**motion_blur_metal**
+- **Error**: `module 'mlx.core' has no attribute 'flip'`
+- **Workaround**: Use `backend: gpu` for this operation
+- **Status**: MLX API compatibility issue - may need MLX version update
+
+**downscale_metal**
+- **Error**: "argument 0 must be None or objc.NULL"
+- **Workaround**: Use `backend: gpu` for this operation
+- **Status**: PyObjC/Metal FFI argument passing issue
+
+**Example workaround** - Mix backends by using CPU as default with specific operations on GPU:
+```yaml
+backend: cpu  # Default to CPU
+
+pipeline:
+  steps:
+    # This will use CPU (safe fallback)
+    - name: "slc_off"
+      operation: "slc_off"
+      params:
+        gap_width: 0.1
+        scan_period: 20
+        fill_mode: "black"
+```
+
+Or create separate pipeline files for different backends.
+
 ## Troubleshooting
 
 ### Metal Backend Not Found
@@ -167,7 +206,7 @@ cd src/sevenrad_stills/metal_kernels
 **Error:** `Backend 'metal' not available for operation 'multi_compress'`
 
 **Solution:** Either:
-1. Use a different backend: `backend: cpu`
+1. Use a different backend: `backend: cpu` or `backend: gpu`
 2. Check [BACKEND_TODO.md](BACKEND_TODO.md) for implementation status
 3. Contribute the missing implementation (see operation source for examples)
 

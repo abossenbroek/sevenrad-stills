@@ -50,6 +50,35 @@ These operations have CPU and GPU but need Metal:
    - Estimated effort: 2-4 hours
    - Reference: `chromatic_aberration_gpu.py`
 
+### Metal Runtime Issues (Existing Implementations)
+
+These operations have Metal implementations but encounter runtime errors:
+
+1. **slc_off_metal** (Runtime error)
+   - Error: "converting to a C array"
+   - Status: Implemented but broken
+   - Priority: High (operation works in CPU/GPU)
+   - Estimated effort: 4-8 hours debugging
+   - Issue: Likely related to NumPy array conversion in Metal FFI
+   - Workaround: Use GPU backend
+
+2. **motion_blur_metal** (MLX library error)
+   - Error: `module 'mlx.core' has no attribute 'flip'`
+   - Status: Implemented but broken
+   - Priority: High (operation works in CPU/GPU)
+   - Estimated effort: 2-4 hours
+   - Issue: MLX API change or version incompatibility
+   - Possible fix: Use alternative MLX function or update MLX version
+   - Workaround: Use GPU backend
+
+3. **downscale_metal** (Metal FFI error)
+   - Error: "argument 0 must be None or objc.NULL"
+   - Status: Implemented but broken
+   - Priority: High (operation works in CPU/GPU)
+   - Estimated effort: 4-8 hours debugging
+   - Issue: PyObjC/Metal FFI argument passing issue
+   - Workaround: Use GPU backend
+
 ### Missing GPU Implementations
 
 5. **multi_compress** (CPU only)
