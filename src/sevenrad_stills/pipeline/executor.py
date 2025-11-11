@@ -14,7 +14,12 @@ from sevenrad_stills.download.downloader import VideoDownloader
 from sevenrad_stills.download.metadata import VideoInfo
 from sevenrad_stills.extraction.extractor import FrameExtractor
 from sevenrad_stills.extraction.strategies import create_extraction_strategy
-from sevenrad_stills.operations import get_operation
+from sevenrad_stills.operations import (
+    BackendNotAvailableError,
+    get_backend_implementation,
+    get_operation,
+)
+from sevenrad_stills.operations.backend import BackendType
 from sevenrad_stills.pipeline.models import ImageOperationStep, PipelineConfig
 from sevenrad_stills.settings.models import (
     AppSettings,
@@ -33,6 +38,7 @@ def _process_single_frame(
     params: dict[str, object],
     output_path: Path,
     repeat: int = 1,
+    backend: str = "cpu",
 ) -> Path:
     """
     Process a single frame with an operation.
@@ -45,18 +51,22 @@ def _process_single_frame(
         params: Operation parameters
         output_path: Output file path
         repeat: Number of times to repeat the operation
+        backend: Compute backend to use (cpu, gpu, metal)
 
     Returns:
         Path to processed image
+
+    Raises:
+        BackendNotAvailableError: If requested backend not available
 
     """
     # Import here to avoid circular dependencies in multiprocessing
     from PIL import Image
 
-    from sevenrad_stills.operations import get_operation
+    from sevenrad_stills.operations import get_backend_implementation
 
-    # Get operation and process
-    operation = get_operation(operation_name)
+    # Get operation for specified backend
+    operation = get_backend_implementation(operation_name, backend)  # type: ignore[arg-type]
     image: Image.Image = Image.open(frame_path)
 
     # Apply operation with repeat support
@@ -282,9 +292,22 @@ class PipelineExecutor:
         Returns:
             List of output file paths
 
+        Raises:
+            BackendNotAvailableError: If requested backend not available
+            PipelineError: If operation fails
+
         """
         output_paths: list[Path] = []
-        operation = get_operation(step.operation)
+
+        # Get operation for configured backend
+        try:
+            operation = get_backend_implementation(step.operation, self.config.backend)
+        except BackendNotAvailableError as e:
+            msg = (
+                f"Cannot execute step '{step.name}': {e}. "
+                f"Please use a different backend or implement the missing variant."
+            )
+            raise PipelineError(msg) from e
 
         for frame_path in frame_paths:
             # Load image
@@ -335,10 +358,22 @@ class PipelineExecutor:
             List of output file paths (in original order)
 
         """
+        # Validate backend availability before parallel processing
+        try:
+            # Test that operation exists for this backend
+            _ = get_backend_implementation(step.operation, self.config.backend)
+        except BackendNotAvailableError as e:
+            msg = (
+                f"Cannot execute step '{step.name}': {e}. "
+                f"Please use a different backend or implement the missing variant."
+            )
+            raise PipelineError(msg) from e
+
         self.logger.info(
-            "Processing %d frames in parallel (workers: %d)",
+            "Processing %d frames in parallel (workers: %d, backend: %s)",
             len(frame_paths),
             self.max_workers,
+            self.config.backend,
         )
 
         # Prepare tasks for parallel processing
@@ -347,7 +382,14 @@ class PipelineExecutor:
             output_filename = f"{step.name}_{frame_path.stem}_step{step_idx:02d}.jpg"
             output_path = output_dir / output_filename
             tasks.append(
-                (frame_path, step.operation, step.params, output_path, step.repeat)
+                (
+                    frame_path,
+                    step.operation,
+                    step.params,
+                    output_path,
+                    step.repeat,
+                    self.config.backend,
+                )
             )
 
         # Process in parallel

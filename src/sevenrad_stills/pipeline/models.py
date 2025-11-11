@@ -109,6 +109,10 @@ class PipelineConfig(BaseModel):
 
     source: SourceConfig = Field(description="Video source configuration")
     segment: SegmentConfig = Field(description="Video segment selection")
+    backend: Literal["cpu", "gpu", "metal"] = Field(
+        default="cpu",
+        description="Compute backend for image operations (cpu, gpu, metal)",
+    )
     pipeline: dict[str, list[ImageOperationStep]] = Field(
         description="Pipeline steps configuration"
     )
