@@ -38,13 +38,29 @@ class MetalCompressionArtifact:
             msg = "Metal backend is only available on macOS"
             raise RuntimeError(msg)
 
-        # Load the Metal library
-        lib_path = Path(__file__).parent.parent / "metal_kernels" / "build"
+        # Load the Metal library - use absolute path resolution
+        # This file is in: .../sevenrad_stills/operations/compression_artifact_metal.py
+        # Dylib is in: .../sevenrad_stills/metal_kernels/build/
+        lib_path = Path(__file__).parent / "metal_kernels" / "build"
         dylib_path = lib_path / "libMetalCompressionArtifact.dylib"
 
+        # Fallback: try parent.parent (in case of symlinks or different import paths)
         if not dylib_path.exists():
+            lib_path_alt = Path(__file__).parent.parent / "metal_kernels" / "build"
+            dylib_path_alt = lib_path_alt / "libMetalCompressionArtifact.dylib"
+            if dylib_path_alt.exists():
+                dylib_path = dylib_path_alt
+
+        if not dylib_path.exists():
+            alt_path = (
+                Path(__file__).parent.parent
+                / "metal_kernels"
+                / "build"
+                / "libMetalCompressionArtifact.dylib"
+            )
             msg = (
                 f"Metal library not found at {dylib_path}. "
+                f"Also tried: {alt_path}. "
                 "Please run: src/sevenrad_stills/metal_kernels/build.sh"
             )
             raise FileNotFoundError(msg)

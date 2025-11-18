@@ -26,6 +26,7 @@ MAX_KERNEL_SIZE = 100
 MIN_ANGLE = 0.0
 MAX_ANGLE = 360.0
 RGB_CHANNELS = 3  # Number of channels in RGB/RGBA images
+RGBA_CHANNELS = 4  # Number of channels in RGBA images
 
 
 class MotionBlurMetalOperation(BaseImageOperation):
@@ -153,7 +154,7 @@ class MotionBlurMetalOperation(BaseImageOperation):
         padded = self._reflect_pad_2d(image, pad_size)
 
         # Flip kernel for convolution (vs correlation)
-        kernel_flipped = mx.flip(mx.flip(kernel, axis=0), axis=1)
+        kernel_flipped = kernel[::-1, ::-1]
 
         # Perform convolution using sliding window
         result = mx.zeros((height, width), dtype=mx.float32)
@@ -183,13 +184,13 @@ class MotionBlurMetalOperation(BaseImageOperation):
         h, w = image.shape
 
         # Pad horizontally first
-        left_pad = mx.flip(image[:, 1 : pad_size + 1], axis=1)
-        right_pad = mx.flip(image[:, w - pad_size - 1 : w - 1], axis=1)
+        left_pad = image[:, 1 : pad_size + 1][:, ::-1]
+        right_pad = image[:, w - pad_size - 1 : w - 1][:, ::-1]
         h_padded = mx.concatenate([left_pad, image, right_pad], axis=1)
 
         # Pad vertically
-        top_pad = mx.flip(h_padded[1 : pad_size + 1, :], axis=0)
-        bottom_pad = mx.flip(h_padded[h - pad_size - 1 : h - 1, :], axis=0)
+        top_pad = h_padded[1 : pad_size + 1, :][::-1, :]
+        bottom_pad = h_padded[h - pad_size - 1 : h - 1, :][::-1, :]
         v_padded = mx.concatenate([top_pad, h_padded, bottom_pad], axis=0)
 
         return v_padded
@@ -253,8 +254,11 @@ class MotionBlurMetalOperation(BaseImageOperation):
             height, width, channels = img_array.shape
             blurred_array = np.zeros_like(img_array, dtype=np.float32)
 
-            # Process each channel separately
-            for c in range(channels):
+            # Determine how many channels to blur (RGB only, not alpha)
+            blur_channels = RGB_CHANNELS if channels == RGBA_CHANNELS else channels
+
+            # Process each RGB channel separately (preserve alpha if present)
+            for c in range(blur_channels):
                 channel_data: np.ndarray = img_array[..., c].astype(np.float32)
 
                 # Convert to MLX array
@@ -265,6 +269,10 @@ class MotionBlurMetalOperation(BaseImageOperation):
 
                 # Convert back to numpy
                 blurred_array[..., c] = np.array(result_mlx)
+
+            # Preserve alpha channel if present (channel 3 in RGBA)
+            if channels == RGBA_CHANNELS:
+                blurred_array[..., RGB_CHANNELS] = img_array[..., RGB_CHANNELS]
 
         else:  # Grayscale
             height, width = img_array.shape

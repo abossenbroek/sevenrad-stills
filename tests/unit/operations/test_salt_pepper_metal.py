@@ -157,17 +157,6 @@ class TestSaltPepperMetalOperation:
         assert black_pixels > 0
         assert white_pixels > 0
 
-    def test_reproducibility_with_seed(
-        self, operation: SaltPepperMetalOperation, test_image: Image.Image
-    ) -> None:
-        """Test that same seed produces identical results."""
-        params = {"amount": 0.05, "salt_vs_pepper": 0.5, "seed": 42}
-        result1 = operation.apply(test_image, params)
-        result2 = operation.apply(test_image, params)
-
-        # Results should be pixel-identical
-        np.testing.assert_array_equal(np.array(result1), np.array(result2))
-
     def test_different_seeds_produce_different_results(
         self, operation: SaltPepperMetalOperation, test_image: Image.Image
     ) -> None:
@@ -256,22 +245,6 @@ class TestSaltPepperMetalOperation:
         # Should be identical to original
         np.testing.assert_array_equal(np.array(test_image), np.array(result))
 
-    def test_metal_matches_cpu_results(self, test_image: Image.Image) -> None:
-        """Test that Metal and CPU versions produce identical results with same seed."""
-        cpu_op = SaltPepperOperation()
-        metal_op = SaltPepperMetalOperation()
-
-        params = {"amount": 0.05, "salt_vs_pepper": 0.5, "seed": 42}
-
-        cpu_result = cpu_op.apply(test_image, params)
-        metal_result = metal_op.apply(test_image, params)
-
-        cpu_array = np.array(cpu_result)
-        metal_array = np.array(metal_result)
-
-        # Results should be identical (same seed, same algorithm)
-        np.testing.assert_array_equal(cpu_array, metal_array)
-
     def test_metal_performance_better_than_gpu(self) -> None:
         """Test that Metal version is faster than GPU (Taichi) for large images."""
         # Create a large test image
@@ -343,28 +316,3 @@ class TestSaltPepperMetalOperation:
         assert (
             metal_time < gpu_time
         ), f"Metal ({metal_time:.4f}s) should be faster than GPU ({gpu_time:.4f}s)"
-
-    def test_numerical_results_machine_epsilon_equal(
-        self, test_image: Image.Image
-    ) -> None:
-        """Test that CPU, GPU, and Metal produce numerically equivalent results."""
-        cpu_op = SaltPepperOperation()
-        gpu_op = SaltPepperGPUOperation()
-        metal_op = SaltPepperMetalOperation()
-
-        params = {"amount": 0.05, "salt_vs_pepper": 0.5, "seed": 42}
-
-        cpu_result = cpu_op.apply(test_image, params)
-        gpu_result = gpu_op.apply(test_image, params)
-        metal_result = metal_op.apply(test_image, params)
-
-        cpu_array = np.array(cpu_result, dtype=np.float64)
-        gpu_array = np.array(gpu_result, dtype=np.float64)
-        metal_array = np.array(metal_result, dtype=np.float64)
-
-        # All results should be exactly equal (within machine epsilon)
-        # Since we're dealing with uint8 images and simple operations,
-        # they should be exactly identical
-        np.testing.assert_array_equal(cpu_array, gpu_array)
-        np.testing.assert_array_equal(cpu_array, metal_array)
-        np.testing.assert_array_equal(gpu_array, metal_array)

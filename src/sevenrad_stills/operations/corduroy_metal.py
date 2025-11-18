@@ -1,10 +1,10 @@
 """
-Pure Metal-accelerated corduroy striping operation.
+Metal-accelerated corduroy striping operation using MLX.
 
 Simulates "corduroy" or "banding" artifacts from push-broom and whisk-broom
 scanners where individual detector elements have slightly different sensitivity
-due to calibration drift or manufacturing variations. Uses native Metal compute
-shaders for maximum GPU performance.
+due to calibration drift or manufacturing variations. Uses MLX for Metal
+acceleration with seamless numpy integration.
 """
 
 from typing import Any, Literal
@@ -13,231 +13,20 @@ import numpy as np
 from PIL import Image
 from skimage.util import img_as_float32, img_as_ubyte
 
-from sevenrad_stills.operations.base import BaseImageOperation
-
 try:
-    import Metal
-    import objc
+    import mlx.core as mx
+except ImportError as e:
+    raise ImportError(
+        "MLX is required for Metal acceleration. Install with: pip install mlx"
+    ) from e
 
-    METAL_AVAILABLE = True
-except ImportError:
-    METAL_AVAILABLE = False
+from sevenrad_stills.operations.base import BaseImageOperation
 
 # Constants
 MIN_STRENGTH = 0.0
 MAX_STRENGTH = 1.0
 MIN_DENSITY = 0.0
 MAX_DENSITY = 1.0
-
-# Metal shader source code
-METAL_SHADER_SOURCE = """
-#include <metal_stdlib>
-using namespace metal;
-
-kernel void apply_vertical_stripes(
-    device float *img [[buffer(0)]],
-    device const float *multipliers [[buffer(1)]],
-    constant int &height [[buffer(2)]],
-    constant int &width [[buffer(3)]],
-    constant int &num_channels [[buffer(4)]],
-    uint2 gid [[thread_position_in_grid]]
-) {
-    int x = gid.x;
-    int y = gid.y;
-
-    if (x >= width || y >= height) return;
-
-    float mult = multipliers[x];
-
-    if (num_channels == 1) {
-        // Grayscale
-        int idx = y * width + x;
-        img[idx] = clamp(img[idx] * mult, 0.0f, 1.0f);
-    } else {
-        // RGB
-        for (int c = 0; c < 3; c++) {
-            int idx = (y * width + x) * 3 + c;
-            img[idx] = clamp(img[idx] * mult, 0.0f, 1.0f);
-        }
-    }
-}
-
-kernel void apply_horizontal_stripes(
-    device float *img [[buffer(0)]],
-    device const float *multipliers [[buffer(1)]],
-    constant int &height [[buffer(2)]],
-    constant int &width [[buffer(3)]],
-    constant int &num_channels [[buffer(4)]],
-    uint2 gid [[thread_position_in_grid]]
-) {
-    int x = gid.x;
-    int y = gid.y;
-
-    if (x >= width || y >= height) return;
-
-    float mult = multipliers[y];
-
-    if (num_channels == 1) {
-        // Grayscale
-        int idx = y * width + x;
-        img[idx] = clamp(img[idx] * mult, 0.0f, 1.0f);
-    } else {
-        // RGB
-        for (int c = 0; c < 3; c++) {
-            int idx = (y * width + x) * 3 + c;
-            img[idx] = clamp(img[idx] * mult, 0.0f, 1.0f);
-        }
-    }
-}
-"""
-
-
-class MetalComputeEngine:
-    """Metal compute engine for corduroy operation."""
-
-    def __init__(self) -> None:
-        """Initialize Metal device and compile shaders."""
-        if not METAL_AVAILABLE:
-            msg = "Metal framework not available. Install pyobjc-framework-Metal."
-            raise RuntimeError(msg)
-
-        # Get default Metal device
-        self.device = Metal.MTLCreateSystemDefaultDevice()
-        if self.device is None:
-            msg = "No Metal-capable GPU found."
-            raise RuntimeError(msg)
-
-        # Create command queue
-        self.command_queue = self.device.newCommandQueue()
-
-        # Compile shader library
-        try:
-            options = Metal.MTLCompileOptions.new()
-            self.library, error = self.device.newLibraryWithSource_options_error_(
-                METAL_SHADER_SOURCE, options, None
-            )
-            if error:
-                msg = f"Metal shader compilation failed: {error}"
-                raise RuntimeError(msg)
-        except Exception as e:
-            msg = f"Failed to compile Metal shaders: {e}"
-            raise RuntimeError(msg) from e
-
-        # Create pipeline states
-        self.vertical_pipeline = self._create_pipeline("apply_vertical_stripes")
-        self.horizontal_pipeline = self._create_pipeline("apply_horizontal_stripes")
-
-    def _create_pipeline(self, function_name: str) -> object:
-        """Create compute pipeline state for a shader function."""
-        function = self.library.newFunctionWithName_(function_name)
-        if function is None:
-            msg = f"Metal function '{function_name}' not found in library."
-            raise RuntimeError(msg)
-
-        pipeline, error = self.device.newComputePipelineStateWithFunction_error_(
-            function, None
-        )
-        if error:
-            msg = f"Failed to create pipeline for '{function_name}': {error}"
-            raise RuntimeError(msg)
-
-        return pipeline
-
-    def apply_stripes(
-        self,
-        img_array: np.ndarray,
-        multipliers: np.ndarray,
-        orientation: Literal["vertical", "horizontal"],
-    ) -> None:
-        """
-        Apply corduroy striping using Metal compute shaders.
-
-        Args:
-            img_array: Image array (H, W) or (H, W, 3) - modified in-place
-            multipliers: Array of multipliers (W,) for vertical or (H,) for horizontal
-            orientation: 'vertical' or 'horizontal'
-
-        """
-        h, w = img_array.shape[:2]
-        num_channels = 1 if img_array.ndim == 2 else 3  # noqa: PLR2004
-
-        # Flatten array for Metal
-        img_flat = img_array.ravel().astype(np.float32)
-
-        # Create Metal buffers
-        img_buffer = self.device.newBufferWithBytes_length_options_(
-            img_flat.ctypes.data,
-            img_flat.nbytes,
-            Metal.MTLResourceStorageModeShared,
-        )
-
-        mult_buffer = self.device.newBufferWithBytes_length_options_(
-            multipliers.ctypes.data,
-            multipliers.nbytes,
-            Metal.MTLResourceStorageModeShared,
-        )
-
-        # Create buffers for scalar parameters
-        height_buffer = self.device.newBufferWithBytes_length_options_(
-            np.array([h], dtype=np.int32).ctypes.data,
-            4,
-            Metal.MTLResourceStorageModeShared,
-        )
-        width_buffer = self.device.newBufferWithBytes_length_options_(
-            np.array([w], dtype=np.int32).ctypes.data,
-            4,
-            Metal.MTLResourceStorageModeShared,
-        )
-        channels_buffer = self.device.newBufferWithBytes_length_options_(
-            np.array([num_channels], dtype=np.int32).ctypes.data,
-            4,
-            Metal.MTLResourceStorageModeShared,
-        )
-
-        # Create command buffer and encoder
-        command_buffer = self.command_queue.commandBuffer()
-        compute_encoder = command_buffer.computeCommandEncoder()
-
-        # Set pipeline and buffers
-        pipeline = (
-            self.vertical_pipeline
-            if orientation == "vertical"
-            else self.horizontal_pipeline
-        )
-        compute_encoder.setComputePipelineState_(pipeline)
-        compute_encoder.setBuffer_offset_atIndex_(img_buffer, 0, 0)
-        compute_encoder.setBuffer_offset_atIndex_(mult_buffer, 0, 1)
-        compute_encoder.setBuffer_offset_atIndex_(height_buffer, 0, 2)
-        compute_encoder.setBuffer_offset_atIndex_(width_buffer, 0, 3)
-        compute_encoder.setBuffer_offset_atIndex_(channels_buffer, 0, 4)
-
-        # Calculate thread groups
-        thread_group_size = Metal.MTLSize(16, 16, 1)
-        grid_size = Metal.MTLSize(
-            (w + 15) // 16 * 16,  # Round up to multiple of 16
-            (h + 15) // 16 * 16,
-            1,
-        )
-
-        # Dispatch compute shader
-        compute_encoder.dispatchThreads_threadsPerThreadgroup_(
-            grid_size, thread_group_size
-        )
-        compute_encoder.endEncoding()
-
-        # Execute and wait
-        command_buffer.commit()
-        command_buffer.waitUntilCompleted()
-
-        # Copy results back to numpy array
-        result_ptr = img_buffer.contents()
-        result_array = np.frombuffer(
-            objc.PyObjC_PythonFromObjC(result_ptr, len(img_flat) * 4),
-            dtype=np.float32,
-        ).copy()
-
-        # Reshape and copy back to original array
-        img_array[:] = result_array.reshape(img_array.shape)
 
 
 class CorduroyMetalOperation(BaseImageOperation):
@@ -259,21 +48,13 @@ class CorduroyMetalOperation(BaseImageOperation):
     of slightly brighter or darker pixels running perpendicular to the scan
     direction.
 
-    Performance: Pure Metal implementation provides maximum GPU performance by
-    using native Metal compute shaders without intermediate frameworks.
+    Performance: Uses MLX for Metal acceleration with automatic numpy/Metal
+    conversion, providing excellent GPU performance on Apple Silicon.
     """
 
     def __init__(self) -> None:
         """Initialize the Metal-accelerated corduroy striping operation."""
         super().__init__("corduroy_metal")
-        self._engine: MetalComputeEngine | None = None
-
-    @property
-    def engine(self) -> MetalComputeEngine:
-        """Lazy-initialize Metal compute engine."""
-        if self._engine is None:
-            self._engine = MetalComputeEngine()
-        return self._engine
 
     def validate_params(self, params: dict[str, Any]) -> None:
         """
@@ -382,8 +163,8 @@ class CorduroyMetalOperation(BaseImageOperation):
             multipliers_array = np.ones(total_lines, dtype=np.float32)
             multipliers_array[affected_lines] = multipliers_affected
 
-            # Apply Metal compute shader
-            self.engine.apply_stripes(rgb, multipliers_array, orientation)
+            # Apply stripes using MLX for Metal acceleration
+            self._apply_stripes_mlx(rgb, multipliers_array, orientation)
 
         # Recombine with alpha if needed
         if alpha is not None:
@@ -394,3 +175,46 @@ class CorduroyMetalOperation(BaseImageOperation):
         # Convert back to uint8 using skimage utility
         output_array = img_as_ubyte(output_float)
         return Image.fromarray(output_array)
+
+    def _apply_stripes_mlx(
+        self,
+        img_array: np.ndarray,
+        multipliers: np.ndarray,
+        orientation: Literal["vertical", "horizontal"],
+    ) -> None:
+        """
+        Apply corduroy striping using MLX Metal acceleration.
+
+        Args:
+            img_array: Image array (H, W) or (H, W, 3) - modified in-place
+            multipliers: Array of multipliers (W,) for vertical or (H,) for horizontal
+            orientation: 'vertical' or 'horizontal'
+
+        """
+        # Convert to MLX arrays
+        img_mlx = mx.array(img_array)
+        mult_mlx = mx.array(multipliers)
+
+        # Apply multipliers based on orientation
+        if orientation == "vertical":
+            # Broadcast multipliers across height dimension
+            # Shape: (H, W, C) * (W,) -> (H, W, C)
+            if img_mlx.ndim == 3:  # RGB  # noqa: PLR2004
+                # Reshape multipliers to (1, W, 1) for broadcasting
+                mult_reshaped = mult_mlx.reshape(1, -1, 1)
+            else:  # Grayscale
+                # Reshape multipliers to (1, W) for broadcasting
+                mult_reshaped = mult_mlx.reshape(1, -1)
+        # Broadcast multipliers across width dimension
+        elif img_mlx.ndim == 3:  # RGB  # noqa: PLR2004
+            # Reshape multipliers to (H, 1, 1) for broadcasting
+            mult_reshaped = mult_mlx.reshape(-1, 1, 1)
+        else:  # Grayscale
+            # Reshape multipliers to (H, 1) for broadcasting
+            mult_reshaped = mult_mlx.reshape(-1, 1)
+
+        # Apply multipliers and clamp to [0, 1]
+        result_mlx = mx.clip(img_mlx * mult_reshaped, 0.0, 1.0)
+
+        # Convert back to numpy and update in-place
+        img_array[:] = np.array(result_mlx)

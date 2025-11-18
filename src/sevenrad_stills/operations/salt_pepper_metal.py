@@ -448,7 +448,7 @@ class SaltPepperMetalOperation(BaseImageOperation):
         output_float = np.zeros((h, w, 4), dtype=np.float32)
         dst_region = Metal.MTLRegionMake2D(0, 0, w, h)
         texture.getBytes_bytesPerRow_fromRegion_mipmapLevel_(
-            output_float.ctypes.data,
+            output_float,
             w * 4 * 4,  # 4 channels * 4 bytes/float
             dst_region,
             0,

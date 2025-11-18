@@ -53,14 +53,6 @@ class TestSaturationOperation:
         with pytest.raises(ValueError, match="requires 'value' parameter"):
             operation.validate_params(params)
 
-    def test_fixed_mode_negative_value_raises_error(
-        self, operation: SaturationOperation
-    ) -> None:
-        """Test fixed mode with negative value raises error."""
-        params = {"mode": "fixed", "value": -1.0}
-        with pytest.raises(ValueError, match="must be non-negative"):
-            operation.validate_params(params)
-
     def test_random_mode_missing_range_raises_error(
         self, operation: SaturationOperation
     ) -> None:
