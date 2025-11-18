@@ -31,6 +31,9 @@ from sevenrad_stills.operations.chromatic_aberration import ChromaticAberrationO
 from sevenrad_stills.operations.chromatic_aberration_gpu import (
     ChromaticAberrationGPUOperation,
 )
+from sevenrad_stills.operations.chromatic_aberration_metal import (
+    ChromaticAberrationMetalOperation,
+)
 from sevenrad_stills.operations.compression import CompressionOperation
 from sevenrad_stills.operations.compression_artifact import CompressionArtifactOperation
 from sevenrad_stills.operations.compression_artifact_gpu import (
@@ -119,9 +122,10 @@ register_backend("buffer_corruption", "gpu", BufferCorruptionGPUOperation)
 # TODO: Add BufferCorruptionMetalOperation wrapper class
 # register_backend("buffer_corruption", "metal", BufferCorruptionMetalOperation)
 
-# chromatic_aberration: CPU + GPU
+# chromatic_aberration: CPU + GPU + Metal
 register_backend("chromatic_aberration", "cpu", ChromaticAberrationOperation)
 register_backend("chromatic_aberration", "gpu", ChromaticAberrationGPUOperation)
+register_backend("chromatic_aberration", "metal", ChromaticAberrationMetalOperation)
 
 # compression: CPU + GPU + Metal
 register_backend("compression", "cpu", CompressionOperation)

@@ -52,7 +52,7 @@ Not all operations have implementations for all backends. Here's the current sup
 | blur_circular         | ✓   | ✓            | ✗     |
 | blur_gaussian         | ✓   | ✓            | ✗     |
 | buffer_corruption     | ✓   | ✓            | ✗*    |
-| chromatic_aberration  | ✓   | ✓            | ✗     |
+| chromatic_aberration  | ✓   | ✓            | ✓     |
 | compression           | ✓   | ✓            | ✓     |
 | compression_artifact  | ✓   | ✓            | ✓     |
 | corduroy              | ✓   | ✓            | ✓     |
