@@ -47,11 +47,11 @@ Not all operations have implementations for all backends. Here's the current sup
 
 | Operation             | CPU | GPU (Taichi) | Metal |
 |-----------------------|-----|--------------|-------|
-| band_swap             | ✓   | ✓            | ✗     |
+| band_swap             | ✓   | ✓            | ✓     |
 | bayer_filter          | ✓   | ✓            | ✓     |
-| blur_circular         | ✓   | ✓            | ✗     |
+| blur_circular         | ✓   | ✓            | ✓     |
 | blur_gaussian         | ✓   | ✓            | ✗     |
-| buffer_corruption     | ✓   | ✓            | ✗*    |
+| buffer_corruption     | ✓   | ✓            | ✓     |
 | chromatic_aberration  | ✓   | ✓            | ✓     |
 | compression           | ✓   | ✓            | ✓     |
 | compression_artifact  | ✓   | ✓            | ✓     |
@@ -63,8 +63,6 @@ Not all operations have implementations for all backends. Here's the current sup
 | salt_pepper           | ✓   | ✓            | ✓     |
 | saturation            | ✓   | ✓            | ✓     |
 | slc_off               | ✓   | ✓            | ⚠     |
-
-*Note: buffer_corruption Metal implementation exists but needs wrapper class to be registered
 
 **Legend:**
 - ✓ = Implementation available and working
