@@ -8,22 +8,15 @@ This document tracks missing backend implementations and provides guidance for c
 All operations now have GPU implementations! The last operation, `multi_compress`,
 was added with GPU and Metal support, achieving 100% GPU coverage.
 
-### Metal Backend: 7 Items Remaining
+### Metal Backend: 2 Items Remaining
 
-**4 Operations Not Yet Implemented:**
-1. **band_swap** - Medium priority, low complexity (2-4 hours)
-2. **blur_circular** - Medium priority, medium complexity (4-6 hours)
-3. **blur_gaussian** - High priority, medium complexity (4-6 hours)
-4. **chromatic_aberration** - High priority, low complexity (2-4 hours)
+**2 Operations Not Yet Implemented:**
+1. **blur_gaussian** - High priority, medium complexity (4-6 hours)
+2. **chromatic_aberration** - High priority, low complexity (2-4 hours)
 
-**3 Operations With Runtime Bugs:**
-5. **slc_off** - High priority, needs debugging (4-8 hours)
-6. **motion_blur** - High priority, MLX API fix (2-4 hours)
-7. **downscale** - High priority, Metal FFI fix (4-8 hours)
+**Total**: 2/16 Metal operations remain (all missing implementations, no runtime bugs)
 
-**Total**: 7/16 Metal operations need work (4 missing + 3 broken)
-
-**Workaround**: Use GPU backend for all missing/broken Metal operations.
+**Workaround**: Use GPU backend for missing Metal operations.
 
 ---
 
@@ -32,7 +25,9 @@ was added with GPU and Metal support, achieving 100% GPU coverage.
 ### Complete (All 3 Backends)
 These operations have CPU, GPU (Taichi), and Metal implementations:
 
+- ✅ band_swap
 - ✅ bayer_filter
+- ✅ blur_circular
 - ✅ buffer_corruption
 - ✅ compression
 - ✅ compression_artifact
@@ -45,65 +40,44 @@ These operations have CPU, GPU (Taichi), and Metal implementations:
 - ✅ saturation
 - ✅ slc_off
 
-**Total: 12/16 operations** (75% complete)
+**Total: 14/16 operations** (88% complete)
+
+### Runtime Bug Fixes (Recently Completed)
+
+The following operations had Metal implementations with runtime errors that have been fixed:
+
+1. **slc_off_metal** ✅ FIXED
+   - Previous error: "converting to a C array"
+   - Fix: Migrated from `newBufferWithBytes_` with `ctypes.data` to `newBufferWithBytesNoCopy_` with direct numpy arrays (zero-copy pattern)
+   - Status: All tests passing
+
+2. **motion_blur_metal** ✅ FIXED
+   - Previous error: `module 'mlx.core' has no attribute 'flip'`
+   - Fix: Replaced `mx.flip(array, axis=...)` with array slicing syntax `array[::-1]` and `array[:, ::-1]`
+   - Status: Tested and working
+
+3. **downscale_metal** ✅ FIXED
+   - Previous error: "argument 0 must be None or objc.NULL"
+   - Fix: Proper tuple unpacking from Metal FFI functions and passing numpy arrays directly instead of `ctypes.data`
+   - Status: All tests passing
 
 ### Missing Metal Implementations
 
 These operations have CPU and GPU but need Metal:
 
-1. **band_swap** (CPU + GPU only)
-   - Priority: Medium
-   - Complexity: Low
-   - Estimated effort: 2-4 hours
-   - Reference: `band_swap_gpu.py` for algorithm
-
-2. **blur_circular** (CPU + GPU only)
-   - Priority: Medium
-   - Complexity: Medium
-   - Estimated effort: 4-6 hours
-   - Reference: `blur_circular_gpu.py` for circular distance calculations
-
-3. **blur_gaussian** (CPU + GPU only)
+1. **blur_gaussian** (CPU + GPU only)
    - Priority: High (commonly used)
    - Complexity: Medium
    - Estimated effort: 4-6 hours
    - Note: May use MLX or MPS variants as reference
    - Reference: `blur_gaussian_gpu.py`
 
-4. **chromatic_aberration** (CPU + GPU only)
+2. **chromatic_aberration** (CPU + GPU only)
    - Priority: High (popular effect)
    - Complexity: Low
    - Estimated effort: 2-4 hours
    - Reference: `chromatic_aberration_gpu.py`
 
-### Metal Runtime Issues (Existing Implementations)
-
-These operations have Metal implementations but encounter runtime errors:
-
-1. **slc_off_metal** (Runtime error)
-   - Error: "converting to a C array"
-   - Status: Implemented but broken
-   - Priority: High (operation works in CPU/GPU)
-   - Estimated effort: 4-8 hours debugging
-   - Issue: Likely related to NumPy array conversion in Metal FFI
-   - Workaround: Use GPU backend
-
-2. **motion_blur_metal** (MLX library error)
-   - Error: `module 'mlx.core' has no attribute 'flip'`
-   - Status: Implemented but broken
-   - Priority: High (operation works in CPU/GPU)
-   - Estimated effort: 2-4 hours
-   - Issue: MLX API change or version incompatibility
-   - Possible fix: Use alternative MLX function or update MLX version
-   - Workaround: Use GPU backend
-
-3. **downscale_metal** (Metal FFI error)
-   - Error: "argument 0 must be None or objc.NULL"
-   - Status: Implemented but broken
-   - Priority: High (operation works in CPU/GPU)
-   - Estimated effort: 4-8 hours debugging
-   - Issue: PyObjC/Metal FFI argument passing issue
-   - Workaround: Use GPU backend
 
 ### Missing GPU Implementations
 
@@ -238,9 +212,6 @@ Recommended implementation order based on usage and impact:
 
 1. **chromatic_aberration_metal** (High usage, low complexity)
 2. **blur_gaussian_metal** (High usage, medium complexity)
-3. **band_swap_metal** (Medium usage, low complexity)
-4. **blur_circular_metal** (Medium usage, medium complexity)
-5. **multi_compress_gpu** (Low priority, high complexity)
 
 ## Contributing
 

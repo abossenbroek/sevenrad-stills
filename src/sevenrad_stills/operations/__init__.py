@@ -20,6 +20,7 @@ from sevenrad_stills.operations.bayer_filter_gpu import BayerFilterGPUOperation
 from sevenrad_stills.operations.bayer_filter_metal import BayerFilterMetalOperation
 from sevenrad_stills.operations.blur_circular import CircularBlurOperation
 from sevenrad_stills.operations.blur_circular_gpu import CircularBlurGPUOperation
+from sevenrad_stills.operations.blur_circular_metal import CircularBlurMetalOperation
 from sevenrad_stills.operations.blur_gaussian import GaussianBlurOperation
 from sevenrad_stills.operations.blur_gaussian_gpu import GaussianBlurGPUOperation
 from sevenrad_stills.operations.buffer_corruption import BufferCorruptionOperation
@@ -103,9 +104,10 @@ register_backend("bayer_filter", "cpu", BayerFilterOperation)
 register_backend("bayer_filter", "gpu", BayerFilterGPUOperation)
 register_backend("bayer_filter", "metal", BayerFilterMetalOperation)
 
-# blur_circular: CPU + GPU
+# blur_circular: CPU + GPU + Metal
 register_backend("blur_circular", "cpu", CircularBlurOperation)
 register_backend("blur_circular", "gpu", CircularBlurGPUOperation)
+register_backend("blur_circular", "metal", CircularBlurMetalOperation)
 
 # blur_gaussian: CPU + GPU
 register_backend("blur_gaussian", "cpu", GaussianBlurOperation)
