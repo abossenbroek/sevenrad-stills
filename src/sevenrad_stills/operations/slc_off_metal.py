@@ -5,6 +5,7 @@ Simulates the 2003 Landsat 7 ETM+ Scan Line Corrector failure using native
 Metal compute shaders for maximum GPU performance on Apple Silicon.
 """
 
+import struct
 from typing import Any
 
 import numpy as np
@@ -25,57 +26,87 @@ MIN_GAP_WIDTH = 0.0
 MAX_GAP_WIDTH = 0.5
 MIN_SCAN_PERIOD = 2
 MAX_SCAN_PERIOD = 100
+RGB_CHANNELS = 3
 
 # Metal shader source code
 METAL_SHADER_SOURCE = """
 #include <metal_stdlib>
 using namespace metal;
 
+struct CreateGapMaskParams {
+    int height;
+    int width;
+    int center_y;
+    float gap_width;
+    int scan_period;
+    float diagonal_offset_per_row;
+};
+
+struct FillRgbParams {
+    int height;
+    int width;
+    uchar fill_r;
+    uchar fill_g;
+    uchar fill_b;
+};
+
+struct FillGrayParams {
+    int height;
+    int width;
+    uchar fill_value;
+};
+
 kernel void create_gap_mask(
     device uchar *gap_mask [[buffer(0)]],
-    constant int &height [[buffer(1)]],
-    constant int &width [[buffer(2)]],
-    constant int &center_y [[buffer(3)]],
-    constant float &gap_width [[buffer(4)]],
-    constant int &scan_period [[buffer(5)]],
-    constant float &diagonal_offset_per_row [[buffer(6)]],
+    constant CreateGapMaskParams &params [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]]
 ) {
     int y = gid.y;
     int x = gid.x;
 
-    if (x >= width || y >= height) return;
+    if (x >= params.width || y >= params.height) return;
 
     // Initialize to no gap
-    int idx = y * width + x;
+    int idx = y * params.width + x;
     gap_mask[idx] = 0;
 
     // Find the scan line that this pixel belongs to
     // Scan lines start at y % scan_period == 0
-    int scan_cycle_start = (y / scan_period) * scan_period;
+    int scan_cycle_start = (y / params.scan_period) * params.scan_period;
     int offset_in_cycle = y - scan_cycle_start;
 
     // Distance from center for the scan line start
-    float distance_from_center = abs(float(scan_cycle_start - center_y)) / (float(height) / 2.0f);
-    int current_gap_width = int(distance_from_center * gap_width * float(width));
+    float distance_from_center = abs(
+        float(scan_cycle_start - params.center_y)
+    ) / (float(params.height) / 2.0f);
+    int current_gap_width = int(
+        distance_from_center * params.gap_width * float(params.width)
+    );
 
     if (current_gap_width > 0) {
         // Determine scan direction (zig-zag pattern)
-        int scan_line_number = scan_cycle_start / scan_period;
+        int scan_line_number = scan_cycle_start / params.scan_period;
         int scan_direction = (scan_line_number % 2 == 0) ? 1 : -1;
 
         // Calculate diagonal offset for this row within the cycle
-        int diagonal_shift = int(diagonal_offset_per_row * float(offset_in_cycle) * float(scan_direction));
+        int diagonal_shift = int(
+            params.diagonal_offset_per_row *
+            float(offset_in_cycle) *
+            float(scan_direction)
+        );
 
         // Gap width at current row's distance from center
-        float row_distance = abs(float(y - center_y)) / (float(height) / 2.0f);
-        int row_gap_width = int(row_distance * gap_width * float(width));
+        float row_distance = abs(float(y - params.center_y)) /
+            (float(params.height) / 2.0f);
+        int row_gap_width = int(
+            row_distance * params.gap_width * float(params.width)
+        );
 
         if (row_gap_width > 0) {
             // Center gap position with diagonal shift
-            int gap_center = width / 2 + diagonal_shift;
+            int gap_center = params.width / 2 + diagonal_shift;
             int gap_start = max(0, gap_center - row_gap_width / 2);
-            int gap_end = min(width, gap_center + row_gap_width / 2);
+            int gap_end = min(params.width, gap_center + row_gap_width / 2);
 
             // Check if current pixel is within the gap
             if (x >= gap_start && x < gap_end) {
@@ -88,43 +119,37 @@ kernel void create_gap_mask(
 kernel void apply_constant_fill_rgb(
     device uchar *img [[buffer(0)]],
     device const uchar *gap_mask [[buffer(1)]],
-    constant int &height [[buffer(2)]],
-    constant int &width [[buffer(3)]],
-    constant uchar &fill_r [[buffer(4)]],
-    constant uchar &fill_g [[buffer(5)]],
-    constant uchar &fill_b [[buffer(6)]],
+    constant FillRgbParams &params [[buffer(2)]],
     uint2 gid [[thread_position_in_grid]]
 ) {
     int x = gid.x;
     int y = gid.y;
 
-    if (x >= width || y >= height) return;
+    if (x >= params.width || y >= params.height) return;
 
-    int mask_idx = y * width + x;
+    int mask_idx = y * params.width + x;
     if (gap_mask[mask_idx] == 1) {
-        int base_idx = (y * width + x) * 3;
-        img[base_idx + 0] = fill_r;
-        img[base_idx + 1] = fill_g;
-        img[base_idx + 2] = fill_b;
+        int base_idx = (y * params.width + x) * 3;
+        img[base_idx + 0] = params.fill_r;
+        img[base_idx + 1] = params.fill_g;
+        img[base_idx + 2] = params.fill_b;
     }
 }
 
 kernel void apply_constant_fill_gray(
     device uchar *img [[buffer(0)]],
     device const uchar *gap_mask [[buffer(1)]],
-    constant int &height [[buffer(2)]],
-    constant int &width [[buffer(3)]],
-    constant uchar &fill_value [[buffer(4)]],
+    constant FillGrayParams &params [[buffer(2)]],
     uint2 gid [[thread_position_in_grid]]
 ) {
     int x = gid.x;
     int y = gid.y;
 
-    if (x >= width || y >= height) return;
+    if (x >= params.width || y >= params.height) return;
 
-    int idx = y * width + x;
+    int idx = y * params.width + x;
     if (gap_mask[idx] == 1) {
-        img[idx] = fill_value;
+        img[idx] = params.fill_value;
     }
 }
 """
@@ -147,6 +172,9 @@ class MetalComputeEngine:
 
         # Create command queue
         self.command_queue = self.device.newCommandQueue()
+
+        # Storage for NumPy arrays to keep them alive during GPU operations
+        self._buffer_refs: list[np.ndarray] = []
 
         # Compile shader library
         try:
@@ -209,43 +237,30 @@ class MetalComputeEngine:
         # Allocate output buffer
         gap_mask = np.zeros((height, width), dtype=np.uint8)
 
-        # Create Metal buffers
-        mask_buffer = self.device.newBufferWithBytes_length_options_(
-            gap_mask.ctypes.data,
-            gap_mask.nbytes,
-            Metal.MTLResourceStorageModeShared,
+        # Ensure array is C-contiguous for zero-copy
+        if not gap_mask.flags["C_CONTIGUOUS"]:
+            gap_mask = np.ascontiguousarray(gap_mask)
+
+        # Create Metal buffer with ZERO-COPY
+        mask_buffer = self.device.newBufferWithBytesNoCopy_length_options_deallocator_(
+            gap_mask, gap_mask.nbytes, Metal.MTLResourceStorageModeShared, None
         )
 
-        # Create buffers for scalar parameters
-        height_buffer = self.device.newBufferWithBytes_length_options_(
-            np.array([height], dtype=np.int32).ctypes.data,
-            4,
-            Metal.MTLResourceStorageModeShared,
+        # CRITICAL: Keep NumPy array alive while Metal buffer exists
+        self._buffer_refs.append(gap_mask)
+
+        # Pack all scalar parameters into a single struct buffer
+        params_struct = struct.pack(
+            "=iiifif",  # Use standard sizes for cross-system compatibility
+            height,
+            width,
+            center_y,
+            gap_width,
+            scan_period,
+            diagonal_offset_per_row,
         )
-        width_buffer = self.device.newBufferWithBytes_length_options_(
-            np.array([width], dtype=np.int32).ctypes.data,
-            4,
-            Metal.MTLResourceStorageModeShared,
-        )
-        center_y_buffer = self.device.newBufferWithBytes_length_options_(
-            np.array([center_y], dtype=np.int32).ctypes.data,
-            4,
-            Metal.MTLResourceStorageModeShared,
-        )
-        gap_width_buffer = self.device.newBufferWithBytes_length_options_(
-            np.array([gap_width], dtype=np.float32).ctypes.data,
-            4,
-            Metal.MTLResourceStorageModeShared,
-        )
-        scan_period_buffer = self.device.newBufferWithBytes_length_options_(
-            np.array([scan_period], dtype=np.int32).ctypes.data,
-            4,
-            Metal.MTLResourceStorageModeShared,
-        )
-        diagonal_offset_buffer = self.device.newBufferWithBytes_length_options_(
-            np.array([diagonal_offset_per_row], dtype=np.float32).ctypes.data,
-            4,
-            Metal.MTLResourceStorageModeShared,
+        params_buffer = self.device.newBufferWithBytes_length_options_(
+            params_struct, len(params_struct), Metal.MTLResourceStorageModeShared
         )
 
         # Create command buffer and encoder
@@ -255,12 +270,7 @@ class MetalComputeEngine:
         # Set pipeline and buffers
         compute_encoder.setComputePipelineState_(self.gap_mask_pipeline)
         compute_encoder.setBuffer_offset_atIndex_(mask_buffer, 0, 0)
-        compute_encoder.setBuffer_offset_atIndex_(height_buffer, 0, 1)
-        compute_encoder.setBuffer_offset_atIndex_(width_buffer, 0, 2)
-        compute_encoder.setBuffer_offset_atIndex_(center_y_buffer, 0, 3)
-        compute_encoder.setBuffer_offset_atIndex_(gap_width_buffer, 0, 4)
-        compute_encoder.setBuffer_offset_atIndex_(scan_period_buffer, 0, 5)
-        compute_encoder.setBuffer_offset_atIndex_(diagonal_offset_buffer, 0, 6)
+        compute_encoder.setBuffer_offset_atIndex_(params_buffer, 0, 1)
 
         # Calculate thread groups
         thread_group_size = Metal.MTLSize(16, 16, 1)
@@ -280,105 +290,86 @@ class MetalComputeEngine:
         command_buffer.commit()
         command_buffer.waitUntilCompleted()
 
-        # Copy results back
-        result_ptr = mask_buffer.contents()
-        result_array = np.frombuffer(
-            objc.PyObjC_PythonFromObjC(result_ptr, len(gap_mask.ravel())),
-            dtype=np.uint8,
-        ).copy()
-
-        return result_array.reshape((height, width))
+        # ZERO-COPY: gap_mask was modified in-place by GPU. No copy-back needed.
+        self._buffer_refs.clear()
+        return gap_mask
 
     def apply_constant_fill(
         self,
         img_array: np.ndarray,
         gap_mask: np.ndarray,
         fill_value: np.ndarray | int,
-    ) -> None:
+    ) -> np.ndarray:
         """
         Apply constant fill to gaps using Metal compute shader.
 
         Args:
-            img_array: Image array (H, W) or (H, W, 3) - modified in-place
+            img_array: Image array (H, W) or (H, W, 3)
             gap_mask: Gap mask (H, W)
             fill_value: Fill value (scalar for grayscale, 3-element array for RGB)
 
+        Returns:
+            Modified image array (potentially a new array if input wasn't C-contiguous)
+
         """
         h, w = img_array.shape[:2]
-        is_rgb = img_array.ndim == 3  # noqa: PLR2004
+        is_rgb = img_array.ndim == RGB_CHANNELS
 
-        # Flatten arrays for Metal
-        img_flat = img_array.ravel()
-        mask_flat = gap_mask.ravel()
+        # Ensure arrays are C-contiguous for zero-copy (create copies if needed)
+        if not img_array.flags["C_CONTIGUOUS"]:
+            img_array = np.ascontiguousarray(img_array)
+        if not gap_mask.flags["C_CONTIGUOUS"]:
+            gap_mask = np.ascontiguousarray(gap_mask)
 
-        # Create Metal buffers
-        img_buffer = self.device.newBufferWithBytes_length_options_(
-            img_flat.ctypes.data,
-            img_flat.nbytes,
-            Metal.MTLResourceStorageModeShared,
+        # Create Metal buffers with ZERO-COPY
+        img_buffer = self.device.newBufferWithBytesNoCopy_length_options_deallocator_(
+            img_array, img_array.nbytes, Metal.MTLResourceStorageModeShared, None
         )
-        mask_buffer = self.device.newBufferWithBytes_length_options_(
-            mask_flat.ctypes.data,
-            mask_flat.nbytes,
-            Metal.MTLResourceStorageModeShared,
+        mask_buffer = self.device.newBufferWithBytesNoCopy_length_options_deallocator_(
+            gap_mask, gap_mask.nbytes, Metal.MTLResourceStorageModeShared, None
         )
 
-        # Create parameter buffers
-        height_buffer = self.device.newBufferWithBytes_length_options_(
-            np.array([h], dtype=np.int32).ctypes.data,
-            4,
-            Metal.MTLResourceStorageModeShared,
-        )
-        width_buffer = self.device.newBufferWithBytes_length_options_(
-            np.array([w], dtype=np.int32).ctypes.data,
-            4,
-            Metal.MTLResourceStorageModeShared,
-        )
+        # CRITICAL: Keep NumPy arrays alive while Metal buffers exist
+        self._buffer_refs.extend([img_array, gap_mask])
 
         # Create command buffer and encoder
         command_buffer = self.command_queue.commandBuffer()
         compute_encoder = command_buffer.computeCommandEncoder()
 
         if is_rgb:
-            # RGB fill
-            fill_r_buffer = self.device.newBufferWithBytes_length_options_(
-                np.array([fill_value[0]], dtype=np.uint8).ctypes.data,
-                1,
-                Metal.MTLResourceStorageModeShared,
+            # Pack RGB parameters into a struct
+            params_struct = struct.pack(
+                "=iiBBBx",  # Pad to 12 bytes for alignment
+                h,
+                w,
+                fill_value[0],
+                fill_value[1],
+                fill_value[2],
             )
-            fill_g_buffer = self.device.newBufferWithBytes_length_options_(
-                np.array([fill_value[1]], dtype=np.uint8).ctypes.data,
-                1,
-                Metal.MTLResourceStorageModeShared,
-            )
-            fill_b_buffer = self.device.newBufferWithBytes_length_options_(
-                np.array([fill_value[2]], dtype=np.uint8).ctypes.data,
-                1,
-                Metal.MTLResourceStorageModeShared,
+            params_buffer = self.device.newBufferWithBytes_length_options_(
+                params_struct, len(params_struct), Metal.MTLResourceStorageModeShared
             )
 
             compute_encoder.setComputePipelineState_(self.fill_rgb_pipeline)
             compute_encoder.setBuffer_offset_atIndex_(img_buffer, 0, 0)
             compute_encoder.setBuffer_offset_atIndex_(mask_buffer, 0, 1)
-            compute_encoder.setBuffer_offset_atIndex_(height_buffer, 0, 2)
-            compute_encoder.setBuffer_offset_atIndex_(width_buffer, 0, 3)
-            compute_encoder.setBuffer_offset_atIndex_(fill_r_buffer, 0, 4)
-            compute_encoder.setBuffer_offset_atIndex_(fill_g_buffer, 0, 5)
-            compute_encoder.setBuffer_offset_atIndex_(fill_b_buffer, 0, 6)
+            compute_encoder.setBuffer_offset_atIndex_(params_buffer, 0, 2)
         else:
-            # Grayscale fill
-            fill_buffer = self.device.newBufferWithBytes_length_options_(
-                np.array([fill_value], dtype=np.uint8).ctypes.data,
-                1,
-                Metal.MTLResourceStorageModeShared,
+            # Pack Grayscale parameters into a struct
+            params_struct = struct.pack(
+                "=iiBxxx",  # Pad to 12 bytes for alignment
+                h,
+                w,
+                fill_value,
+            )
+            params_buffer = self.device.newBufferWithBytes_length_options_(
+                params_struct, len(params_struct), Metal.MTLResourceStorageModeShared
             )
 
             compute_encoder.setComputePipelineState_(self.fill_gray_pipeline)
             compute_encoder.setBuffer_offset_atIndex_(img_buffer, 0, 0)
             compute_encoder.setBuffer_offset_atIndex_(mask_buffer, 0, 1)
-            compute_encoder.setBuffer_offset_atIndex_(height_buffer, 0, 2)
-            compute_encoder.setBuffer_offset_atIndex_(width_buffer, 0, 3)
-            compute_encoder.setBuffer_offset_atIndex_(fill_buffer, 0, 4)
+            compute_encoder.setBuffer_offset_atIndex_(params_buffer, 0, 2)
 
         # Calculate thread groups
         thread_group_size = Metal.MTLSize(16, 16, 1)
@@ -398,24 +389,18 @@ class MetalComputeEngine:
         command_buffer.commit()
         command_buffer.waitUntilCompleted()
 
-        # Copy results back
-        result_ptr = img_buffer.contents()
-        result_array = np.frombuffer(
-            objc.PyObjC_PythonFromObjC(result_ptr, len(img_flat)),
-            dtype=np.uint8,
-        ).copy()
-
-        # Update original array
-        img_array[:] = result_array.reshape(img_array.shape)
+        # ZERO-COPY: img_array was modified in-place. No copy-back needed.
+        self._buffer_refs.clear()
+        return img_array
 
 
 class SlcOffMetalOperation(BaseImageOperation):
     """
-    Metal-accelerated SLC-Off artifacts simulating Landsat 7 scan line corrector failure.
+    Metal-accelerated SLC-Off artifacts simulating Landsat 7 ETM+ failure.
 
-    Uses native Metal compute shaders for maximum GPU performance on Apple Silicon.
-    Provides the fastest implementation for gap mask generation and constant fill
-    operations.
+    Uses native Metal compute shaders for maximum GPU performance on Apple
+    Silicon. Provides the fastest implementation for gap mask generation and
+    constant fill operations.
 
     Performance: Pure Metal implementation provides maximum GPU performance by
     using native Metal compute shaders without intermediate frameworks like Taichi.
@@ -541,20 +526,24 @@ class SlcOffMetalOperation(BaseImageOperation):
 
         # Apply fill mode
         if fill_mode == "black":
-            fill_value = np.array([0, 0, 0], dtype=np.uint8) if rgb.ndim == 3 else 0  # noqa: PLR2004
-            self.engine.apply_constant_fill(rgb, gap_mask, fill_value)
+            fill_value = (
+                np.array([0, 0, 0], dtype=np.uint8) if rgb.ndim == RGB_CHANNELS else 0
+            )
+            rgb = self.engine.apply_constant_fill(rgb, gap_mask, fill_value)
         elif fill_mode == "white":
             fill_value = (
-                np.array([255, 255, 255], dtype=np.uint8) if rgb.ndim == 3 else 255
+                np.array([255, 255, 255], dtype=np.uint8)
+                if rgb.ndim == RGB_CHANNELS
+                else 255
             )
-            self.engine.apply_constant_fill(rgb, gap_mask, fill_value)
+            rgb = self.engine.apply_constant_fill(rgb, gap_mask, fill_value)
         else:  # mean fill
             # For mean fill, use CPU implementation as it requires row-wise computation
             gap_mask_bool = gap_mask.astype(bool)
             for y in range(h):
                 if np.any(gap_mask_bool[y]):
                     # Calculate mean of non-gap pixels in this row
-                    if rgb.ndim == 3:  # RGB  # noqa: PLR2004
+                    if rgb.ndim == RGB_CHANNELS:  # RGB
                         row_mean = np.mean(rgb[y, ~gap_mask_bool[y]], axis=0).astype(
                             rgb.dtype
                         )
