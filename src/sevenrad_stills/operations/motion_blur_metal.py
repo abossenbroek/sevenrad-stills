@@ -153,19 +153,32 @@ class MotionBlurMetalOperation(BaseImageOperation):
         # MLX doesn't have reflect padding, so we implement it manually
         padded = self._reflect_pad_2d(image, pad_size)
 
-        # Flip kernel for convolution (vs correlation)
-        kernel_flipped = kernel[::-1, ::-1]
+        # Force materialization to avoid MLX lazy evaluation bug with
+        # concatenated arrays. The _reflect_pad_2d creates complex view
+        # chains through mx.concatenate operations which can cause MLX to
+        # read uninitialized memory when slicing windows at boundaries.
+        # Convert to numpy and back to force a contiguous copy.
+        padded = mx.array(np.array(padded))
+        mx.eval(padded)
+
+        # Flip kernel for proper convolution (scipy.ndimage.convolve does
+        # this). Create a contiguous copy to avoid MLX indexing bug with
+        # sliced arrays. Must convert through numpy to ensure contiguity.
+        kernel_flipped = mx.array(np.array(kernel[::-1, ::-1]))
+        mx.eval(kernel_flipped)
 
         # Perform convolution using sliding window
         result = mx.zeros((height, width), dtype=mx.float32)
 
-        # Use MLX's efficient operations
-        for i in range(kernel_size):
-            for j in range(kernel_size):
-                # Extract the shifted window
-                window = padded[i : i + height, j : j + width]
-                # Multiply by kernel weight and accumulate
-                result = result + window * kernel_flipped[i, j]
+        # Convolve by extracting windows from the padded image
+        # For each kernel position (ki, kj), extract a height x width window
+        # and accumulate the weighted values
+        for ki in range(kernel_size):
+            for kj in range(kernel_size):
+                # Extract window from padded image
+                window = padded[ki : ki + height, kj : kj + width]
+                # Accumulate weighted by flipped kernel
+                result = result + window * kernel_flipped[ki, kj]
 
         return result
 
