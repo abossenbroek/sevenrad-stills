@@ -281,30 +281,26 @@ class CompressionArtifactMetalOperation(BaseImageOperation):
 
         h, w = rgb.shape[:2]
 
-        # Generate tile coordinates
-        tile_fractions = rng.uniform(
-            tile_size_range[0], tile_size_range[1], size=tile_count
-        )
-        tile_heights = np.maximum(8, (h * tile_fractions).astype(np.int32))
-        tile_widths = np.maximum(8, (w * tile_fractions).astype(np.int32))
+        # Generate tile coordinates (one at a time to match CPU RNG sequence)
+        tiles = []
+        for _ in range(tile_count):
+            # Random tile size
+            tile_fraction = rng.uniform(tile_size_range[0], tile_size_range[1])
+            tile_h = max(8, int(h * tile_fraction))
+            tile_w = max(8, int(w * tile_fraction))
 
-        y_starts = rng.integers(
-            0, np.maximum(1, h - tile_heights + 1), size=tile_count, dtype=np.int32
-        )
-        x_starts = rng.integers(
-            0, np.maximum(1, w - tile_widths + 1), size=tile_count, dtype=np.int32
-        )
+            # Random tile position
+            y_start = rng.integers(0, max(1, h - tile_h + 1))
+            x_start = rng.integers(0, max(1, w - tile_w + 1))
 
-        # Build tile list [y_start, y_end, x_start, x_end]
-        tiles = [
-            [
-                int(y_starts[i]),
-                int(y_starts[i] + tile_heights[i]),
-                int(x_starts[i]),
-                int(x_starts[i] + tile_widths[i]),
-            ]
-            for i in range(tile_count)
-        ]
+            tiles.append(
+                [
+                    int(y_start),
+                    int(y_start + tile_h),
+                    int(x_start),
+                    int(x_start + tile_w),
+                ]
+            )
 
         # Apply Metal operation
         rgb = self._metal.apply(rgb, tiles, quality)
