@@ -27,7 +27,9 @@ except ImportError as e:
 RGB_CHANNELS = 3  # Number of color channels in RGB image
 
 
-def compute_gaussian_kernel_1d(kernel_size: int, sigma: float) -> np.ndarray:  # type: ignore[type-arg]
+def compute_gaussian_kernel_1d(
+    kernel_size: int, sigma: float
+) -> np.ndarray[Any, np.dtype[np.float32]]:
     """
     Compute 1D Gaussian kernel weights.
 
@@ -40,9 +42,12 @@ def compute_gaussian_kernel_1d(kernel_size: int, sigma: float) -> np.ndarray:  #
 
     """
     radius = kernel_size // 2
-    x: np.ndarray = np.arange(kernel_size) - radius  # type: ignore[type-arg]
-    weights: np.ndarray = np.exp(-(x**2) / (2.0 * sigma**2))  # type: ignore[type-arg]
-    return (weights / weights.sum()).astype(np.float32)  # type: ignore[no-any-return]
+    x: np.ndarray[Any, Any] = np.arange(kernel_size) - radius
+    weights: np.ndarray[Any, Any] = np.exp(-(x**2) / (2.0 * sigma**2))
+    result: np.ndarray[Any, np.dtype[np.float32]] = (weights / weights.sum()).astype(
+        np.float32
+    )
+    return result
 
 
 class GaussianBlurMLXOperation(BaseImageOperation):
@@ -207,7 +212,7 @@ class GaussianBlurMLXOperation(BaseImageOperation):
         mx.eval(result)
 
         # Convert back to NumPy and remove batch dimension
-        result_np = np.array(result)[0]
+        result_np: np.ndarray[Any, np.dtype[Any]] = np.array(result)[0]
 
         # Remove channel dimension for grayscale
         if not is_color:

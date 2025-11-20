@@ -24,6 +24,7 @@ from sevenrad_stills.operations.blur_circular_gpu import CircularBlurGPUOperatio
 from sevenrad_stills.operations.blur_circular_metal import CircularBlurMetalOperation
 from sevenrad_stills.operations.blur_gaussian import GaussianBlurOperation
 from sevenrad_stills.operations.blur_gaussian_gpu import GaussianBlurGPUOperation
+from sevenrad_stills.operations.blur_gaussian_mlx import GaussianBlurMLXOperation
 from sevenrad_stills.operations.buffer_corruption import BufferCorruptionOperation
 from sevenrad_stills.operations.buffer_corruption_gpu import (
     BufferCorruptionGPUOperation,
@@ -112,9 +113,10 @@ register_backend("blur_circular", "cpu", CircularBlurOperation)
 register_backend("blur_circular", "gpu", CircularBlurGPUOperation)
 register_backend("blur_circular", "metal", CircularBlurMetalOperation)
 
-# blur_gaussian: CPU + GPU (Metal removed - MLX is faster, MPS is slower)
+# blur_gaussian: CPU + GPU + Metal (MLX implementation for Metal)
 register_backend("blur_gaussian", "cpu", GaussianBlurOperation)
 register_backend("blur_gaussian", "gpu", GaussianBlurGPUOperation)
+register_backend("blur_gaussian", "metal", GaussianBlurMLXOperation)
 
 # buffer_corruption: CPU + GPU + Metal
 register_backend("buffer_corruption", "cpu", BufferCorruptionOperation)
