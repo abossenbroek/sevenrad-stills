@@ -10,6 +10,8 @@ from sevenrad_stills.operations.compression import CompressionOperation
 from sevenrad_stills.operations.compression_gpu import CompressionGPUOperation
 
 # Import Metal operation only on macOS
+pytestmark = pytest.mark.gpu
+
 if platform.system() == "Darwin":
     from sevenrad_stills.operations.compression_metal import CompressionMetalOperation
 

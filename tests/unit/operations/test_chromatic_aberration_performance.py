@@ -14,6 +14,8 @@ from sevenrad_stills.operations.chromatic_aberration_metal import (
     ChromaticAberrationMetalOperation,
 )
 
+pytestmark = pytest.mark.gpu
+
 
 @pytest.fixture
 def aberration_op_cpu() -> ChromaticAberrationOperation:

@@ -9,6 +9,8 @@ from PIL import Image
 from sevenrad_stills.operations.salt_pepper import SaltPepperOperation
 from sevenrad_stills.operations.salt_pepper_gpu import SaltPepperGPUOperation
 
+pytestmark = pytest.mark.gpu
+
 
 @pytest.mark.skipif(
     platform.system() != "Darwin",

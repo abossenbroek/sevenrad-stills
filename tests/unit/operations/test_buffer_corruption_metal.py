@@ -1,4 +1,8 @@
 """
+import pytest
+
+pytestmark = pytest.mark.gpu
+
 Unit tests for optimized Metal buffer corruption implementation (v2).
 
 Tests verify:

@@ -10,6 +10,8 @@ from sevenrad_stills.operations.salt_pepper import SaltPepperOperation
 from sevenrad_stills.operations.salt_pepper_gpu import SaltPepperGPUOperation
 
 # Check if Metal is available
+pytestmark = pytest.mark.gpu
+
 try:
     from sevenrad_stills.operations.salt_pepper_metal import SaltPepperMetalOperation
 

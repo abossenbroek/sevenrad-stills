@@ -10,6 +10,8 @@ from sevenrad_stills.operations.corduroy import CorduroyOperation
 from sevenrad_stills.operations.corduroy_gpu import CorduroyGPUOperation
 
 # Conditionally import Metal operation
+pytestmark = pytest.mark.gpu
+
 try:
     from sevenrad_stills.operations.corduroy_metal import CorduroyMetalOperation
 

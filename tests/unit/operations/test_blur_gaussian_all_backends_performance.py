@@ -14,6 +14,8 @@ from sevenrad_stills.operations.blur_gaussian import GaussianBlurOperation
 from sevenrad_stills.operations.blur_gaussian_gpu import GaussianBlurGPUOperation
 from sevenrad_stills.operations.blur_gaussian_metal import GaussianBlurMetalOperation
 
+pytestmark = pytest.mark.gpu
+
 
 def time_operation(operation, image, params, warmup_runs=2, timed_runs=5):
     """

@@ -7,6 +7,8 @@ import pytest
 from PIL import Image
 from sevenrad_stills.operations.downscale_gpu import DownscaleGPUOperation
 
+pytestmark = pytest.mark.gpu
+
 
 @pytest.mark.skipif(
     platform.system() != "Darwin",

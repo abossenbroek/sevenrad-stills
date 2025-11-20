@@ -5,6 +5,8 @@ import pytest
 from PIL import Image
 from sevenrad_stills.operations.saturation_gpu import SaturationGPUOperation
 
+pytestmark = pytest.mark.gpu
+
 
 class TestSaturationGPUOperation:
     """Tests for SaturationGPUOperation class."""

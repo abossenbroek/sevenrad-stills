@@ -10,6 +10,8 @@ from sevenrad_stills.operations.blur_gaussian import GaussianBlurOperation
 from sevenrad_stills.operations.blur_gaussian_gpu import GaussianBlurGPUOperation
 from sevenrad_stills.operations.blur_gaussian_mlx import GaussianBlurMLXOperation
 
+pytestmark = pytest.mark.gpu
+
 
 @pytest.mark.mac
 @pytest.mark.skipif(

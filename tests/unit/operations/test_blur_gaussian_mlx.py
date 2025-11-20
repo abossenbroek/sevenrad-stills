@@ -7,6 +7,8 @@ import pytest
 from PIL import Image
 from sevenrad_stills.operations.blur_gaussian_mlx import GaussianBlurMLXOperation
 
+pytestmark = pytest.mark.gpu
+
 
 @pytest.mark.skipif(
     platform.system() != "Darwin",

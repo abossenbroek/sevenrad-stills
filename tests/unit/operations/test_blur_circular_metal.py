@@ -6,6 +6,8 @@ from PIL import Image
 from sevenrad_stills.operations.blur_circular import CircularBlurOperation
 from sevenrad_stills.operations.blur_circular_metal import CircularBlurMetalOperation
 
+pytestmark = pytest.mark.gpu
+
 
 @pytest.fixture
 def blur_op_metal() -> CircularBlurMetalOperation:

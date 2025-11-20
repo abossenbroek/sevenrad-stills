@@ -10,6 +10,8 @@ from sevenrad_stills.operations.slc_off import SlcOffOperation
 from sevenrad_stills.operations.slc_off_gpu import SlcOffGPUOperation
 
 # Only import on macOS
+pytestmark = pytest.mark.gpu
+
 HAS_METAL = False
 if platform.system() == "Darwin":
     try:

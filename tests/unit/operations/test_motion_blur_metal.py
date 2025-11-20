@@ -6,6 +6,8 @@ from PIL import Image
 from sevenrad_stills.operations.motion_blur import MotionBlurOperation
 from sevenrad_stills.operations.motion_blur_metal import MotionBlurMetalOperation
 
+pytestmark = pytest.mark.gpu
+
 
 @pytest.fixture
 def blur_op_metal() -> MotionBlurMetalOperation:

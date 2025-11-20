@@ -9,6 +9,8 @@ from PIL import Image
 from sevenrad_stills.operations.slc_off import SlcOffOperation
 from sevenrad_stills.operations.slc_off_gpu import SlcOffGPUOperation
 
+pytestmark = pytest.mark.gpu
+
 
 @pytest.mark.skipif(
     platform.system() != "Darwin",

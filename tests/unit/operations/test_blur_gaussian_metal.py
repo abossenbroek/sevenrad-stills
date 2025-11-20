@@ -6,6 +6,8 @@ from PIL import Image
 from sevenrad_stills.operations.blur_gaussian import GaussianBlurOperation
 from sevenrad_stills.operations.blur_gaussian_metal import GaussianBlurMetalOperation
 
+pytestmark = pytest.mark.gpu
+
 
 @pytest.fixture
 def blur_op_metal() -> GaussianBlurMetalOperation:

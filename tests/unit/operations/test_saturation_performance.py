@@ -10,6 +10,8 @@ from sevenrad_stills.operations.saturation import SaturationOperation
 from sevenrad_stills.operations.saturation_gpu import SaturationGPUOperation
 
 # Import Metal operation only on macOS
+pytestmark = pytest.mark.gpu
+
 if platform.system() == "Darwin":
     from sevenrad_stills.operations.saturation_metal import SaturationMetalOperation
 
@@ -91,10 +93,10 @@ class TestSaturationPerformance:
 
         speedup = cpu_time / gpu_time
 
-        print(  # noqa: T201
+        print(
             f"\nCPU: {cpu_time:.2f}ms, GPU: {gpu_time:.2f}ms, " f"Ratio: {speedup:.2f}x"
         )
-        print(  # noqa: T201
+        print(
             "Note: PIL's optimized C code is faster for this simple operation. "
             "GPU benefits appear with larger images or batch processing."
         )
@@ -114,7 +116,7 @@ class TestSaturationPerformance:
 
         speedup = gpu_time / metal_time
 
-        print(  # noqa: T201
+        print(
             f"\nGPU: {gpu_time:.2f}ms, Metal: {metal_time:.2f}ms, "
             f"Speedup: {speedup:.2f}x"
         )
@@ -142,7 +144,7 @@ class TestSaturationPerformance:
 
         speedup = cpu_time / metal_time
 
-        print(  # noqa: T201
+        print(
             f"\nCPU: {cpu_time:.2f}ms, Metal: {metal_time:.2f}ms, "
             f"Ratio: {speedup:.2f}x"
         )
@@ -164,13 +166,13 @@ class TestSaturationPerformance:
             metal_op, xlarge_image, params, iterations=3
         )
 
-        print(  # noqa: T201
+        print(
             f"\nFull chain on 4K image:\n"
             f"  CPU:   {cpu_time:.2f}ms\n"
             f"  GPU:   {gpu_time:.2f}ms ({cpu_time/gpu_time:.2f}x)\n"
             f"  Metal: {metal_time:.2f}ms ({cpu_time/metal_time:.2f}x)"
         )
-        print(  # noqa: T201
+        print(
             "\nNote: PIL's implementation is faster for this operation due to:\n"
             "  - Highly optimized C code with SIMD\n"
             "  - No memory transfer overhead\n"
@@ -205,7 +207,7 @@ class TestSaturationPerformance:
         max_diff = np.max(np.abs(cpu_array - gpu_array))
         mean_diff = np.mean(np.abs(cpu_array - gpu_array))
 
-        print(  # noqa: T201
+        print(
             f"\nGPU vs CPU numerical accuracy: "
             f"max_diff={max_diff:.2f}, mean_diff={mean_diff:.2f}"
         )
@@ -231,7 +233,7 @@ class TestSaturationPerformance:
         max_diff = np.max(np.abs(cpu_array - metal_array))
         mean_diff = np.mean(np.abs(cpu_array - metal_array))
 
-        print(  # noqa: T201
+        print(
             f"\nMetal vs CPU numerical accuracy: "
             f"max_diff={max_diff:.2f}, mean_diff={mean_diff:.2f}"
         )
@@ -256,7 +258,7 @@ class TestSaturationPerformance:
         max_diff = np.max(np.abs(gpu_array - metal_array))
         mean_diff = np.mean(np.abs(gpu_array - metal_array))
 
-        print(  # noqa: T201
+        print(
             f"\nMetal vs GPU numerical accuracy: "
             f"max_diff={max_diff:.2f}, mean_diff={mean_diff:.2f}"
         )
@@ -300,7 +302,7 @@ class TestSaturationPerformance:
         gpu_cpu_diff = np.mean(np.abs(gpu_array - cpu_array))
         metal_cpu_diff = np.mean(np.abs(metal_array - cpu_array))
 
-        print(  # noqa: T201
+        print(
             f"\nGrayscale accuracy: "
             f"GPU-CPU={gpu_cpu_diff:.4f}, Metal-CPU={metal_cpu_diff:.4f}"
         )
@@ -335,7 +337,7 @@ class TestSaturationPerformance:
         metal_cpu_diff = np.mean(np.abs(metal_array - cpu_array))
         metal_gpu_diff = np.mean(np.abs(metal_array - gpu_array))
 
-        print(  # noqa: T201
+        print(
             f"\nSaturation boost accuracy: "
             f"GPU-CPU={gpu_cpu_diff:.4f}, Metal-CPU={metal_cpu_diff:.4f}, "
             f"Metal-GPU={metal_gpu_diff:.4f}"

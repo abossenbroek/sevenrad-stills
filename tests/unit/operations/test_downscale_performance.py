@@ -10,6 +10,8 @@ from sevenrad_stills.operations.downscale import DownscaleOperation
 from sevenrad_stills.operations.downscale_gpu import DownscaleGPUOperation
 
 # Try to import Metal operation - may fail if PyObjC Metal not installed
+pytestmark = pytest.mark.gpu
+
 try:
     from sevenrad_stills.operations.downscale_metal import DownscaleMetalOperation
 

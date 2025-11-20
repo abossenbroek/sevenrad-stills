@@ -5,6 +5,8 @@ import pytest
 from PIL import Image
 from sevenrad_stills.operations.compression_gpu import CompressionGPUOperation
 
+pytestmark = pytest.mark.gpu
+
 
 class TestCompressionGPUOperation:
     """Tests for CompressionGPUOperation class."""

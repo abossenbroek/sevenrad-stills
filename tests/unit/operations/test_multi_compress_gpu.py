@@ -8,6 +8,8 @@ from PIL import Image
 from sevenrad_stills.operations.multi_compress import MultiCompressOperation
 from sevenrad_stills.operations.multi_compress_gpu import MultiCompressGPUOperation
 
+pytestmark = pytest.mark.gpu
+
 
 class TestMultiCompressGPUOperation:
     """Tests for MultiCompressGPUOperation class."""

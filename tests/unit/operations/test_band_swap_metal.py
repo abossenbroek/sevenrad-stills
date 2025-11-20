@@ -6,6 +6,8 @@ from PIL import Image
 from sevenrad_stills.operations.band_swap import BandSwapOperation
 from sevenrad_stills.operations.band_swap_metal import BandSwapMetalOperation
 
+pytestmark = pytest.mark.gpu
+
 
 @pytest.fixture
 def band_swap_op_metal() -> BandSwapMetalOperation:

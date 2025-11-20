@@ -6,6 +6,8 @@ from PIL import Image
 from sevenrad_stills.operations.corduroy import CorduroyOperation
 from sevenrad_stills.operations.corduroy_metal import CorduroyMetalOperation
 
+pytestmark = pytest.mark.gpu
+
 
 @pytest.fixture
 def corduroy_op_metal() -> CorduroyMetalOperation:

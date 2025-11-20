@@ -8,6 +8,8 @@ from sevenrad_stills.operations.compression_artifact_metal import (
     CompressionArtifactMetalOperation,
 )
 
+pytestmark = pytest.mark.gpu
+
 
 @pytest.fixture
 def artifact_op_metal() -> CompressionArtifactMetalOperation:

@@ -13,6 +13,8 @@ from sevenrad_stills.operations.compression_artifact_gpu import (
     CompressionArtifactGPUOperation,
 )
 
+pytestmark = pytest.mark.gpu
+
 
 @pytest.mark.skipif(
     platform.system() != "Darwin",

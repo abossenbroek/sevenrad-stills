@@ -13,6 +13,8 @@ from sevenrad_stills.operations.chromatic_aberration_gpu import (
     ChromaticAberrationGPUOperation,
 )
 
+pytestmark = pytest.mark.gpu
+
 
 @pytest.mark.skipif(
     platform.system() != "Darwin",

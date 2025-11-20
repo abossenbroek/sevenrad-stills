@@ -8,6 +8,8 @@ from PIL import Image
 from sevenrad_stills.operations.motion_blur import MotionBlurOperation
 from sevenrad_stills.operations.motion_blur_gpu import MotionBlurGPUOperation
 
+pytestmark = pytest.mark.gpu
+
 try:
     from sevenrad_stills.operations.motion_blur_metal import MotionBlurMetalOperation
 
