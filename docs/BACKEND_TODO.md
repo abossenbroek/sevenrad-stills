@@ -4,17 +4,18 @@ This document tracks missing backend implementations and provides guidance for c
 
 ## Summary: What Remains To Be Implemented
 
-### GPU Backend: ✅ Complete (16/16 operations)
-All operations now have GPU implementations! The last operation, `multi_compress`,
+### GPU Backend: Complete (16/16 operations)
+All operations now have GPU implementations. The last operation, `multi_compress`,
 was added with GPU and Metal support, achieving 100% GPU coverage.
 
-### Metal Backend: 2 Items Remaining
+### Metal Backend: 1 Item Remaining
 
-**2 Operations Not Yet Implemented:**
+**1 Operation Not Yet Implemented:**
 1. **blur_gaussian** - High priority, medium complexity (4-6 hours)
-2. **chromatic_aberration** - High priority, low complexity (2-4 hours)
 
-**Total**: 2/16 Metal operations remain (all missing implementations, no runtime bugs)
+**chromatic_aberration** - COMPLETED in PR #39 with Metal backend support
+
+**Total**: 1/16 Metal operations remain (94% complete)
 
 **Workaround**: Use GPU backend for missing Metal operations.
 
@@ -25,45 +26,47 @@ was added with GPU and Metal support, achieving 100% GPU coverage.
 ### Complete (All 3 Backends)
 These operations have CPU, GPU (Taichi), and Metal implementations:
 
-- ✅ band_swap
-- ✅ bayer_filter
-- ✅ blur_circular
-- ✅ buffer_corruption
-- ✅ compression
-- ✅ compression_artifact
-- ✅ corduroy
-- ✅ downscale
-- ✅ motion_blur
-- ✅ multi_compress
-- ✅ noise
-- ✅ salt_pepper
-- ✅ saturation
-- ✅ slc_off
+- band_swap
+- bayer_filter
+- blur_circular
+- buffer_corruption
+- chromatic_aberration
+- compression
+- compression_artifact
+- corduroy
+- downscale
+- motion_blur
+- multi_compress
+- noise
+- salt_pepper
+- saturation
+- slc_off
 
-**Total: 14/16 operations** (88% complete)
+**Total: 15/16 operations** (94% complete)
 
 ### Runtime Bug Fixes (Recently Completed)
 
 The following operations had Metal implementations with runtime errors that have been fixed:
 
-1. **slc_off_metal** ✅ FIXED
+1. **slc_off_metal** - FIXED
    - Previous error: "converting to a C array"
    - Fix: Migrated from `newBufferWithBytes_` with `ctypes.data` to `newBufferWithBytesNoCopy_` with direct numpy arrays (zero-copy pattern)
    - Status: All tests passing
+   - Performance: 3.74x faster than CPU
 
-2. **motion_blur_metal** ✅ FIXED
+2. **motion_blur_metal** - FIXED
    - Previous error: `module 'mlx.core' has no attribute 'flip'`
    - Fix: Replaced `mx.flip(array, axis=...)` with array slicing syntax `array[::-1]` and `array[:, ::-1]`
    - Status: Tested and working
 
-3. **downscale_metal** ✅ FIXED
+3. **downscale_metal** - FIXED
    - Previous error: "argument 0 must be None or objc.NULL"
    - Fix: Proper tuple unpacking from Metal FFI functions and passing numpy arrays directly instead of `ctypes.data`
    - Status: All tests passing
 
 ### Missing Metal Implementations
 
-These operations have CPU and GPU but need Metal:
+Only one operation remains without Metal implementation:
 
 1. **blur_gaussian** (CPU + GPU only)
    - Priority: High (commonly used)
@@ -72,16 +75,9 @@ These operations have CPU and GPU but need Metal:
    - Note: May use MLX or MPS variants as reference
    - Reference: `blur_gaussian_gpu.py`
 
-2. **chromatic_aberration** (CPU + GPU only)
-   - Priority: High (popular effect)
-   - Complexity: Low
-   - Estimated effort: 2-4 hours
-   - Reference: `chromatic_aberration_gpu.py`
-
-
 ### Missing GPU Implementations
 
-None! All 16 operations now have GPU implementations. 🎉
+None. All 16 operations now have GPU implementations.
 
 The `multi_compress` operation was the last to receive GPU and Metal support,
 achieving 100% GPU coverage across all image operations.
