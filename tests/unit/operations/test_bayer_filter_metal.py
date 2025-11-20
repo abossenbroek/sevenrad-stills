@@ -8,6 +8,8 @@ import pytest
 from PIL import Image
 from sevenrad_stills.operations.bayer_filter import BayerFilterOperation
 
+pytestmark = pytest.mark.gpu
+
 try:
     from sevenrad_stills.operations.bayer_filter_metal import (
         BayerFilterMetalOperation,

@@ -25,7 +25,7 @@ MAX_SCAN_PERIOD = 100
 
 
 @ti.kernel  # type: ignore[misc]
-def create_gap_mask(  # type: ignore[no-untyped-def]  # noqa: PLR0913, ANN201
+def create_gap_mask(  # type: ignore[no-untyped-def]
     gap_mask: ti.types.ndarray(),  # type: ignore[valid-type]
     height: ti.i32,
     width: ti.i32,
@@ -33,7 +33,7 @@ def create_gap_mask(  # type: ignore[no-untyped-def]  # noqa: PLR0913, ANN201
     gap_width: ti.f32,
     scan_period: ti.i32,
     diagonal_offset_per_row: ti.f32,
-) -> None:
+):
     """
     GPU kernel to create SLC-Off gap mask with diagonal wedge-shaped gaps.
 
@@ -86,7 +86,7 @@ def create_gap_mask(  # type: ignore[no-untyped-def]  # noqa: PLR0913, ANN201
 
 
 @ti.kernel  # type: ignore[misc]
-def apply_constant_fill_rgb(  # type: ignore[no-untyped-def]  # noqa: PLR0913, ANN201
+def apply_constant_fill_rgb(  # type: ignore[no-untyped-def]
     img: ti.types.ndarray(),  # type: ignore[valid-type]
     gap_mask: ti.types.ndarray(),  # type: ignore[valid-type]
     fill_r: ti.f32,
@@ -94,7 +94,7 @@ def apply_constant_fill_rgb(  # type: ignore[no-untyped-def]  # noqa: PLR0913, A
     fill_b: ti.f32,
     height: ti.i32,
     width: ti.i32,
-) -> None:
+):
     """
     GPU kernel to fill gaps with constant RGB value.
 
@@ -116,13 +116,13 @@ def apply_constant_fill_rgb(  # type: ignore[no-untyped-def]  # noqa: PLR0913, A
 
 
 @ti.kernel  # type: ignore[misc]
-def apply_constant_fill_gray(  # type: ignore[no-untyped-def]  # noqa: ANN201
+def apply_constant_fill_gray(  # type: ignore[no-untyped-def]
     img: ti.types.ndarray(),  # type: ignore[valid-type]
     gap_mask: ti.types.ndarray(),  # type: ignore[valid-type]
     fill_value: ti.f32,
     height: ti.i32,
     width: ti.i32,
-) -> None:
+):
     """
     GPU kernel to fill gaps with constant grayscale value.
 
@@ -206,9 +206,7 @@ class SlcOffGPUOperation(BaseImageOperation):
             msg = "Seed must be an integer."
             raise ValueError(msg)
 
-    def apply(  # noqa: PLR0912, PLR0915
-        self, image: Image.Image, params: dict[str, Any]
-    ) -> Image.Image:
+    def apply(self, image: Image.Image, params: dict[str, Any]) -> Image.Image:
         """
         Apply SLC-Off pattern to the image using GPU acceleration.
 

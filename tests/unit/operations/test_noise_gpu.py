@@ -9,6 +9,8 @@ from PIL import Image
 from sevenrad_stills.operations.noise import NoiseOperation
 from sevenrad_stills.operations.noise_gpu import NoiseGPUOperation
 
+pytestmark = pytest.mark.gpu
+
 
 class TestNoiseGPUOperation:
     """Tests for NoiseGPUOperation class."""

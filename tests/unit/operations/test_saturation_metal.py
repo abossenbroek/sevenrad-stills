@@ -7,6 +7,8 @@ import pytest
 from PIL import Image
 
 # Only import on macOS
+pytestmark = pytest.mark.gpu
+
 if platform.system() == "Darwin":
     from sevenrad_stills.operations.saturation_metal import SaturationMetalOperation
 

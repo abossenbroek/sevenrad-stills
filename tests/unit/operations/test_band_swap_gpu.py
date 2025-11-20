@@ -7,6 +7,8 @@ import pytest
 from PIL import Image
 from sevenrad_stills.operations.band_swap_gpu import BandSwapGPUOperation
 
+pytestmark = pytest.mark.gpu
+
 
 @pytest.mark.skipif(
     platform.system() != "Darwin",

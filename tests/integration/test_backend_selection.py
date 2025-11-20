@@ -78,7 +78,12 @@ class TestBackendRegistration:
     def test_metal_backend_for_supported_operations(self) -> None:
         """Metal backend should be available for supported operations on macOS."""
         metal_operations = [
+            "band_swap",
             "bayer_filter",
+            "blur_circular",
+            "blur_gaussian",
+            "buffer_corruption",
+            "chromatic_aberration",
             "compression",
             "compression_artifact",
             "corduroy",
@@ -99,12 +104,12 @@ class TestBackendRegistration:
 
     def test_unsupported_backend_raises_error(self) -> None:
         """Requesting unsupported backend should raise error."""
-        # Test operation that has CPU+GPU but not Metal
+        # Test invalid backend type (all operations support cpu/gpu/metal)
         with pytest.raises(BackendNotAvailableError) as exc_info:
-            get_backend_implementation("band_swap", "metal")
+            get_backend_implementation("saturation", "vulkan")
 
-        assert "band_swap" in str(exc_info.value)
-        assert "metal" in str(exc_info.value)
+        assert "saturation" in str(exc_info.value)
+        assert "vulkan" in str(exc_info.value)
         assert "cpu" in str(exc_info.value).lower()
         assert "gpu" in str(exc_info.value).lower()
 

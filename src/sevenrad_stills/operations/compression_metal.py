@@ -97,6 +97,7 @@ class CompressionMetalOperation(BaseImageOperation):
     def __init__(self) -> None:
         """Initialize Metal-accelerated compression operation."""
         super().__init__("compression_metal")
+        self._kernel_benchmark_cache: dict[str, Any] = {}
 
     def _validate_gamma(self, gamma: object) -> None:
         """
@@ -251,3 +252,70 @@ class CompressionMetalOperation(BaseImageOperation):
         buffer.close()
 
         return compressed_image
+
+    def benchmark_kernel_only(self, image: Image.Image, gamma: float) -> dict[str, Any]:
+        """
+        Prepare Metal GPU state for kernel-only benchmarking.
+
+        This method pre-allocates Taichi fields and loads data to Metal GPU,
+        allowing subsequent kernel dispatches to be timed without including
+        data transfer overhead.
+
+        Args:
+            image: Input PIL Image
+            gamma: Gamma correction factor
+
+        Returns:
+            Dictionary containing pre-allocated fields and metadata:
+            - input_field: Taichi field with data loaded on Metal GPU
+            - output_field: Taichi field for results (on Metal GPU)
+            - gamma: Gamma value
+            - height, width, channels: Image dimensions
+
+        """
+        # Convert to numpy array
+        img_array = np.array(image, dtype=np.float32) / 255.0
+        height, width = img_array.shape[:2]
+
+        # Handle both RGB and grayscale
+        if img_array.ndim == 3:  # noqa: PLR2004
+            channels = img_array.shape[2]
+        else:
+            channels = 1
+            img_array = img_array.reshape(height, width, 1)
+
+        # Create Taichi fields (using Metal backend)
+        input_field = ti.field(dtype=ti.f32, shape=(height, width, channels))
+        output_field = ti.field(dtype=ti.f32, shape=(height, width, channels))
+
+        # Pre-load data to Metal GPU (NOT timed in kernel benchmark)
+        input_field.from_numpy(img_array)
+
+        return {
+            "input_field": input_field,
+            "output_field": output_field,
+            "gamma": gamma,
+            "height": height,
+            "width": width,
+            "channels": channels,
+        }
+
+    def run_kernel_only(self, prepared_data: dict[str, Any]) -> None:
+        """
+        Run ONLY the Metal kernel dispatch (no data transfers).
+
+        This executes just the gamma correction kernel on data that is
+        already loaded on the Metal GPU.
+
+        Args:
+            prepared_data: Data from benchmark_kernel_only()
+
+        """
+        apply_gamma_correction(
+            prepared_data["input_field"],
+            prepared_data["output_field"],
+            prepared_data["gamma"],
+            prepared_data["height"],
+            prepared_data["width"],
+            prepared_data["channels"],
+        )

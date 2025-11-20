@@ -26,6 +26,7 @@ MAX_KERNEL_SIZE = 100
 MIN_ANGLE = 0.0
 MAX_ANGLE = 360.0
 RGB_CHANNELS = 3  # Number of channels in RGB/RGBA images
+RGBA_CHANNELS = 4  # Number of channels in RGBA images
 
 
 class MotionBlurMetalOperation(BaseImageOperation):
@@ -152,19 +153,32 @@ class MotionBlurMetalOperation(BaseImageOperation):
         # MLX doesn't have reflect padding, so we implement it manually
         padded = self._reflect_pad_2d(image, pad_size)
 
-        # Flip kernel for convolution (vs correlation)
-        kernel_flipped = mx.flip(mx.flip(kernel, axis=0), axis=1)
+        # Force materialization to avoid MLX lazy evaluation bug with
+        # concatenated arrays. The _reflect_pad_2d creates complex view
+        # chains through mx.concatenate operations which can cause MLX to
+        # read uninitialized memory when slicing windows at boundaries.
+        # Convert to numpy and back to force a contiguous copy.
+        padded = mx.array(np.array(padded))
+        mx.eval(padded)
+
+        # Flip kernel for proper convolution (scipy.ndimage.convolve does
+        # this). Create a contiguous copy to avoid MLX indexing bug with
+        # sliced arrays. Must convert through numpy to ensure contiguity.
+        kernel_flipped = mx.array(np.array(kernel[::-1, ::-1]))
+        mx.eval(kernel_flipped)
 
         # Perform convolution using sliding window
         result = mx.zeros((height, width), dtype=mx.float32)
 
-        # Use MLX's efficient operations
-        for i in range(kernel_size):
-            for j in range(kernel_size):
-                # Extract the shifted window
-                window = padded[i : i + height, j : j + width]
-                # Multiply by kernel weight and accumulate
-                result = result + window * kernel_flipped[i, j]
+        # Convolve by extracting windows from the padded image
+        # For each kernel position (ki, kj), extract a height x width window
+        # and accumulate the weighted values
+        for ki in range(kernel_size):
+            for kj in range(kernel_size):
+                # Extract window from padded image
+                window = padded[ki : ki + height, kj : kj + width]
+                # Accumulate weighted by flipped kernel
+                result = result + window * kernel_flipped[ki, kj]
 
         return result
 
@@ -183,13 +197,13 @@ class MotionBlurMetalOperation(BaseImageOperation):
         h, w = image.shape
 
         # Pad horizontally first
-        left_pad = mx.flip(image[:, 1 : pad_size + 1], axis=1)
-        right_pad = mx.flip(image[:, w - pad_size - 1 : w - 1], axis=1)
+        left_pad = image[:, 1 : pad_size + 1][:, ::-1]
+        right_pad = image[:, w - pad_size - 1 : w - 1][:, ::-1]
         h_padded = mx.concatenate([left_pad, image, right_pad], axis=1)
 
         # Pad vertically
-        top_pad = mx.flip(h_padded[1 : pad_size + 1, :], axis=0)
-        bottom_pad = mx.flip(h_padded[h - pad_size - 1 : h - 1, :], axis=0)
+        top_pad = h_padded[1 : pad_size + 1, :][::-1, :]
+        bottom_pad = h_padded[h - pad_size - 1 : h - 1, :][::-1, :]
         v_padded = mx.concatenate([top_pad, h_padded, bottom_pad], axis=0)
 
         return v_padded
@@ -253,8 +267,11 @@ class MotionBlurMetalOperation(BaseImageOperation):
             height, width, channels = img_array.shape
             blurred_array = np.zeros_like(img_array, dtype=np.float32)
 
-            # Process each channel separately
-            for c in range(channels):
+            # Determine how many channels to blur (RGB only, not alpha)
+            blur_channels = RGB_CHANNELS if channels == RGBA_CHANNELS else channels
+
+            # Process each RGB channel separately (preserve alpha if present)
+            for c in range(blur_channels):
                 channel_data: np.ndarray = img_array[..., c].astype(np.float32)
 
                 # Convert to MLX array
@@ -265,6 +282,10 @@ class MotionBlurMetalOperation(BaseImageOperation):
 
                 # Convert back to numpy
                 blurred_array[..., c] = np.array(result_mlx)
+
+            # Preserve alpha channel if present (channel 3 in RGBA)
+            if channels == RGBA_CHANNELS:
+                blurred_array[..., RGB_CHANNELS] = img_array[..., RGB_CHANNELS]
 
         else:  # Grayscale
             height, width = img_array.shape

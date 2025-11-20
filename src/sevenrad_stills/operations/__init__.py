@@ -12,6 +12,7 @@ from sevenrad_stills.operations.band_swap import BandSwapOperation
 
 # Import GPU variants
 from sevenrad_stills.operations.band_swap_gpu import BandSwapGPUOperation
+from sevenrad_stills.operations.band_swap_metal import BandSwapMetalOperation
 from sevenrad_stills.operations.base import ImageOperation, OperationRegistry
 from sevenrad_stills.operations.bayer_filter import BayerFilterOperation
 from sevenrad_stills.operations.bayer_filter_gpu import BayerFilterGPUOperation
@@ -20,15 +21,23 @@ from sevenrad_stills.operations.bayer_filter_gpu import BayerFilterGPUOperation
 from sevenrad_stills.operations.bayer_filter_metal import BayerFilterMetalOperation
 from sevenrad_stills.operations.blur_circular import CircularBlurOperation
 from sevenrad_stills.operations.blur_circular_gpu import CircularBlurGPUOperation
+from sevenrad_stills.operations.blur_circular_metal import CircularBlurMetalOperation
 from sevenrad_stills.operations.blur_gaussian import GaussianBlurOperation
 from sevenrad_stills.operations.blur_gaussian_gpu import GaussianBlurGPUOperation
+from sevenrad_stills.operations.blur_gaussian_mlx import GaussianBlurMLXOperation
 from sevenrad_stills.operations.buffer_corruption import BufferCorruptionOperation
 from sevenrad_stills.operations.buffer_corruption_gpu import (
     BufferCorruptionGPUOperation,
 )
+from sevenrad_stills.operations.buffer_corruption_metal import (
+    BufferCorruptionMetalOperation,
+)
 from sevenrad_stills.operations.chromatic_aberration import ChromaticAberrationOperation
 from sevenrad_stills.operations.chromatic_aberration_gpu import (
     ChromaticAberrationGPUOperation,
+)
+from sevenrad_stills.operations.chromatic_aberration_metal import (
+    ChromaticAberrationMetalOperation,
 )
 from sevenrad_stills.operations.compression import CompressionOperation
 from sevenrad_stills.operations.compression_artifact import CompressionArtifactOperation
@@ -70,11 +79,6 @@ from sevenrad_stills.operations.slc_off import SlcOffOperation
 from sevenrad_stills.operations.slc_off_gpu import SlcOffGPUOperation
 from sevenrad_stills.operations.slc_off_metal import SlcOffMetalOperation
 
-# Note: buffer_corruption_metal needs wrapper class - TODO
-# from sevenrad_stills.operations.buffer_corruption_metal import (
-#     BufferCorruptionMetalOperation,
-# )
-
 # Register built-in operations (legacy registry for backward compatibility)
 register_operation(BandSwapOperation)
 register_operation(BayerFilterOperation)
@@ -94,32 +98,35 @@ register_operation(SaturationOperation)
 register_operation(SlcOffOperation)
 
 # Register backend-specific implementations
-# band_swap: CPU + GPU
+# band_swap: CPU + GPU + Metal
 register_backend("band_swap", "cpu", BandSwapOperation)
 register_backend("band_swap", "gpu", BandSwapGPUOperation)
+register_backend("band_swap", "metal", BandSwapMetalOperation)
 
 # bayer_filter: CPU + GPU + Metal
 register_backend("bayer_filter", "cpu", BayerFilterOperation)
 register_backend("bayer_filter", "gpu", BayerFilterGPUOperation)
 register_backend("bayer_filter", "metal", BayerFilterMetalOperation)
 
-# blur_circular: CPU + GPU
+# blur_circular: CPU + GPU + Metal
 register_backend("blur_circular", "cpu", CircularBlurOperation)
 register_backend("blur_circular", "gpu", CircularBlurGPUOperation)
+register_backend("blur_circular", "metal", CircularBlurMetalOperation)
 
-# blur_gaussian: CPU + GPU
+# blur_gaussian: CPU + GPU + Metal (MLX implementation for Metal)
 register_backend("blur_gaussian", "cpu", GaussianBlurOperation)
 register_backend("blur_gaussian", "gpu", GaussianBlurGPUOperation)
+register_backend("blur_gaussian", "metal", GaussianBlurMLXOperation)
 
-# buffer_corruption: CPU + GPU (Metal TODO: needs Operation wrapper)
+# buffer_corruption: CPU + GPU + Metal
 register_backend("buffer_corruption", "cpu", BufferCorruptionOperation)
 register_backend("buffer_corruption", "gpu", BufferCorruptionGPUOperation)
-# TODO: Add BufferCorruptionMetalOperation wrapper class
-# register_backend("buffer_corruption", "metal", BufferCorruptionMetalOperation)
+register_backend("buffer_corruption", "metal", BufferCorruptionMetalOperation)
 
-# chromatic_aberration: CPU + GPU
+# chromatic_aberration: CPU + GPU + Metal
 register_backend("chromatic_aberration", "cpu", ChromaticAberrationOperation)
 register_backend("chromatic_aberration", "gpu", ChromaticAberrationGPUOperation)
+register_backend("chromatic_aberration", "metal", ChromaticAberrationMetalOperation)
 
 # compression: CPU + GPU + Metal
 register_backend("compression", "cpu", CompressionOperation)

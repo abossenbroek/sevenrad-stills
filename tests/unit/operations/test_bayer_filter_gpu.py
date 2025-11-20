@@ -6,6 +6,8 @@ from PIL import Image
 from sevenrad_stills.operations.bayer_filter import BayerFilterOperation
 from sevenrad_stills.operations.bayer_filter_gpu import BayerFilterGPUOperation
 
+pytestmark = pytest.mark.gpu
+
 
 @pytest.fixture
 def bayer_op_gpu() -> BayerFilterGPUOperation:

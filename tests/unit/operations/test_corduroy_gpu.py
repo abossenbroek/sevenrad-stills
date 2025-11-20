@@ -8,6 +8,8 @@ from PIL import Image
 from sevenrad_stills.operations.corduroy import CorduroyOperation
 from sevenrad_stills.operations.corduroy_gpu import CorduroyGPUOperation
 
+pytestmark = pytest.mark.gpu
+
 
 @pytest.mark.skipif(
     platform.system() != "Darwin",

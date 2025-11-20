@@ -47,12 +47,12 @@ Not all operations have implementations for all backends. Here's the current sup
 
 | Operation             | CPU | GPU (Taichi) | Metal |
 |-----------------------|-----|--------------|-------|
-| band_swap             | ✓   | ✓            | ✗     |
+| band_swap             | ✓   | ✓            | ✓     |
 | bayer_filter          | ✓   | ✓            | ✓     |
-| blur_circular         | ✓   | ✓            | ✗     |
+| blur_circular         | ✓   | ✓            | ✓     |
 | blur_gaussian         | ✓   | ✓            | ✗     |
-| buffer_corruption     | ✓   | ✓            | ✗*    |
-| chromatic_aberration  | ✓   | ✓            | ✗     |
+| buffer_corruption     | ✓   | ✓            | ✓     |
+| chromatic_aberration  | ✓   | ✓            | ✓     |
 | compression           | ✓   | ✓            | ✓     |
 | compression_artifact  | ✓   | ✓            | ✓     |
 | corduroy              | ✓   | ✓            | ✓     |
@@ -62,9 +62,7 @@ Not all operations have implementations for all backends. Here's the current sup
 | noise                 | ✓   | ✓            | ✓     |
 | salt_pepper           | ✓   | ✓            | ✓     |
 | saturation            | ✓   | ✓            | ✓     |
-| slc_off               | ✓   | ✓            | ⚠     |
-
-*Note: buffer_corruption Metal implementation exists but needs wrapper class to be registered
+| slc_off               | ✓   | ✓            | ✓     |
 
 **Legend:**
 - ✓ = Implementation available and working
@@ -151,11 +149,6 @@ pipeline:
 
 Some Metal operations have known runtime issues (pre-existing bugs, not related to backend configuration):
 
-**slc_off_metal**
-- **Error**: "converting to a C array"
-- **Workaround**: Use `backend: gpu` for this operation
-- **Status**: Under investigation - likely NumPy/Metal FFI conversion issue
-
 **motion_blur_metal**
 - **Error**: `module 'mlx.core' has no attribute 'flip'`
 - **Workaround**: Use `backend: gpu` for this operation
@@ -165,21 +158,6 @@ Some Metal operations have known runtime issues (pre-existing bugs, not related 
 - **Error**: "argument 0 must be None or objc.NULL"
 - **Workaround**: Use `backend: gpu` for this operation
 - **Status**: PyObjC/Metal FFI argument passing issue
-
-**Example workaround** - Mix backends by using CPU as default with specific operations on GPU:
-```yaml
-backend: cpu  # Default to CPU
-
-pipeline:
-  steps:
-    # This will use CPU (safe fallback)
-    - name: "slc_off"
-      operation: "slc_off"
-      params:
-        gap_width: 0.1
-        scan_period: 20
-        fill_mode: "black"
-```
 
 Or create separate pipeline files for different backends.
 

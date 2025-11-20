@@ -7,6 +7,8 @@ import pytest
 from PIL import Image
 
 # Check if Metal is available
+pytestmark = pytest.mark.gpu
+
 try:
     from sevenrad_stills.operations.downscale_metal import DownscaleMetalOperation
 

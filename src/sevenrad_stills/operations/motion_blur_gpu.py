@@ -26,14 +26,14 @@ RGB_CHANNELS = 3  # Number of channels in RGB/RGBA images
 
 
 @ti.kernel  # type: ignore[misc]
-def convolve_2d_motion(  # noqa: PLR0913
+def convolve_2d_motion(  # type: ignore[no-untyped-def]
     input_img: ti.template(),  # type: ignore[valid-type]
     output_img: ti.template(),  # type: ignore[valid-type]
     kernel: ti.template(),  # type: ignore[valid-type]
     kernel_size: ti.i32,
     height: ti.i32,
     width: ti.i32,
-) -> None:
+):
     """
     Perform 2D convolution with reflect boundary mode on GPU.
 

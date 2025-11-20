@@ -9,6 +9,8 @@ from PIL import Image
 from sevenrad_stills.operations.bayer_filter import BayerFilterOperation
 from sevenrad_stills.operations.bayer_filter_gpu import BayerFilterGPUOperation
 
+pytestmark = pytest.mark.gpu
+
 try:
     from sevenrad_stills.operations.bayer_filter_metal import (
         BayerFilterMetalOperation,
