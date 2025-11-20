@@ -104,9 +104,16 @@ kernel void create_gap_mask(
 
         if (row_gap_width > 0) {
             // Center gap position with diagonal shift
+            // Calculate gap boundaries with explicit integer division
             int gap_center = params.width / 2 + diagonal_shift;
-            int gap_start = max(0, gap_center - row_gap_width / 2);
-            int gap_end = min(params.width, gap_center + row_gap_width / 2);
+            int half_row_gap = row_gap_width / 2;
+
+            // Calculate start and end with explicit bounds checking
+            int temp_start = gap_center - half_row_gap;
+            int temp_end = gap_center + half_row_gap;
+
+            int gap_start = (temp_start < 0) ? 0 : temp_start;
+            int gap_end = (temp_end > params.width) ? params.width : temp_end;
 
             // Check if current pixel is within the gap
             if (x >= gap_start && x < gap_end) {
@@ -179,6 +186,8 @@ class MetalComputeEngine:
         # Compile shader library
         try:
             options = Metal.MTLCompileOptions.new()
+            # Force fast-math OFF to preserve float32 precision
+            options.setFastMathEnabled_(False)
             self.library, error = self.device.newLibraryWithSource_options_error_(
                 METAL_SHADER_SOURCE, options, None
             )
@@ -250,8 +259,9 @@ class MetalComputeEngine:
         self._buffer_refs.append(gap_mask)
 
         # Pack all scalar parameters into a single struct buffer
+        # Use native alignment to match Metal's expectations
         params_struct = struct.pack(
-            "=iiifif",  # Use standard sizes for cross-system compatibility
+            "@iiifif",  # Native byte order and alignment
             height,
             width,
             center_y,
@@ -339,7 +349,7 @@ class MetalComputeEngine:
         if is_rgb:
             # Pack RGB parameters into a struct
             params_struct = struct.pack(
-                "=iiBBBx",  # Pad to 12 bytes for alignment
+                "@iiBBBx",  # Native alignment, pad to ensure proper alignment
                 h,
                 w,
                 fill_value[0],
@@ -357,7 +367,7 @@ class MetalComputeEngine:
         else:
             # Pack Grayscale parameters into a struct
             params_struct = struct.pack(
-                "=iiBxxx",  # Pad to 12 bytes for alignment
+                "@iiBxxx",  # Native alignment, pad to ensure proper alignment
                 h,
                 w,
                 fill_value,
