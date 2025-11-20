@@ -83,7 +83,6 @@ ignore = [
 "src/sevenrad_stills/operations/*_gpu.py" = ["ANN201", "PLR0913", "PLR0915", "C901", "PLR0912"]  # Taichi kernels have special signatures, some apply methods handle multiple operation types
 "src/sevenrad_stills/operations/*_metal.py" = ["ANN201", "PLR0913"]  # Metal operations have special signatures
 "src/sevenrad_stills/operations/*_mlx.py" = ["ANN201", "PLR0913"]  # MLX operations have special signatures
-"src/sevenrad_stills/operations/*_mps.py" = ["ANN201", "PLR0913"]  # MPS operations have special signatures
 "src/sevenrad_stills/operations/buffer_corruption_metal.py" = ["PLR0915", "PLR2004", "T201", "RUF001", "RUF002", "RUF003", "E501", "ANN401"]  # Metal GPU implementation uses debug prints, unicode chars, and PyObjC Any types
 
 [tool.pytest.ini_options]
@@ -91,7 +90,7 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests requiring external resources",
     "mac: marks tests that only run on macOS",
-    "gpu: marks tests that use GPU acceleration (Metal, Taichi, MPS, MLX) - run sequentially with --dist=no",
+    "gpu: marks tests that use GPU acceleration (Metal, Taichi, MLX) - run sequentially with --dist=no",
 ]
 # Exclude slow, integration, and GPU tests by default
 # GPU tests should be run sequentially: pytest -m gpu --dist=no
