@@ -43,3 +43,23 @@ class InvalidConfigError(ConfigError):
 
 class CacheSizeExceededError(CacheError):
     """Cache size limit exceeded."""
+
+
+class GPUError(SevenradError):
+    """Base exception for GPU-related errors."""
+
+
+class GPUNotAvailableError(GPUError):
+    """Raised when GPU is required but not available."""
+
+
+class GPUMemoryError(GPUError):
+    """Raised when GPU memory allocation fails."""
+
+
+class GPUOperationError(GPUError):
+    """Raised when a GPU operation fails during execution."""
+
+
+class TaichiInitializationError(GPUError):
+    """Raised when Taichi fails to initialize."""

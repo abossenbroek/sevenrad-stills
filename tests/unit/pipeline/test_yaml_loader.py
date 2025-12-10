@@ -68,3 +68,58 @@ pipeline:
         yaml_content = "- item1\n- item2"
         with pytest.raises(PipelineLoadError, match="must be a YAML dictionary"):
             validate_pipeline_yaml(yaml_content)
+
+    def test_yaml_with_execution_mode_and_debug(self) -> None:
+        """Test YAML can specify execution_mode and debug fields."""
+        yaml_content = """
+source:
+  youtube_url: "https://youtube.com/watch?v=test"
+
+segment:
+  start: 10.0
+  end: 30.0
+  interval: 1.0
+
+execution_mode: "taichi"
+debug: true
+
+pipeline:
+  steps:
+    - name: "saturate"
+      operation: "saturation"
+      params:
+        mode: "fixed"
+        value: 1.5
+
+output:
+  base_dir: "./output"
+"""
+        config = validate_pipeline_yaml(yaml_content)
+        assert config.execution_mode == "taichi"
+        assert config.debug is True
+
+    def test_yaml_defaults_execution_mode_and_debug(self) -> None:
+        """Test YAML defaults for execution_mode and debug fields."""
+        yaml_content = """
+source:
+  youtube_url: "https://youtube.com/watch?v=test"
+
+segment:
+  start: 10.0
+  end: 30.0
+  interval: 1.0
+
+pipeline:
+  steps:
+    - name: "saturate"
+      operation: "saturation"
+      params:
+        mode: "fixed"
+        value: 1.5
+
+output:
+  base_dir: "./output"
+"""
+        config = validate_pipeline_yaml(yaml_content)
+        assert config.execution_mode == "auto"
+        assert config.debug is False

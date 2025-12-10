@@ -3,11 +3,16 @@ Backend resolution system for image operations.
 
 Maps operation names to their CPU, GPU, and Metal implementations
 and handles backend selection with validation.
+
+Also provides a Taichi registry for end-to-end GPU pipeline operations.
 """
 
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from sevenrad_stills.operations.base import ImageOperation
+
+if TYPE_CHECKING:
+    from sevenrad_stills.operations.taichi_base import BaseTaichiOperation
 
 # Backend type definition
 BackendType = Literal["cpu", "gpu", "metal"]
@@ -15,6 +20,10 @@ BackendType = Literal["cpu", "gpu", "metal"]
 # Backend support matrix: operation_name -> {backend -> class}
 # This will be populated by the operation registry
 _BACKEND_REGISTRY: dict[str, dict[str, type[ImageOperation]]] = {}
+
+# Taichi operation registry for end-to-end GPU pipeline
+# Maps operation names to their Taichi implementation classes
+_TAICHI_REGISTRY: dict[str, type["BaseTaichiOperation"]] = {}
 
 
 class BackendNotAvailableError(Exception):
@@ -132,3 +141,72 @@ def get_backend_matrix() -> dict[str, list[str]]:
 
     """
     return {op: list(backends.keys()) for op, backends in _BACKEND_REGISTRY.items()}
+
+
+# ============================================================================
+# Taichi Registry Functions (for end-to-end GPU pipeline)
+# ============================================================================
+
+
+def register_taichi_operation(
+    operation_name: str, operation_class: type["BaseTaichiOperation"]
+) -> None:
+    """
+    Register a Taichi operation for end-to-end GPU pipeline.
+
+    Args:
+        operation_name: Base name of the operation (e.g., 'saturation')
+        operation_class: Taichi implementation class
+
+    """
+    _TAICHI_REGISTRY[operation_name] = operation_class
+
+
+def get_taichi_operation(operation_name: str) -> "BaseTaichiOperation":
+    """
+    Get a Taichi operation instance by name.
+
+    Args:
+        operation_name: Base name of the operation
+
+    Returns:
+        Instance of the Taichi operation
+
+    Raises:
+        KeyError: If operation not found in Taichi registry
+
+    """
+    if operation_name not in _TAICHI_REGISTRY:
+        msg = (
+            f"Operation '{operation_name}' not found in Taichi registry. "
+            f"Available operations: {', '.join(list_taichi_operations())}"
+        )
+        raise KeyError(msg)
+
+    # Concrete implementations set name in their __init__, not BaseTaichiOperation
+    return _TAICHI_REGISTRY[operation_name]()  # type: ignore[call-arg]
+
+
+def has_taichi_operation(operation_name: str) -> bool:
+    """
+    Check if an operation has a Taichi implementation.
+
+    Args:
+        operation_name: Base name of the operation
+
+    Returns:
+        True if Taichi implementation exists, False otherwise
+
+    """
+    return operation_name in _TAICHI_REGISTRY
+
+
+def list_taichi_operations() -> list[str]:
+    """
+    List all operations with Taichi implementations.
+
+    Returns:
+        Sorted list of operation names with Taichi support
+
+    """
+    return sorted(_TAICHI_REGISTRY.keys())

@@ -78,9 +78,15 @@ ignore = [
 "tests/*" = ["S101", "ANN", "PLR2004", "S108"]  # Allow assert, annotations, magic values, and /tmp in tests
 "tests/unit/operations/test_*_performance.py" = ["S101", "ANN", "PLR2004", "S108", "T201"]  # Allow print in performance tests
 "tests/unit/operations/test_downscale_metal.py" = ["ARG002"]  # Fixtures used for side effects (skip checks)
+"tests/unit/operations/test_adapters.py" = ["ARG002"]  # Mock methods may have unused params
 "src/sevenrad_stills/cli/commands.py" = ["PLR0913"]  # Click commands have many options
 "src/sevenrad_stills/pipeline/executor.py" = ["PLR0913"]  # Multiprocessing worker function needs many arguments
+"src/sevenrad_stills/pipeline/protocols.py" = ["ANN401", "PLR0913", "E501"]  # Protocols use Any for Taichi fields, many args for apply_to_field
+"src/sevenrad_stills/operations/adapters.py" = ["ANN401", "PLR0913", "PLR2004", "ARG002"]  # Adapters use Any for Taichi fields, magic values for channel counts
 "src/sevenrad_stills/operations/*_gpu.py" = ["ANN201", "PLR0913", "PLR0915", "C901", "PLR0912"]  # Taichi kernels have special signatures, some apply methods handle multiple operation types
+"src/sevenrad_stills/operations/*_taichi.py" = ["ANN201", "ANN401", "PLR0913", "PLR0915", "C901", "PLR0912", "PLR2004", "SIM114", "PLR5501", "E501"]  # Taichi kernels have complex logic, magic values for pattern codes, long lines
+"tests/unit/pipeline/test_buffer_pool.py" = ["ARG001", "ARG002"]  # Fixtures used for side effects
+"tests/unit/pipeline/test_taichi_executor.py" = ["ARG001", "ARG002", "SIM117"]  # Fixtures used for side effects, nested with for mock contexts
 "src/sevenrad_stills/operations/*_metal.py" = ["ANN201", "PLR0913"]  # Metal operations have special signatures
 "src/sevenrad_stills/operations/*_mlx.py" = ["ANN201", "PLR0913"]  # MLX operations have special signatures
 "src/sevenrad_stills/operations/buffer_corruption_metal.py" = ["PLR0915", "PLR2004", "T201", "RUF001", "RUF002", "RUF003", "E501", "ANN401"]  # Metal GPU implementation uses debug prints, unicode chars, and PyObjC Any types
@@ -142,6 +148,21 @@ module = [
     "sevenrad_stills.operations.noise_metal",
     "sevenrad_stills.operations.slc_off_gpu",
     "sevenrad_stills.operations.slc_off_metal",
+    "sevenrad_stills.operations.taichi_kernels",
+    "sevenrad_stills.operations.taichi_kernels.*",
+    "sevenrad_stills.operations.band_swap_taichi",
+    "sevenrad_stills.operations.bayer_filter_taichi",
+    "sevenrad_stills.operations.blur_circular_taichi",
+    "sevenrad_stills.operations.blur_gaussian_taichi",
+    "sevenrad_stills.operations.buffer_corruption_taichi",
+    "sevenrad_stills.operations.chromatic_aberration_taichi",
+    "sevenrad_stills.operations.corduroy_taichi",
+    "sevenrad_stills.operations.downscale_taichi",
+    "sevenrad_stills.operations.motion_blur_taichi",
+    "sevenrad_stills.operations.noise_taichi",
+    "sevenrad_stills.operations.salt_pepper_taichi",
+    "sevenrad_stills.operations.saturation_taichi",
+    "sevenrad_stills.operations.slc_off_taichi",
 ]
 ignore_errors = true
 
