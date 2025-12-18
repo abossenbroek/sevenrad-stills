@@ -111,6 +111,53 @@ class TestDownscaleTaichiOperation:
         with pytest.raises(ValueError, match="Method must be a string"):
             operation.validate_params(params)
 
+    def test_validate_params_downscale_method(self, operation):
+        """Test validation with downscale_method parameter."""
+        # Valid downscale methods
+        params = {"scale": 0.5, "downscale_method": "nearest"}
+        operation.validate_params(params)
+
+        params = {"scale": 0.5, "downscale_method": "bilinear"}
+        operation.validate_params(params)
+
+        # Invalid downscale method
+        params = {"scale": 0.5, "downscale_method": "bicubic"}
+        with pytest.raises(ValueError, match="GPU supports: nearest, bilinear"):
+            operation.validate_params(params)
+
+    def test_validate_params_upscale_method(self, operation):
+        """Test validation with upscale_method parameter."""
+        # Valid upscale methods
+        params = {"scale": 0.5, "upscale": True, "upscale_method": "nearest"}
+        operation.validate_params(params)
+
+        params = {"scale": 0.5, "upscale": True, "upscale_method": "bilinear"}
+        operation.validate_params(params)
+
+        # Invalid upscale method
+        params = {"scale": 0.5, "upscale": True, "upscale_method": "bicubic"}
+        with pytest.raises(ValueError, match="GPU supports: nearest, bilinear"):
+            operation.validate_params(params)
+
+    def test_validate_params_separate_methods(self, operation):
+        """Test validation with separate downscale and upscale methods."""
+        # Both valid
+        params = {
+            "scale": 0.5,
+            "upscale": True,
+            "downscale_method": "bilinear",
+            "upscale_method": "nearest",
+        }
+        operation.validate_params(params)
+
+        # Mixed with legacy method (should work)
+        params = {
+            "scale": 0.5,
+            "method": "bilinear",
+            "downscale_method": "nearest",
+        }
+        operation.validate_params(params)
+
     def test_warmup_compiles_kernels(self, operation):
         """Test that warmup triggers kernel compilation."""
         assert not operation.is_compiled
@@ -448,3 +495,161 @@ class TestDownscaleTaichiOperation:
 
         # Alpha should be preserved
         assert np.allclose(result[..., 3], 1.0, atol=0.01)
+
+    def test_mixed_methods_bilinear_down_nearest_up(self, operation):
+        """Test using bilinear for downscale and nearest for upscale."""
+        if not TAICHI_AVAILABLE:
+            pytest.skip("Taichi not available")
+
+        ti.init(arch=ti.cpu)
+
+        height, width = 16, 16
+        source = ti.Vector.field(4, dtype=ti.f32, shape=(1, height, width))
+        dest = ti.Vector.field(4, dtype=ti.f32, shape=(1, height, width))
+
+        # Create checkerboard pattern
+        for i in range(height):
+            for j in range(width):
+                if (i + j) % 2 == 0:
+                    source[0, i, j] = [1.0, 1.0, 1.0, 1.0]
+                else:
+                    source[0, i, j] = [0.0, 0.0, 0.0, 1.0]
+
+        # Create temp field
+        temp_height, temp_width = 8, 8
+        temp_field = ti.Vector.field(
+            4, dtype=ti.f32, shape=(1, temp_height, temp_width)
+        )
+        temp_fields = {f"downscale_{temp_height}x{temp_width}": temp_field}
+
+        params = {
+            "scale": 0.5,
+            "upscale": True,
+            "downscale_method": "bilinear",
+            "upscale_method": "nearest",
+        }
+        operation.apply_to_field(source, dest, temp_fields, params, height, width)
+
+        result = dest.to_numpy()[0]
+
+        # Check dimensions match original
+        assert result.shape == (16, 16, 4)
+
+        # Check values are in range
+        assert np.all(result[..., :3] >= 0.0)
+        assert np.all(result[..., :3] <= 1.0)
+
+    def test_mixed_methods_nearest_down_bilinear_up(self, operation):
+        """Test using nearest for downscale and bilinear for upscale."""
+        if not TAICHI_AVAILABLE:
+            pytest.skip("Taichi not available")
+
+        ti.init(arch=ti.cpu)
+
+        height, width = 16, 16
+        source = ti.Vector.field(4, dtype=ti.f32, shape=(1, height, width))
+        dest = ti.Vector.field(4, dtype=ti.f32, shape=(1, height, width))
+
+        # Create gradient
+        for i in range(height):
+            for j in range(width):
+                r = i / (height - 1)
+                g = j / (width - 1)
+                source[0, i, j] = [r, g, 0.5, 1.0]
+
+        # Create temp field
+        temp_height, temp_width = 8, 8
+        temp_field = ti.Vector.field(
+            4, dtype=ti.f32, shape=(1, temp_height, temp_width)
+        )
+        temp_fields = {f"downscale_{temp_height}x{temp_width}": temp_field}
+
+        params = {
+            "scale": 0.5,
+            "upscale": True,
+            "downscale_method": "nearest",
+            "upscale_method": "bilinear",
+        }
+        operation.apply_to_field(source, dest, temp_fields, params, height, width)
+
+        result = dest.to_numpy()[0]
+
+        # Check dimensions match original
+        assert result.shape == (16, 16, 4)
+
+        # Check values are in range
+        assert np.all(result[..., :3] >= 0.0)
+        assert np.all(result[..., :3] <= 1.0)
+
+    def test_reference_numpy_mixed_methods(self, operation):
+        """Test NumPy reference implementation with mixed methods."""
+        # Create test image with gradient
+        image = np.zeros((16, 16, 3), dtype=np.float32)
+        for i in range(16):
+            for j in range(16):
+                image[i, j] = [i / 15.0, j / 15.0, 0.5]
+
+        params = {
+            "scale": 0.5,
+            "upscale": True,
+            "downscale_method": "bilinear",
+            "upscale_method": "nearest",
+        }
+        result = operation.reference_numpy(image, params)
+
+        # Should be back to original size
+        assert result.shape == (16, 16, 3)
+        assert result.dtype == np.float32
+        assert np.all(result >= 0.0)
+        assert np.all(result <= 1.0)
+
+    def test_backward_compatibility_method_parameter(self, operation):
+        """Test that legacy 'method' parameter still works."""
+        if not TAICHI_AVAILABLE:
+            pytest.skip("Taichi not available")
+
+        ti.init(arch=ti.cpu)
+
+        height, width = 8, 8
+        source = ti.Vector.field(4, dtype=ti.f32, shape=(1, height, width))
+        dest_legacy = ti.Vector.field(4, dtype=ti.f32, shape=(1, height, width))
+        dest_new = ti.Vector.field(4, dtype=ti.f32, shape=(1, height, width))
+
+        # Initialize with test pattern
+        for i in range(height):
+            for j in range(width):
+                source[0, i, j] = [0.5, 0.5, 0.5, 1.0]
+
+        # Create temp fields
+        temp_height, temp_width = 4, 4
+        temp_field1 = ti.Vector.field(
+            4, dtype=ti.f32, shape=(1, temp_height, temp_width)
+        )
+        temp_field2 = ti.Vector.field(
+            4, dtype=ti.f32, shape=(1, temp_height, temp_width)
+        )
+        temp_fields1 = {f"downscale_{temp_height}x{temp_width}": temp_field1}
+        temp_fields2 = {f"downscale_{temp_height}x{temp_width}": temp_field2}
+
+        # Legacy method parameter
+        params_legacy = {"scale": 0.5, "upscale": True, "method": "bilinear"}
+        operation.apply_to_field(
+            source, dest_legacy, temp_fields1, params_legacy, height, width
+        )
+
+        # New separate parameters (both bilinear)
+        params_new = {
+            "scale": 0.5,
+            "upscale": True,
+            "downscale_method": "bilinear",
+            "upscale_method": "bilinear",
+        }
+        operation.apply_to_field(
+            source, dest_new, temp_fields2, params_new, height, width
+        )
+
+        result_legacy = dest_legacy.to_numpy()[0]
+        result_new = dest_new.to_numpy()[0]
+
+        # Results should be identical
+        assert np.allclose(result_legacy, result_new, atol=1e-6)

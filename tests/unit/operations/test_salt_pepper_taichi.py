@@ -39,80 +39,118 @@ class TestSaltPepperTaichiOperationInit:
 class TestValidateParams:
     """Test parameter validation."""
 
-    def test_valid_density(self) -> None:
-        """Test that valid density passes validation."""
+    def test_valid_amount(self) -> None:
+        """Test that valid amount with salt_vs_pepper passes validation."""
         op = SaltPepperTaichiOperation()
 
         # Should not raise
-        op.validate_params({"density": 0.0})
-        op.validate_params({"density": 0.5})
-        op.validate_params({"density": 1.0})
-        op.validate_params({"density": 0})  # int is ok
+        op.validate_params({"amount": 0.0, "salt_vs_pepper": 0.5})
+        op.validate_params({"amount": 0.5, "salt_vs_pepper": 0.5})
+        op.validate_params({"amount": 1.0, "salt_vs_pepper": 0.5})
+        op.validate_params({"amount": 0, "salt_vs_pepper": 0.5})  # int is ok
 
-    def test_valid_density_with_seed(self) -> None:
-        """Test that valid density with seed passes validation."""
+    def test_valid_amount_with_seed(self) -> None:
+        """Test that valid amount with seed passes validation."""
         op = SaltPepperTaichiOperation()
 
         # Should not raise
-        op.validate_params({"density": 0.1, "seed": 42})
-        op.validate_params({"density": 0.5, "seed": 0})
-        op.validate_params({"density": 0.9, "seed": -1})
+        op.validate_params({"amount": 0.1, "salt_vs_pepper": 0.5, "seed": 42})
+        op.validate_params({"amount": 0.5, "salt_vs_pepper": 0.5, "seed": 0})
+        op.validate_params({"amount": 0.9, "salt_vs_pepper": 0.5, "seed": -1})
 
-    def test_missing_density(self) -> None:
-        """Test that missing density raises ValueError."""
+    def test_backward_compat_density(self) -> None:
+        """Test that density parameter still works for backward compatibility."""
         op = SaltPepperTaichiOperation()
 
-        with pytest.raises(ValueError, match="requires 'density' parameter"):
-            op.validate_params({})
+        # Should not raise - density is accepted for backward compatibility
+        op.validate_params({"density": 0.5, "salt_vs_pepper": 0.5})
+        op.validate_params({"density": 0.1, "salt_vs_pepper": 0.5, "seed": 42})
 
-        with pytest.raises(ValueError, match="requires 'density' parameter"):
+    def test_missing_amount(self) -> None:
+        """Test that missing amount/density raises ValueError."""
+        op = SaltPepperTaichiOperation()
+
+        with pytest.raises(ValueError, match="requires 'amount' parameter"):
+            op.validate_params({"salt_vs_pepper": 0.5})
+
+        with pytest.raises(ValueError, match="requires 'amount' parameter"):
             op.validate_params({"seed": 42})
 
-    def test_invalid_density_type(self) -> None:
-        """Test that non-numeric density raises ValueError."""
+    def test_missing_salt_vs_pepper(self) -> None:
+        """Test that missing salt_vs_pepper raises ValueError."""
+        op = SaltPepperTaichiOperation()
+
+        with pytest.raises(ValueError, match="requires 'salt_vs_pepper' parameter"):
+            op.validate_params({"amount": 0.5})
+
+        with pytest.raises(ValueError, match="requires 'salt_vs_pepper' parameter"):
+            op.validate_params({"amount": 0.5, "seed": 42})
+
+    def test_invalid_amount_type(self) -> None:
+        """Test that non-numeric amount raises ValueError."""
         op = SaltPepperTaichiOperation()
 
         with pytest.raises(ValueError, match="must be a number"):
-            op.validate_params({"density": "high"})
+            op.validate_params({"amount": "high", "salt_vs_pepper": 0.5})
 
         with pytest.raises(ValueError, match="must be a number"):
-            op.validate_params({"density": None})
+            op.validate_params({"amount": None, "salt_vs_pepper": 0.5})
 
         with pytest.raises(ValueError, match="must be a number"):
-            op.validate_params({"density": [0.5]})
+            op.validate_params({"amount": [0.5], "salt_vs_pepper": 0.5})
 
-    def test_density_out_of_range(self) -> None:
-        """Test that density outside [0, 1] raises ValueError."""
+    def test_amount_out_of_range(self) -> None:
+        """Test that amount outside [0, 1] raises ValueError."""
         op = SaltPepperTaichiOperation()
 
         with pytest.raises(ValueError, match="must be between 0.0 and 1.0"):
-            op.validate_params({"density": -0.1})
+            op.validate_params({"amount": -0.1, "salt_vs_pepper": 0.5})
 
         with pytest.raises(ValueError, match="must be between 0.0 and 1.0"):
-            op.validate_params({"density": 1.1})
+            op.validate_params({"amount": 1.1, "salt_vs_pepper": 0.5})
 
         with pytest.raises(ValueError, match="must be between 0.0 and 1.0"):
-            op.validate_params({"density": 2.0})
+            op.validate_params({"amount": 2.0, "salt_vs_pepper": 0.5})
+
+    def test_invalid_salt_vs_pepper_type(self) -> None:
+        """Test that non-numeric salt_vs_pepper raises ValueError."""
+        op = SaltPepperTaichiOperation()
+
+        with pytest.raises(ValueError, match="must be a number"):
+            op.validate_params({"amount": 0.5, "salt_vs_pepper": "high"})
+
+        with pytest.raises(ValueError, match="must be a number"):
+            op.validate_params({"amount": 0.5, "salt_vs_pepper": None})
+
+    def test_salt_vs_pepper_out_of_range(self) -> None:
+        """Test that salt_vs_pepper outside [0, 1] raises ValueError."""
+        op = SaltPepperTaichiOperation()
+
+        with pytest.raises(ValueError, match="must be between 0.0 and 1.0"):
+            op.validate_params({"amount": 0.5, "salt_vs_pepper": -0.1})
+
+        with pytest.raises(ValueError, match="must be between 0.0 and 1.0"):
+            op.validate_params({"amount": 0.5, "salt_vs_pepper": 1.1})
 
     def test_invalid_seed_type(self) -> None:
         """Test that non-integer seed raises ValueError."""
         op = SaltPepperTaichiOperation()
 
         with pytest.raises(ValueError, match="must be an integer"):
-            op.validate_params({"density": 0.5, "seed": 3.14})
+            op.validate_params({"amount": 0.5, "salt_vs_pepper": 0.5, "seed": 3.14})
 
         with pytest.raises(ValueError, match="must be an integer"):
-            op.validate_params({"density": 0.5, "seed": "42"})
+            op.validate_params({"amount": 0.5, "salt_vs_pepper": 0.5, "seed": "42"})
 
         with pytest.raises(ValueError, match="must be an integer"):
-            op.validate_params({"density": 0.5, "seed": None})
+            op.validate_params({"amount": 0.5, "salt_vs_pepper": 0.5, "seed": None})
 
 
 class TestReferenceNumpy:
     """Test NumPy reference implementation."""
 
-    def test_zero_density(self) -> None:
-        """Test that density=0.0 preserves image unchanged."""
+    def test_zero_amount(self) -> None:
+        """Test that amount=0.0 preserves image unchanged."""
         op = SaltPepperTaichiOperation()
 
         # Create test image with varying colors
@@ -121,13 +159,15 @@ class TestReferenceNumpy:
             dtype=np.float32,
         )
 
-        result = op.reference_numpy(image, {"density": 0.0, "seed": 42})
+        result = op.reference_numpy(
+            image, {"amount": 0.0, "salt_vs_pepper": 0.5, "seed": 42}
+        )
 
-        # With density=0.0, output should match input exactly
+        # With amount=0.0, output should match input exactly
         np.testing.assert_array_equal(result, image)
 
-    def test_full_density_produces_salt_or_pepper(self) -> None:
-        """Test that density=1.0 affects all pixels."""
+    def test_full_amount_produces_salt_or_pepper(self) -> None:
+        """Test that amount=1.0 affects all pixels."""
         op = SaltPepperTaichiOperation()
 
         # Create test image
@@ -136,7 +176,9 @@ class TestReferenceNumpy:
             dtype=np.float32,
         )
 
-        result = op.reference_numpy(image, {"density": 1.0, "seed": 42})
+        result = op.reference_numpy(
+            image, {"amount": 1.0, "salt_vs_pepper": 0.5, "seed": 42}
+        )
 
         # All pixels should be either white (1,1,1) or black (0,0,0)
         for i in range(result.shape[0]):
@@ -146,14 +188,16 @@ class TestReferenceNumpy:
                 is_pepper = np.allclose(pixel, [0.0, 0.0, 0.0])
                 assert is_salt or is_pepper
 
-    def test_partial_density_affects_some_pixels(self) -> None:
-        """Test that 0 < density < 1 affects some but not all pixels."""
+    def test_partial_amount_affects_some_pixels(self) -> None:
+        """Test that 0 < amount < 1 affects some but not all pixels."""
         op = SaltPepperTaichiOperation()
 
         # Create uniform gray image
         image = np.full((10, 10, 3), 0.5, dtype=np.float32)
 
-        result = op.reference_numpy(image, {"density": 0.3, "seed": 42})
+        result = op.reference_numpy(
+            image, {"amount": 0.3, "salt_vs_pepper": 0.5, "seed": 42}
+        )
 
         # Count pixels that changed
         changed_pixels = 0
@@ -166,7 +210,7 @@ class TestReferenceNumpy:
                 else:
                     changed_pixels += 1
 
-        # With density=0.3, we expect roughly 30% changed
+        # With amount=0.3, we expect roughly 30% changed
         # (allowing some variance due to randomness)
         assert changed_pixels > 0
         assert unchanged_pixels > 0
@@ -177,8 +221,12 @@ class TestReferenceNumpy:
 
         image = np.random.rand(10, 10, 3).astype(np.float32)
 
-        result1 = op.reference_numpy(image, {"density": 0.2, "seed": 123})
-        result2 = op.reference_numpy(image, {"density": 0.2, "seed": 123})
+        result1 = op.reference_numpy(
+            image, {"amount": 0.2, "salt_vs_pepper": 0.5, "seed": 123}
+        )
+        result2 = op.reference_numpy(
+            image, {"amount": 0.2, "salt_vs_pepper": 0.5, "seed": 123}
+        )
 
         np.testing.assert_array_equal(result1, result2)
 
@@ -188,8 +236,12 @@ class TestReferenceNumpy:
 
         image = np.full((20, 20, 3), 0.5, dtype=np.float32)
 
-        result1 = op.reference_numpy(image, {"density": 0.3, "seed": 1})
-        result2 = op.reference_numpy(image, {"density": 0.3, "seed": 2})
+        result1 = op.reference_numpy(
+            image, {"amount": 0.3, "salt_vs_pepper": 0.5, "seed": 1}
+        )
+        result2 = op.reference_numpy(
+            image, {"amount": 0.3, "salt_vs_pepper": 0.5, "seed": 2}
+        )
 
         # Results should differ
         assert not np.array_equal(result1, result2)
@@ -200,7 +252,9 @@ class TestReferenceNumpy:
 
         for shape in [(10, 10, 3), (5, 15, 3), (100, 50, 3)]:
             image = np.random.rand(*shape).astype(np.float32)
-            result = op.reference_numpy(image, {"density": 0.1, "seed": 42})
+            result = op.reference_numpy(
+                image, {"amount": 0.1, "salt_vs_pepper": 0.5, "seed": 42}
+            )
             assert result.shape == shape
 
     def test_output_range(self) -> None:
@@ -210,7 +264,9 @@ class TestReferenceNumpy:
         # Create image with various values
         image = np.random.rand(10, 10, 3).astype(np.float32)
 
-        result = op.reference_numpy(image, {"density": 0.5, "seed": 42})
+        result = op.reference_numpy(
+            image, {"amount": 0.5, "salt_vs_pepper": 0.5, "seed": 42}
+        )
 
         assert np.all(result >= 0.0)
         assert np.all(result <= 1.0)
@@ -220,7 +276,9 @@ class TestReferenceNumpy:
         op = SaltPepperTaichiOperation()
 
         image = np.random.rand(4, 4, 3).astype(np.float32)
-        result = op.reference_numpy(image, {"density": 0.1, "seed": 42})
+        result = op.reference_numpy(
+            image, {"amount": 0.1, "salt_vs_pepper": 0.5, "seed": 42}
+        )
 
         assert result.dtype == np.float32
 
@@ -231,10 +289,39 @@ class TestReferenceNumpy:
         image = np.random.rand(5, 5, 3).astype(np.float32)
 
         # These should produce identical results
-        result_no_seed = op.reference_numpy(image, {"density": 0.2})
-        result_seed_zero = op.reference_numpy(image, {"density": 0.2, "seed": 0})
+        result_no_seed = op.reference_numpy(
+            image, {"amount": 0.2, "salt_vs_pepper": 0.5}
+        )
+        result_seed_zero = op.reference_numpy(
+            image, {"amount": 0.2, "salt_vs_pepper": 0.5, "seed": 0}
+        )
 
         np.testing.assert_array_equal(result_no_seed, result_seed_zero)
+
+    def test_salt_vs_pepper_ratio(self) -> None:
+        """Test that salt_vs_pepper parameter controls the ratio."""
+        op = SaltPepperTaichiOperation()
+
+        # Create uniform gray image
+        image = np.full((50, 50, 3), 0.5, dtype=np.float32)
+
+        # Test with all salt (salt_vs_pepper=1.0)
+        result_all_salt = op.reference_numpy(
+            image, {"amount": 1.0, "salt_vs_pepper": 1.0, "seed": 42}
+        )
+        # All pixels should be white
+        for i in range(result_all_salt.shape[0]):
+            for j in range(result_all_salt.shape[1]):
+                assert np.allclose(result_all_salt[i, j], [1.0, 1.0, 1.0])
+
+        # Test with all pepper (salt_vs_pepper=0.0)
+        result_all_pepper = op.reference_numpy(
+            image, {"amount": 1.0, "salt_vs_pepper": 0.0, "seed": 42}
+        )
+        # All pixels should be black
+        for i in range(result_all_pepper.shape[0]):
+            for j in range(result_all_pepper.shape[1]):
+                assert np.allclose(result_all_pepper[i, j], [0.0, 0.0, 0.0])
 
 
 class TestApplyToField:
@@ -261,7 +348,7 @@ class TestApplyToField:
                 source=source,
                 dest=dest,
                 temp_fields={},
-                params={"density": 0.1, "seed": 42},
+                params={"amount": 0.1, "salt_vs_pepper": 0.5, "seed": 42},
                 height=64,
                 width=64,
             )
@@ -270,11 +357,12 @@ class TestApplyToField:
             call_args = mock_kernel.call_args[0]
             assert call_args[0] is source
             assert call_args[1] is dest
-            assert call_args[2] == 0.1  # density
-            assert call_args[3] == 42  # seed
-            assert call_args[4] == 0  # batch
-            assert call_args[5] == 64  # height
-            assert call_args[6] == 64  # width
+            assert call_args[2] == 0.1  # amount
+            assert call_args[3] == 0.5  # salt_vs_pepper
+            assert call_args[4] == 42  # seed
+            assert call_args[5] == 0  # batch
+            assert call_args[6] == 64  # height
+            assert call_args[7] == 64  # width
 
     def test_apply_to_field_default_seed(self) -> None:
         """Test that apply_to_field uses default seed=0 when not provided."""
@@ -293,13 +381,38 @@ class TestApplyToField:
                 source=Mock(),
                 dest=Mock(),
                 temp_fields={},
-                params={"density": 0.1},
+                params={"amount": 0.1, "salt_vs_pepper": 0.5},
                 height=32,
                 width=32,
             )
 
             call_args = mock_kernel.call_args[0]
-            assert call_args[3] == 0  # seed should default to 0
+            assert call_args[4] == 0  # seed should default to 0
+
+    def test_apply_to_field_backward_compat_density(self) -> None:
+        """Test that apply_to_field accepts density for backward compatibility."""
+        op = SaltPepperTaichiOperation()
+
+        with (
+            patch(
+                "sevenrad_stills.operations.salt_pepper_taichi._salt_pepper_kernel"
+            ) as mock_kernel,
+            patch(
+                "sevenrad_stills.operations.salt_pepper_taichi.TAICHI_AVAILABLE", True
+            ),
+            patch("sevenrad_stills.operations.salt_pepper_taichi.ti", MagicMock()),
+        ):
+            op.apply_to_field(
+                source=Mock(),
+                dest=Mock(),
+                temp_fields={},
+                params={"density": 0.1, "salt_vs_pepper": 0.5, "seed": 42},
+                height=32,
+                width=32,
+            )
+
+            call_args = mock_kernel.call_args[0]
+            assert call_args[2] == 0.1  # amount (from density)
 
     def test_apply_to_field_without_taichi(self) -> None:
         """Test that apply_to_field raises when Taichi unavailable."""
@@ -315,7 +428,7 @@ class TestApplyToField:
                 source=Mock(),
                 dest=Mock(),
                 temp_fields={},
-                params={"density": 0.1, "seed": 42},
+                params={"amount": 0.1, "salt_vs_pepper": 0.5, "seed": 42},
                 height=64,
                 width=64,
             )
@@ -396,7 +509,9 @@ class TestNumericalAccuracy:
         op = SaltPepperTaichiOperation()
 
         image = np.random.rand(10, 10, 3).astype(np.float32)
-        result = op.reference_numpy(image, {"density": 0.5, "seed": 42})
+        result = op.reference_numpy(
+            image, {"amount": 0.5, "salt_vs_pepper": 0.5, "seed": 42}
+        )
 
         # Check each pixel
         for i in range(result.shape[0]):
@@ -415,7 +530,9 @@ class TestNumericalAccuracy:
         # All white image
         white = np.ones((5, 5, 3), dtype=np.float32)
 
-        result = op.reference_numpy(white, {"density": 0.5, "seed": 42})
+        result = op.reference_numpy(
+            white, {"amount": 0.5, "salt_vs_pepper": 0.5, "seed": 42}
+        )
 
         # Some pixels should be black
         has_black = False
@@ -434,7 +551,9 @@ class TestNumericalAccuracy:
         # All black image
         black = np.zeros((5, 5, 3), dtype=np.float32)
 
-        result = op.reference_numpy(black, {"density": 0.5, "seed": 42})
+        result = op.reference_numpy(
+            black, {"amount": 0.5, "salt_vs_pepper": 0.5, "seed": 42}
+        )
 
         # Some pixels should be white
         has_white = False
@@ -452,7 +571,9 @@ class TestNumericalAccuracy:
 
         # Create image with distinct channel values
         image = np.random.rand(10, 10, 3).astype(np.float32)
-        result = op.reference_numpy(image, {"density": 0.3, "seed": 42})
+        result = op.reference_numpy(
+            image, {"amount": 0.3, "salt_vs_pepper": 0.5, "seed": 42}
+        )
 
         # Check that if a pixel changed, all channels are equal
         for i in range(result.shape[0]):
@@ -472,17 +593,21 @@ class TestEdgeCases:
         image = np.array([[[0.5, 0.5, 0.5]]], dtype=np.float32)
 
         # Should not raise
-        result = op.reference_numpy(image, {"density": 0.5, "seed": 42})
+        result = op.reference_numpy(
+            image, {"amount": 0.5, "salt_vs_pepper": 0.5, "seed": 42}
+        )
         assert result.shape == (1, 1, 3)
 
-    def test_very_small_density(self) -> None:
-        """Test with very small density value."""
+    def test_very_small_amount(self) -> None:
+        """Test with very small amount value."""
         op = SaltPepperTaichiOperation()
 
         image = np.random.rand(100, 100, 3).astype(np.float32)
 
         # Should not raise
-        result = op.reference_numpy(image, {"density": 0.001, "seed": 42})
+        result = op.reference_numpy(
+            image, {"amount": 0.001, "salt_vs_pepper": 0.5, "seed": 42}
+        )
         assert result.shape == image.shape
 
     def test_negative_seed(self) -> None:
@@ -492,7 +617,9 @@ class TestEdgeCases:
         image = np.random.rand(5, 5, 3).astype(np.float32)
 
         # Should not raise
-        result = op.reference_numpy(image, {"density": 0.2, "seed": -999})
+        result = op.reference_numpy(
+            image, {"amount": 0.2, "salt_vs_pepper": 0.5, "seed": -999}
+        )
         assert result.shape == image.shape
 
     def test_large_seed(self) -> None:
@@ -502,5 +629,7 @@ class TestEdgeCases:
         image = np.random.rand(5, 5, 3).astype(np.float32)
 
         # Should not raise
-        result = op.reference_numpy(image, {"density": 0.2, "seed": 999999})
+        result = op.reference_numpy(
+            image, {"amount": 0.2, "salt_vs_pepper": 0.5, "seed": 999999}
+        )
         assert result.shape == image.shape

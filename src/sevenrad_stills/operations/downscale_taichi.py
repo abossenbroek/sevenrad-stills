@@ -156,6 +156,11 @@ class DownscaleTaichiOperation(BaseTaichiOperation):
 
     Example:
         >>> op = DownscaleTaichiOperation()
+        >>> # Using new separate methods
+        >>> params = {"scale": 0.5, "upscale": True,
+        ...           "downscale_method": "bilinear", "upscale_method": "nearest"}
+        >>> op.apply_to_field(source, dest, temp_fields, params, 1080, 1920)
+        >>> # Legacy method parameter still supported
         >>> params = {"scale": 0.5, "upscale": False, "method": "bilinear"}
         >>> op.apply_to_field(source, dest, {}, params, 1080, 1920)
 
@@ -207,7 +212,9 @@ class DownscaleTaichiOperation(BaseTaichiOperation):
         Expected params:
         - scale: float (0.01-1.0) - Scale factor for downscaling
         - upscale: bool - Whether to upscale back to original size (default: False)
-        - method: str - Resampling method: "nearest" or "bilinear" (default: "bilinear")
+        - downscale_method: str - Downscaling method: "nearest" or "bilinear" (default: "bilinear")
+        - upscale_method: str - Upscaling method: "nearest" or "bilinear" (default: "bilinear")
+        - method: str - Legacy parameter for both methods (backward compatibility)
 
         Args:
             params: Parameters to validate
@@ -236,16 +243,17 @@ class DownscaleTaichiOperation(BaseTaichiOperation):
                 msg = f"Upscale must be a boolean, got {type(upscale)}"
                 raise ValueError(msg)
 
-        # Validate method if provided
-        if "method" in params:
-            method = params["method"]
-            if not isinstance(method, str):
-                msg = f"Method must be a string, got {type(method)}"
-                raise ValueError(msg)
-            if method not in SUPPORTED_METHODS:
-                available = ", ".join(SUPPORTED_METHODS)
-                msg = f"Invalid method '{method}'. GPU supports: {available}"
-                raise ValueError(msg)
+        # Validate method parameters (both legacy and new)
+        for method_key in ["method", "downscale_method", "upscale_method"]:
+            if method_key in params:
+                method = params[method_key]
+                if not isinstance(method, str):
+                    msg = f"{method_key.capitalize()} must be a string, got {type(method)}"
+                    raise ValueError(msg)
+                if method not in SUPPORTED_METHODS:
+                    available = ", ".join(SUPPORTED_METHODS)
+                    msg = f"Invalid {method_key} '{method}'. GPU supports: {available}"
+                    raise ValueError(msg)
 
     def apply_to_field(
         self,
@@ -281,10 +289,15 @@ class DownscaleTaichiOperation(BaseTaichiOperation):
 
         scale = float(params["scale"])
         upscale = params.get("upscale", False)
-        method_name = params.get("method", "bilinear")
 
-        # Map method name to integer
-        method_int = 1 if method_name == "bilinear" else 0
+        # Resolve methods with backward compatibility
+        # Priority: specific method > legacy method > default
+        downscale_method = params.get("downscale_method", params.get("method", "bilinear"))
+        upscale_method = params.get("upscale_method", params.get("method", "bilinear"))
+
+        # Map method names to integers
+        downscale_int = 1 if downscale_method == "bilinear" else 0
+        upscale_int = 1 if upscale_method == "bilinear" else 0
 
         # Calculate downscaled dimensions
         down_height = max(1, int(height * scale))
@@ -305,7 +318,7 @@ class DownscaleTaichiOperation(BaseTaichiOperation):
                 source,
                 temp_field,
                 scale,
-                method_int,
+                downscale_int,
                 0,  # batch_idx
                 height,
                 width,
@@ -318,7 +331,7 @@ class DownscaleTaichiOperation(BaseTaichiOperation):
                 temp_field,
                 dest,
                 scale,
-                method_int,
+                upscale_int,
                 0,  # batch_idx
                 down_height,
                 down_width,
@@ -331,7 +344,7 @@ class DownscaleTaichiOperation(BaseTaichiOperation):
                 source,
                 dest,
                 scale,
-                method_int,
+                downscale_int,
                 0,  # batch_idx
                 height,
                 width,
@@ -364,7 +377,11 @@ class DownscaleTaichiOperation(BaseTaichiOperation):
 
         scale = float(params["scale"])
         upscale = params.get("upscale", False)
-        method_name = params.get("method", "bilinear")
+
+        # Resolve methods with backward compatibility
+        # Priority: specific method > legacy method > default
+        downscale_method = params.get("downscale_method", params.get("method", "bilinear"))
+        upscale_method = params.get("upscale_method", params.get("method", "bilinear"))
 
         in_height, in_width = image.shape[:2]
 
@@ -381,7 +398,7 @@ class DownscaleTaichiOperation(BaseTaichiOperation):
                 src_y = (out_i + 0.5) / scale - 0.5
                 src_x = (out_j + 0.5) / scale - 0.5
 
-                if method_name == "nearest":
+                if downscale_method == "nearest":
                     # Nearest neighbor
                     yi = int(round(src_y))
                     xi = int(round(src_x))
@@ -405,7 +422,7 @@ class DownscaleTaichiOperation(BaseTaichiOperation):
                 src_y = (out_i + 0.5) * scale - 0.5
                 src_x = (out_j + 0.5) * scale - 0.5
 
-                if method_name == "nearest":
+                if upscale_method == "nearest":
                     # Nearest neighbor
                     yi = int(round(src_y))
                     xi = int(round(src_x))
