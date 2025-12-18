@@ -51,12 +51,20 @@ class TestValidateParams:
         for pattern in ["RGGB", "BGGR", "GRBG", "GBRG"]:
             op.validate_params({"pattern": pattern})
 
-    def test_missing_pattern(self) -> None:
-        """Test that missing pattern raises ValueError."""
+    def test_missing_pattern_uses_default(self) -> None:
+        """Test that missing pattern defaults to RGGB."""
         op = BayerFilterTaichiOperation()
 
-        with pytest.raises(ValueError, match="requires 'pattern' parameter"):
-            op.validate_params({})
+        # Should not raise - pattern is optional
+        op.validate_params({})
+
+        # Verify default is used in reference_numpy
+        image = np.random.rand(10, 10, 3).astype(np.float32)
+        result_no_pattern = op.reference_numpy(image, {})
+        result_rggb = op.reference_numpy(image, {"pattern": "RGGB"})
+
+        # Results should be identical when using default vs explicit "RGGB"
+        assert np.allclose(result_no_pattern, result_rggb)
 
     def test_invalid_pattern_type(self) -> None:
         """Test that non-string pattern raises ValueError."""
@@ -276,6 +284,36 @@ class TestApplyToField:
                 # Check pattern code in both kernels
                 assert mock_mosaic.call_args[0][2] == expected_code
                 assert mock_demosaic.call_args[0][2] == expected_code
+
+    def test_apply_to_field_default_pattern(self) -> None:
+        """Test that missing pattern defaults to RGGB in apply_to_field."""
+        op = BayerFilterTaichiOperation()
+
+        with (
+            patch(
+                "sevenrad_stills.operations.bayer_filter_taichi._mosaicing_kernel"
+            ) as mock_mosaic,
+            patch(
+                "sevenrad_stills.operations.bayer_filter_taichi._demosaicing_kernel"
+            ) as mock_demosaic,
+            patch(
+                "sevenrad_stills.operations.bayer_filter_taichi.TAICHI_AVAILABLE",
+                True,
+            ),
+            patch("sevenrad_stills.operations.bayer_filter_taichi.ti", MagicMock()),
+        ):
+            op.apply_to_field(
+                source=Mock(),
+                dest=Mock(),
+                temp_fields={"mosaic": Mock()},
+                params={},  # No pattern specified
+                height=64,
+                width=64,
+            )
+
+            # Check that default RGGB pattern code (0) is used
+            assert mock_mosaic.call_args[0][2] == 0
+            assert mock_demosaic.call_args[0][2] == 0
 
     def test_apply_to_field_without_taichi(self) -> None:
         """Test that apply_to_field raises when Taichi unavailable."""

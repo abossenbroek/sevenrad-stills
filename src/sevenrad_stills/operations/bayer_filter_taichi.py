@@ -332,7 +332,10 @@ class BayerFilterTaichiOperation(BaseTaichiOperation):
     Example:
         >>> op = BayerFilterTaichiOperation()
         >>> temp_fields = {"mosaic": mosaic_field}
-        >>> op.apply_to_field(source, dest, temp_fields, {"pattern": "RGGB"}, height, width)
+        >>> # Pattern is optional, defaults to "RGGB"
+        >>> op.apply_to_field(source, dest, temp_fields, {}, height, width)
+        >>> # Or specify a pattern explicitly
+        >>> op.apply_to_field(source, dest, temp_fields, {"pattern": "BGGR"}, height, width)
 
     """
 
@@ -378,28 +381,27 @@ class BayerFilterTaichiOperation(BaseTaichiOperation):
         Validate Bayer filter parameters.
 
         Expected params:
-        - pattern: str - Bayer pattern ("RGGB", "BGGR", "GRBG", or "GBRG")
+        - pattern: str (optional) - Bayer pattern ("RGGB", "BGGR", "GRBG", or "GBRG")
+          Defaults to "RGGB" if not provided.
 
         Args:
             params: Parameters to validate
 
         Raises:
-            ValueError: If pattern is missing or invalid
+            ValueError: If pattern is invalid
 
         """
-        if "pattern" not in params:
-            msg = "Bayer filter requires 'pattern' parameter"
-            raise ValueError(msg)
+        # Pattern is optional, only validate if provided
+        if "pattern" in params:
+            pattern = params["pattern"]
+            if not isinstance(pattern, str):
+                msg = f"Pattern must be a string, got {type(pattern)}"
+                raise ValueError(msg)
 
-        pattern = params["pattern"]
-        if not isinstance(pattern, str):
-            msg = f"Pattern must be a string, got {type(pattern)}"
-            raise ValueError(msg)
-
-        if pattern not in VALID_PATTERNS:
-            valid = ", ".join(sorted(VALID_PATTERNS))
-            msg = f"Invalid pattern '{pattern}'. Must be one of {valid}"
-            raise ValueError(msg)
+            if pattern not in VALID_PATTERNS:
+                valid = ", ".join(sorted(VALID_PATTERNS))
+                msg = f"Invalid pattern '{pattern}'. Must be one of {valid}"
+                raise ValueError(msg)
 
     def apply_to_field(
         self,
@@ -434,7 +436,7 @@ class BayerFilterTaichiOperation(BaseTaichiOperation):
             msg = "Bayer filter requires 'mosaic' temporary field"
             raise KeyError(msg)
 
-        pattern = params["pattern"]
+        pattern = params.get("pattern", "RGGB")
         # Convert pattern string to code for kernel
         pattern_code = {"RGGB": 0, "BGGR": 1, "GRBG": 2, "GBRG": 3}[pattern]
 
@@ -457,13 +459,13 @@ class BayerFilterTaichiOperation(BaseTaichiOperation):
 
         Args:
             image: Input image as numpy array (H, W, 3) float32 in [0, 1]
-            params: Must contain 'pattern' key
+            params: Optional 'pattern' key (defaults to "RGGB")
 
         Returns:
             Processed image as numpy array (H, W, 3) float32 in [0, 1]
 
         """
-        pattern = params["pattern"]
+        pattern = params.get("pattern", "RGGB")
 
         height, width = image.shape[:2]
 
