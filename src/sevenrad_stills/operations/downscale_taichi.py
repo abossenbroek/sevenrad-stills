@@ -292,7 +292,9 @@ class DownscaleTaichiOperation(BaseTaichiOperation):
 
         # Resolve methods with backward compatibility
         # Priority: specific method > legacy method > default
-        downscale_method = params.get("downscale_method", params.get("method", "bilinear"))
+        downscale_method = params.get(
+            "downscale_method", params.get("method", "bilinear")
+        )
         upscale_method = params.get("upscale_method", params.get("method", "bilinear"))
 
         # Map method names to integers
@@ -380,7 +382,9 @@ class DownscaleTaichiOperation(BaseTaichiOperation):
 
         # Resolve methods with backward compatibility
         # Priority: specific method > legacy method > default
-        downscale_method = params.get("downscale_method", params.get("method", "bilinear"))
+        downscale_method = params.get(
+            "downscale_method", params.get("method", "bilinear")
+        )
         upscale_method = params.get("upscale_method", params.get("method", "bilinear"))
 
         in_height, in_width = image.shape[:2]
