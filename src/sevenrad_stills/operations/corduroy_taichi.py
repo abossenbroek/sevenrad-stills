@@ -97,8 +97,7 @@ class CorduroyTaichiOperation(BaseTaichiOperation):
         >>> params = {
         ...     "orientation": "vertical",
         ...     "strength": 0.5,
-        ...     "density": 0.3,
-        ...     "seed": 42
+        ...     "density": 0.3
         ... }
         >>> op.apply_to_field(source, dest, {}, params, height, width)
 
@@ -130,7 +129,7 @@ class CorduroyTaichiOperation(BaseTaichiOperation):
         - orientation: "vertical" or "horizontal" - line direction
         - strength: float - striping intensity (0.0 to 1.0)
         - density: float - proportion of lines affected (0.0 to 1.0)
-        - seed: int - random seed for reproducibility
+        - seed: int (optional) - random seed for reproducibility (default: 0)
 
         Args:
             params: Parameters to validate
@@ -180,14 +179,12 @@ class CorduroyTaichiOperation(BaseTaichiOperation):
             )
             raise ValueError(msg)
 
-        if "seed" not in params:
-            msg = "Corduroy requires 'seed' parameter"
-            raise ValueError(msg)
-
-        seed = params["seed"]
-        if not isinstance(seed, int):
-            msg = f"Seed must be an integer, got {type(seed)}"
-            raise ValueError(msg)
+        # Seed is optional, but validate if provided
+        if "seed" in params:
+            seed = params["seed"]
+            if not isinstance(seed, int):
+                msg = f"Seed must be an integer, got {type(seed)}"
+                raise ValueError(msg)
 
     def apply_to_field(
         self,
@@ -205,7 +202,7 @@ class CorduroyTaichiOperation(BaseTaichiOperation):
             source: Input Taichi Vector.field(4) with shape (batch, height, width)
             dest: Output Taichi Vector.field(4) with same shape
             temp_fields: Not used for corduroy (empty dict expected)
-            params: Must contain orientation, strength, density, seed
+            params: Must contain orientation, strength, density; seed is optional
             height: Image height
             width: Image width
 
@@ -220,7 +217,7 @@ class CorduroyTaichiOperation(BaseTaichiOperation):
         orientation: Literal["vertical", "horizontal"] = params["orientation"]
         strength = float(params["strength"])
         density = float(params["density"])
-        seed = int(params["seed"])
+        seed = int(params.get("seed", 0))
 
         # Determine dimensions
         if orientation == "vertical":
@@ -269,7 +266,7 @@ class CorduroyTaichiOperation(BaseTaichiOperation):
 
         Args:
             image: Input image as numpy array (H, W, 3) float32 in [0, 1]
-            params: Must contain orientation, strength, density, seed
+            params: Must contain orientation, strength, density; seed is optional
 
         Returns:
             Processed image as numpy array (H, W, 3) float32 in [0, 1]
@@ -278,7 +275,7 @@ class CorduroyTaichiOperation(BaseTaichiOperation):
         orientation: Literal["vertical", "horizontal"] = params["orientation"]
         strength = float(params["strength"])
         density = float(params["density"])
-        seed = int(params["seed"])
+        seed = int(params.get("seed", 0))
 
         # Create random number generator
         rng = np.random.default_rng(seed)

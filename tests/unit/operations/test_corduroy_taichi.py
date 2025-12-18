@@ -192,17 +192,17 @@ class TestValidateParams:
             )
 
     def test_missing_seed(self) -> None:
-        """Test that missing seed raises ValueError."""
+        """Test that operation works without seed parameter."""
         op = CorduroyTaichiOperation()
 
-        with pytest.raises(ValueError, match="requires 'seed' parameter"):
-            op.validate_params(
-                {
-                    "orientation": "vertical",
-                    "strength": 0.5,
-                    "density": 0.3,
-                }
-            )
+        # Should not raise - seed is optional
+        op.validate_params(
+            {
+                "orientation": "vertical",
+                "strength": 0.5,
+                "density": 0.3,
+            }
+        )
 
     def test_invalid_seed_type(self) -> None:
         """Test that non-integer seed raises ValueError."""
@@ -221,6 +221,55 @@ class TestValidateParams:
 
 class TestReferenceNumpy:
     """Test NumPy reference implementation."""
+
+    def test_default_seed_without_parameter(self) -> None:
+        """Test that operation works without seed parameter."""
+        op = CorduroyTaichiOperation()
+
+        image = np.random.rand(10, 10, 3).astype(np.float32)
+
+        # Should not raise - uses default seed of 0
+        result = op.reference_numpy(
+            image,
+            {
+                "orientation": "vertical",
+                "strength": 0.5,
+                "density": 0.3,
+            },
+        )
+
+        assert result.shape == image.shape
+        assert result.dtype == np.float32
+
+    def test_default_seed_deterministic(self) -> None:
+        """Test that default seed (0) produces deterministic results."""
+        op = CorduroyTaichiOperation()
+
+        image = np.random.rand(10, 10, 3).astype(np.float32)
+
+        # Without seed parameter
+        result1 = op.reference_numpy(
+            image,
+            {
+                "orientation": "vertical",
+                "strength": 0.5,
+                "density": 0.3,
+            },
+        )
+
+        # With explicit seed=0
+        result2 = op.reference_numpy(
+            image,
+            {
+                "orientation": "vertical",
+                "strength": 0.5,
+                "density": 0.3,
+                "seed": 0,
+            },
+        )
+
+        # Should produce identical results
+        np.testing.assert_array_equal(result1, result2)
 
     def test_zero_density_preserves_image(self) -> None:
         """Test that density=0 leaves image unchanged."""
