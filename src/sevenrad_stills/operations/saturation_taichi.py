@@ -5,6 +5,7 @@ Saturation adjustment for GPU pipeline execution using ti.Vector.field(4).
 Operates on pre-allocated buffers without CPU↔GPU data transfer.
 """
 
+import random
 from typing import Any
 
 import numpy as np
@@ -153,6 +154,39 @@ class SaturationTaichiOperation(BaseTaichiOperation):
         """Initialize saturation operation."""
         super().__init__("saturation_taichi")
 
+    def _resolve_factor(self, params: dict[str, Any]) -> float:
+        """
+        Resolve saturation factor from parameters.
+
+        Supports two parameter formats:
+        1. Legacy: {"factor": 1.5} - Direct factor value
+        2. New API: {"mode": "fixed", "value": 0.5} or {"mode": "random", "range": [-0.5, 0.5]}
+
+        Args:
+            params: Operation parameters
+
+        Returns:
+            Resolved saturation factor (0.0=grayscale, 1.0=original, >1=saturated)
+
+        """
+        # Legacy backward compatibility: direct factor parameter
+        if "factor" in params:
+            return float(params["factor"])
+
+        # New API: mode-based parameters
+        mode = params["mode"]
+        if mode == "fixed":
+            value = float(params["value"])
+            # Convert value to factor: value is adjustment, factor is multiplier
+            # value=-1.0 -> factor=0.0 (grayscale)
+            # value=0.0 -> factor=1.0 (original)
+            # value=0.5 -> factor=1.5 (more saturated)
+            return max(0.0, 1.0 + value)
+        else:  # random
+            min_val, max_val = params["range"]
+            value = random.uniform(min_val, max_val)  # noqa: S311
+            return max(0.0, 1.0 + value)
+
     @property
     def supports_inplace(self) -> bool:
         """
@@ -170,31 +204,71 @@ class SaturationTaichiOperation(BaseTaichiOperation):
         """
         Validate saturation parameters.
 
-        Expected params:
-        - factor: float - saturation multiplier (0.0=grayscale, 1.0=original, >1=more)
-
-        For pipeline use, only the computed factor is passed.
-        For direct use, mode/value/range are processed upstream.
+        Supports two parameter formats:
+        1. Legacy: {"factor": 1.5} - Direct factor value (backward compatibility)
+        2. New API: {"mode": "fixed", "value": 0.5} or {"mode": "random", "range": [-0.5, 0.5]}
 
         Args:
             params: Parameters to validate
 
         Raises:
-            ValueError: If factor is missing or invalid
+            ValueError: If parameters are invalid or missing
 
         """
-        if "factor" not in params:
-            msg = "Saturation requires 'factor' parameter"
+        # Legacy backward compatibility: direct factor parameter
+        if "factor" in params:
+            factor = params["factor"]
+            if not isinstance(factor, (int, float)):
+                msg = f"Factor must be a number, got {type(factor)}"
+                raise ValueError(msg)
+            if factor < 0.0:
+                msg = f"Factor must be >= 0.0, got {factor}"
+                raise ValueError(msg)
+            return
+
+        # New API: mode-based parameters
+        if "mode" not in params:
+            msg = "Saturation requires either 'factor' or 'mode' parameter"
             raise ValueError(msg)
 
-        factor = params["factor"]
-        if not isinstance(factor, (int, float)):
-            msg = f"Factor must be a number, got {type(factor)}"
+        mode = params["mode"]
+        if mode not in ("fixed", "random"):
+            msg = f"Invalid mode '{mode}'. Must be 'fixed' or 'random'"
             raise ValueError(msg)
 
-        if factor < 0.0:
-            msg = f"Factor must be >= 0.0, got {factor}"
-            raise ValueError(msg)
+        if mode == "fixed":
+            # Validate fixed mode parameters
+            if "value" not in params:
+                msg = "Fixed mode requires 'value' parameter"
+                raise ValueError(msg)
+            value = params["value"]
+            if not isinstance(value, (int, float)):
+                msg = f"Value must be a number, got {type(value)}"
+                raise ValueError(msg)
+            if value < -1.0:
+                msg = f"Value must be >= -1.0 (for complete grayscale), got {value}"
+                raise ValueError(msg)
+        else:  # random
+            # Validate random mode parameters
+            if "range" not in params:
+                msg = "Random mode requires 'range' parameter"
+                raise ValueError(msg)
+            range_val = params["range"]
+            if not isinstance(range_val, (list, tuple)) or len(range_val) != RANGE_SIZE:
+                msg = "Range must be a list/tuple of two numbers"
+                raise ValueError(msg)
+            min_val, max_val = range_val
+            if not isinstance(min_val, (int, float)) or not isinstance(
+                max_val, (int, float)
+            ):
+                msg = "Range values must be numbers"
+                raise ValueError(msg)
+            if min_val >= max_val:
+                msg = f"Range min ({min_val}) must be less than max ({max_val})"
+                raise ValueError(msg)
+            if min_val < MIN_RANGE_VALUE:
+                msg = f"Range min must be >= {MIN_RANGE_VALUE}, got {min_val}"
+                raise ValueError(msg)
 
     def apply_to_field(
         self,
@@ -212,7 +286,7 @@ class SaturationTaichiOperation(BaseTaichiOperation):
             source: Input Taichi Vector.field(4) with shape (batch, height, width)
             dest: Output Taichi Vector.field(4) with same shape
             temp_fields: Not used for saturation (empty dict expected)
-            params: Must contain 'factor' key with saturation multiplier
+            params: Saturation parameters (factor or mode/value/range)
             height: Image height
             width: Image width
 
@@ -224,7 +298,7 @@ class SaturationTaichiOperation(BaseTaichiOperation):
             msg = "Taichi is not available. Cannot execute GPU operation."
             raise RuntimeError(msg)
 
-        factor = float(params["factor"])
+        factor = self._resolve_factor(params)
 
         # Execute kernel (batch_idx=0 for single image)
         _saturation_kernel(source, dest, factor, 0, height, width)
@@ -241,13 +315,13 @@ class SaturationTaichiOperation(BaseTaichiOperation):
 
         Args:
             image: Input image as numpy array (H, W, 3) float32 in [0, 1]
-            params: Must contain 'factor' key
+            params: Saturation parameters (factor or mode/value/range)
 
         Returns:
             Processed image as numpy array (H, W, 3) float32 in [0, 1]
 
         """
-        factor = float(params["factor"])
+        factor = self._resolve_factor(params)
 
         # Extract RGB channels
         r = image[:, :, 0]

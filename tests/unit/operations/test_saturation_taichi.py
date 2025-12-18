@@ -39,6 +39,7 @@ class TestSaturationTaichiOperationInit:
 class TestValidateParams:
     """Test parameter validation."""
 
+    # Legacy factor-based tests (backward compatibility)
     def test_valid_factor(self) -> None:
         """Test that valid factor passes validation."""
         op = SaturationTaichiOperation()
@@ -48,13 +49,6 @@ class TestValidateParams:
         op.validate_params({"factor": 0.0})
         op.validate_params({"factor": 2.5})
         op.validate_params({"factor": 0})  # int is ok
-
-    def test_missing_factor(self) -> None:
-        """Test that missing factor raises ValueError."""
-        op = SaturationTaichiOperation()
-
-        with pytest.raises(ValueError, match="requires 'factor' parameter"):
-            op.validate_params({})
 
     def test_invalid_factor_type(self) -> None:
         """Test that non-numeric factor raises ValueError."""
@@ -73,10 +67,107 @@ class TestValidateParams:
         with pytest.raises(ValueError, match="must be >= 0.0"):
             op.validate_params({"factor": -0.5})
 
+    # New API tests (mode/value/range)
+    def test_valid_fixed_mode(self) -> None:
+        """Test that valid fixed mode passes validation."""
+        op = SaturationTaichiOperation()
+
+        # Should not raise
+        op.validate_params({"mode": "fixed", "value": 0.0})
+        op.validate_params({"mode": "fixed", "value": 0.5})
+        op.validate_params({"mode": "fixed", "value": -0.5})
+        op.validate_params({"mode": "fixed", "value": -1.0})  # Grayscale
+
+    def test_valid_random_mode(self) -> None:
+        """Test that valid random mode passes validation."""
+        op = SaturationTaichiOperation()
+
+        # Should not raise
+        op.validate_params({"mode": "random", "range": [-0.5, 0.5]})
+        op.validate_params({"mode": "random", "range": [-1.0, 1.0]})
+        op.validate_params({"mode": "random", "range": [0.0, 2.0]})
+
+    def test_missing_mode_and_factor(self) -> None:
+        """Test that missing both mode and factor raises ValueError."""
+        op = SaturationTaichiOperation()
+
+        with pytest.raises(ValueError, match="requires either 'factor' or 'mode'"):
+            op.validate_params({})
+
+    def test_invalid_mode(self) -> None:
+        """Test that invalid mode raises ValueError."""
+        op = SaturationTaichiOperation()
+
+        with pytest.raises(ValueError, match="Invalid mode"):
+            op.validate_params({"mode": "invalid"})
+
+    def test_fixed_mode_missing_value(self) -> None:
+        """Test that fixed mode without value raises ValueError."""
+        op = SaturationTaichiOperation()
+
+        with pytest.raises(ValueError, match="Fixed mode requires 'value'"):
+            op.validate_params({"mode": "fixed"})
+
+    def test_fixed_mode_invalid_value_type(self) -> None:
+        """Test that fixed mode with non-numeric value raises ValueError."""
+        op = SaturationTaichiOperation()
+
+        with pytest.raises(ValueError, match="Value must be a number"):
+            op.validate_params({"mode": "fixed", "value": "high"})
+
+    def test_fixed_mode_value_too_low(self) -> None:
+        """Test that fixed mode with value < -1.0 raises ValueError."""
+        op = SaturationTaichiOperation()
+
+        with pytest.raises(ValueError, match="Value must be >= -1.0"):
+            op.validate_params({"mode": "fixed", "value": -1.5})
+
+    def test_random_mode_missing_range(self) -> None:
+        """Test that random mode without range raises ValueError."""
+        op = SaturationTaichiOperation()
+
+        with pytest.raises(ValueError, match="Random mode requires 'range'"):
+            op.validate_params({"mode": "random"})
+
+    def test_random_mode_invalid_range_type(self) -> None:
+        """Test that random mode with invalid range type raises ValueError."""
+        op = SaturationTaichiOperation()
+
+        with pytest.raises(ValueError, match="Range must be a list/tuple"):
+            op.validate_params({"mode": "random", "range": "0.5"})
+
+        with pytest.raises(ValueError, match="Range must be a list/tuple"):
+            op.validate_params({"mode": "random", "range": [0.5]})  # Wrong length
+
+    def test_random_mode_invalid_range_values(self) -> None:
+        """Test that random mode with non-numeric range values raises ValueError."""
+        op = SaturationTaichiOperation()
+
+        with pytest.raises(ValueError, match="Range values must be numbers"):
+            op.validate_params({"mode": "random", "range": ["low", "high"]})
+
+    def test_random_mode_invalid_range_order(self) -> None:
+        """Test that random mode with min >= max raises ValueError."""
+        op = SaturationTaichiOperation()
+
+        with pytest.raises(ValueError, match="Range min .* must be less than max"):
+            op.validate_params({"mode": "random", "range": [0.5, 0.5]})
+
+        with pytest.raises(ValueError, match="Range min .* must be less than max"):
+            op.validate_params({"mode": "random", "range": [1.0, 0.5]})
+
+    def test_random_mode_range_min_too_low(self) -> None:
+        """Test that random mode with min < -1.0 raises ValueError."""
+        op = SaturationTaichiOperation()
+
+        with pytest.raises(ValueError, match="Range min must be >= -1.0"):
+            op.validate_params({"mode": "random", "range": [-1.5, 0.5]})
+
 
 class TestReferenceNumpy:
     """Test NumPy reference implementation."""
 
+    # Legacy factor-based tests (backward compatibility)
     def test_identity_factor(self) -> None:
         """Test that factor=1.0 preserves image."""
         op = SaturationTaichiOperation()
@@ -148,6 +239,92 @@ class TestReferenceNumpy:
         result = op.reference_numpy(image, {"factor": 1.5})
 
         assert result.dtype == np.float32
+
+    # New API tests (mode/value/range)
+    def test_fixed_mode_identity(self) -> None:
+        """Test that mode=fixed with value=0.0 preserves image."""
+        op = SaturationTaichiOperation()
+
+        # Create test image with varying saturation
+        image = np.array(
+            [[[1.0, 0.5, 0.0], [0.0, 1.0, 0.5]], [[0.5, 0.0, 1.0], [0.5, 0.5, 0.5]]],
+            dtype=np.float32,
+        )
+
+        result = op.reference_numpy(image, {"mode": "fixed", "value": 0.0})
+
+        # With value=0.0, output should match input
+        np.testing.assert_allclose(result, image, rtol=1e-5, atol=1e-5)
+
+    def test_fixed_mode_grayscale(self) -> None:
+        """Test that mode=fixed with value=-1.0 produces grayscale."""
+        op = SaturationTaichiOperation()
+
+        # Pure red
+        image = np.array([[[1.0, 0.0, 0.0]]], dtype=np.float32)
+
+        result = op.reference_numpy(image, {"mode": "fixed", "value": -1.0})
+
+        # Grayscale: all channels should be equal
+        assert result[0, 0, 0] == result[0, 0, 1] == result[0, 0, 2]
+
+    def test_fixed_mode_increased_saturation(self) -> None:
+        """Test that mode=fixed with value>0 increases saturation."""
+        op = SaturationTaichiOperation()
+
+        # Desaturated color (gray-ish red)
+        image = np.array([[[0.8, 0.4, 0.4]]], dtype=np.float32)
+
+        result = op.reference_numpy(
+            image, {"mode": "fixed", "value": 1.0}
+        )  # factor=2.0
+
+        # Red channel should stay high, green/blue should decrease
+        assert result[0, 0, 0] >= image[0, 0, 0]  # Red stays or increases
+
+    def test_fixed_mode_decreased_saturation(self) -> None:
+        """Test that mode=fixed with value<0 decreases saturation."""
+        op = SaturationTaichiOperation()
+
+        # Pure red
+        image = np.array([[[1.0, 0.0, 0.0]]], dtype=np.float32)
+
+        result_half = op.reference_numpy(image, {"mode": "fixed", "value": -0.5})
+
+        # With reduced saturation, colors should be closer together
+        # (moving towards grayscale)
+        assert (
+            result_half[0, 0, 0] < image[0, 0, 0]
+            or result_half[0, 0, 1] > image[0, 0, 1]
+        )
+
+    def test_random_mode_produces_valid_output(self) -> None:
+        """Test that mode=random produces valid output."""
+        op = SaturationTaichiOperation()
+
+        image = np.array([[[0.8, 0.4, 0.4]]], dtype=np.float32)
+
+        # Run multiple times to test randomness
+        for _ in range(10):
+            result = op.reference_numpy(image, {"mode": "random", "range": [-0.5, 0.5]})
+
+            # Output should be valid
+            assert result.shape == image.shape
+            assert np.all(result >= 0.0)
+            assert np.all(result <= 1.0)
+            assert result.dtype == np.float32
+
+    def test_fixed_mode_equivalence_to_factor(self) -> None:
+        """Test that fixed mode produces same result as factor."""
+        op = SaturationTaichiOperation()
+
+        image = np.random.rand(10, 10, 3).astype(np.float32)
+
+        # value=0.5 should be equivalent to factor=1.5
+        result_factor = op.reference_numpy(image, {"factor": 1.5})
+        result_fixed = op.reference_numpy(image, {"mode": "fixed", "value": 0.5})
+
+        np.testing.assert_allclose(result_factor, result_fixed, rtol=1e-5, atol=1e-5)
 
 
 class TestApplyToField:
