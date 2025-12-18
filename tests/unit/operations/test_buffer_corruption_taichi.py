@@ -69,12 +69,12 @@ class TestValidateParams:
         # Should not raise
         op.validate_params(params)
 
-    def test_valid_params_shuffle(self) -> None:
-        """Test that valid shuffle parameters pass validation."""
+    def test_valid_params_channel_shuffle(self) -> None:
+        """Test that valid channel_shuffle parameters pass validation."""
         op = BufferCorruptionTaichiOperation()
 
         params = {
-            "corruption_type": "shuffle",
+            "corruption_type": "channel_shuffle",
             "tile_count": 3,
             "severity": 0.9,
             "tile_size_range": [0.1, 0.3],
@@ -257,6 +257,20 @@ class TestValidateParams:
                 }
             )
 
+    def test_backward_compat_shuffle_alias(self) -> None:
+        """Test that 'shuffle' is accepted as alias for 'channel_shuffle'."""
+        op = BufferCorruptionTaichiOperation()
+
+        params = {
+            "corruption_type": "shuffle",
+            "tile_count": 3,
+            "severity": 0.9,
+        }
+
+        # Should not raise and should convert to channel_shuffle
+        op.validate_params(params)
+        assert params["corruption_type"] == "channel_shuffle"
+
 
 class TestReferenceNumpy:
     """Test NumPy reference implementation."""
@@ -295,14 +309,14 @@ class TestReferenceNumpy:
 
         np.testing.assert_allclose(result, image, rtol=1e-5, atol=1e-5)
 
-    def test_shuffle_mode_zero_severity(self) -> None:
-        """Test that shuffle mode with severity=0 mostly preserves image."""
+    def test_channel_shuffle_mode_zero_severity(self) -> None:
+        """Test that channel_shuffle mode with severity=0 mostly preserves image."""
         op = BufferCorruptionTaichiOperation()
 
         image = np.random.rand(10, 10, 3).astype(np.float32)
 
         params = {
-            "corruption_type": "shuffle",
+            "corruption_type": "channel_shuffle",
             "tile_count": 5,
             "severity": 0.0,
             "seed": 42,
@@ -351,8 +365,8 @@ class TestReferenceNumpy:
         # Image should be modified
         assert not np.allclose(result, image)
 
-    def test_shuffle_mode_changes_image(self) -> None:
-        """Test that shuffle mode with high severity changes image."""
+    def test_channel_shuffle_mode_changes_image(self) -> None:
+        """Test that channel_shuffle mode with high severity changes image."""
         op = BufferCorruptionTaichiOperation()
 
         # Create image with distinct channels
@@ -362,7 +376,7 @@ class TestReferenceNumpy:
         image[:, :, 2] = 0.0  # Blue
 
         params = {
-            "corruption_type": "shuffle",
+            "corruption_type": "channel_shuffle",
             "tile_count": 10,
             "severity": 1.0,  # Always shuffle
             "tile_size_range": [0.2, 0.5],
@@ -395,7 +409,7 @@ class TestReferenceNumpy:
 
         image = np.random.rand(20, 20, 3).astype(np.float32)
 
-        for corruption_type in ["xor", "invert", "shuffle"]:
+        for corruption_type in ["xor", "invert", "channel_shuffle"]:
             params = {
                 "corruption_type": corruption_type,
                 "tile_count": 5,
@@ -578,8 +592,8 @@ class TestApplyToField:
 
             mock_kernel.assert_called_once()
 
-    def test_apply_to_field_shuffle_calls_kernel(self) -> None:
-        """Test that apply_to_field invokes shuffle kernel."""
+    def test_apply_to_field_channel_shuffle_calls_kernel(self) -> None:
+        """Test that apply_to_field invokes channel_shuffle kernel."""
         op = BufferCorruptionTaichiOperation()
 
         source = Mock()
@@ -602,7 +616,7 @@ class TestApplyToField:
             patch("sevenrad_stills.operations.buffer_corruption_taichi.ti", mock_ti),
         ):
             params = {
-                "corruption_type": "shuffle",
+                "corruption_type": "channel_shuffle",
                 "tile_count": 5,
                 "severity": 0.8,
                 "seed": 42,
@@ -806,7 +820,7 @@ class TestEdgeCases:
         image = np.random.rand(20, 20, 3).astype(np.float32)
 
         params = {
-            "corruption_type": "shuffle",
+            "corruption_type": "channel_shuffle",
             "tile_count": 2,
             "severity": 1.0,
             "tile_size_range": [0.5, 0.8],

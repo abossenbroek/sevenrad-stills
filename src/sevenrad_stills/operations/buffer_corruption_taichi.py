@@ -32,10 +32,10 @@ MIN_TILE_SIZE = 0.01
 MAX_TILE_SIZE = 1.0
 
 # Valid corruption types
-VALID_CORRUPTION_TYPES = {"xor", "invert", "shuffle"}
+VALID_CORRUPTION_TYPES = {"xor", "invert", "channel_shuffle"}
 
 # Type-safe corruption type alias
-CorruptionType = Literal["xor", "invert", "shuffle"]
+CorruptionType = Literal["xor", "invert", "channel_shuffle"]
 
 
 # Define kernels only if Taichi is available
@@ -284,7 +284,7 @@ class BufferCorruptionTaichiOperation(BaseTaichiOperation):
         Validate buffer corruption parameters.
 
         Expected params:
-        - corruption_type: str - "xor", "invert", or "shuffle"
+        - corruption_type: str - "xor", "invert", or "channel_shuffle"
         - tile_count: int - number of tiles to corrupt (1-20)
         - severity: float - corruption intensity (0.0-1.0)
         - tile_size_range: list[float] - [min, max] tile size fractions (optional)
@@ -302,6 +302,12 @@ class BufferCorruptionTaichiOperation(BaseTaichiOperation):
             raise ValueError(msg)
 
         corruption_type = params["corruption_type"]
+
+        # Backward compatibility: accept "shuffle" as alias for "channel_shuffle"
+        if corruption_type == "shuffle":
+            params["corruption_type"] = "channel_shuffle"
+            corruption_type = "channel_shuffle"
+
         if corruption_type not in VALID_CORRUPTION_TYPES:
             valid_list = ", ".join(sorted(VALID_CORRUPTION_TYPES))
             msg = f"corruption_type must be one of: {valid_list}"
@@ -445,7 +451,7 @@ class BufferCorruptionTaichiOperation(BaseTaichiOperation):
             _buffer_corruption_kernel_invert(
                 source, dest, tiles_field, severity, 0, height, width, tile_count
             )
-        elif corruption_type == "shuffle":
+        elif corruption_type == "channel_shuffle":
             # Generate permutations for each tile
             permutations = []
             for _ in range(tile_count):
@@ -538,7 +544,7 @@ class BufferCorruptionTaichiOperation(BaseTaichiOperation):
                 else:
                     corrupted_tile = tile
 
-            elif corruption_type == "shuffle":
+            elif corruption_type == "channel_shuffle":
                 # Random channel permutation per tile
                 # Severity controls probability of shuffling
                 if rng.random() < severity and tile.ndim == 3 and tile.shape[2] >= 3:
