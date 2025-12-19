@@ -78,8 +78,11 @@ if TAICHI_AVAILABLE and ti is not None:
             This is a pure function - same input always produces same output.
 
         """
-        state = input_seed * PCG_MULT + PCG_INC
-        word = ((state >> ((state >> 28) + 4)) ^ state) * PCG_FACTOR
+        # Cast constants to ti.u32() to avoid Taichi's i32 default interpretation
+        # PCG_INC (2891336453) exceeds i32 max (2147483647) but fits in u32
+        # u32 arithmetic provides natural mod 2^32 via hardware wraparound
+        state = input_seed * ti.u32(PCG_MULT) + ti.u32(PCG_INC)
+        word = ((state >> ((state >> 28) + 4)) ^ state) * ti.u32(PCG_FACTOR)
         return (word >> 22) ^ word
 
     @ti.func  # type: ignore[misc]
