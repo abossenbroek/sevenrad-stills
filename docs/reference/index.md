@@ -12,3 +12,4 @@ Comprehensive reference materials for sevenrad-stills configuration and usage.
 
 - **[Filter Guide](filter-guide)** - Complete parameter ranges and effects for all operations
 - **[YAML Pipeline System](pipeline)** - Pipeline configuration syntax and workflow structure
+- **[Taichi Pipeline Architecture](taichi-pipeline)** - GPU acceleration internals and TaichiPipelineExecutor reference
