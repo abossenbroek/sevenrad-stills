@@ -1,7 +1,7 @@
 {
     "name": "sevenrad",
     "displayname": "Sevenrad Effects",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "GPU image processing effects ported from Taichi. Provides noise, blur, chromatic aberration, saturation, and artistic corruption effects for jit.gl.pix.",
     "author": "Anton Bossenbroek",
     "website": "https://github.com/abossenbroek/sevenrad-stills",

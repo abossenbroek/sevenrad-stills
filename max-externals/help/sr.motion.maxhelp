@@ -12,7 +12,9 @@
 			{ "box" : { "id" : "obj-2", "maxclass" : "comment", "numinlets" : 1, "numoutlets" : 0, "patching_rect" : [ 30.0, 45.0, 500.0, 40.0 ], "text" : "Creates motion blur in any direction.\n0=right, 90=up, 180=left, 270=down" } },
 			{ "box" : { "id" : "obj-3", "maxclass" : "toggle", "numinlets" : 1, "numoutlets" : 1, "outlettype" : [ "int" ], "patching_rect" : [ 30.0, 100.0, 24.0, 24.0 ] } },
 			{ "box" : { "id" : "obj-4", "maxclass" : "newobj", "numinlets" : 2, "numoutlets" : 1, "outlettype" : [ "bang" ], "patching_rect" : [ 30.0, 130.0, 65.0, 22.0 ], "text" : "qmetro 30" } },
-			{ "box" : { "id" : "obj-5", "maxclass" : "newobj", "numinlets" : 1, "numoutlets" : 2, "outlettype" : [ "jit_matrix", "" ], "patching_rect" : [ 30.0, 160.0, 200.0, 22.0 ], "text" : "jit.movie @autostart 1 @loop 1" } },
+			{ "box" : { "id" : "obj-5", "maxclass" : "newobj", "numinlets" : 1, "numoutlets" : 2, "outlettype" : [ "jit_gl_texture", "" ], "patching_rect" : [ 30.0, 160.0, 280.0, 22.0 ], "text" : "jit.movie @autostart 1 @loop 1 @output_texture 1" } },
+			{ "box" : { "id" : "obj-20", "maxclass" : "newobj", "numinlets" : 1, "numoutlets" : 1, "outlettype" : [ "bang" ], "patching_rect" : [ 250.0, 130.0, 58.0, 22.0 ], "text" : "loadbang" } },
+			{ "box" : { "id" : "obj-21", "maxclass" : "message", "numinlets" : 2, "numoutlets" : 1, "outlettype" : [ "" ], "patching_rect" : [ 250.0, 160.0, 120.0, 22.0 ], "text" : "read chicken.mp4" } },
 			{ "box" : { "id" : "obj-6", "maxclass" : "comment", "numinlets" : 1, "numoutlets" : 0, "patching_rect" : [ 400.0, 100.0, 150.0, 20.0 ], "text" : "kernel_size: 1-100 pixels" } },
 			{ "box" : { "id" : "obj-7", "maxclass" : "number", "numinlets" : 1, "numoutlets" : 2, "outlettype" : [ "", "bang" ], "patching_rect" : [ 400.0, 125.0, 50.0, 22.0 ], "minimum" : 1, "maximum" : 100 } },
 			{ "box" : { "id" : "obj-8", "maxclass" : "message", "numinlets" : 2, "numoutlets" : 1, "outlettype" : [ "" ], "patching_rect" : [ 400.0, 155.0, 100.0, 22.0 ], "text" : "kernel_size $1" } },
@@ -23,6 +25,8 @@
 			{ "box" : { "id" : "obj-13", "maxclass" : "jit.pwindow", "numinlets" : 1, "numoutlets" : 2, "outlettype" : [ "jit_matrix", "" ], "patching_rect" : [ 30.0, 260.0, 320.0, 180.0 ] } }
 		],
 		"lines" : [
+			{ "patchline" : { "source" : [ "obj-20", 0 ], "destination" : [ "obj-21", 0 ] } },
+			{ "patchline" : { "source" : [ "obj-21", 0 ], "destination" : [ "obj-5", 0 ] } },
 			{ "patchline" : { "source" : [ "obj-3", 0 ], "destination" : [ "obj-4", 0 ] } },
 			{ "patchline" : { "source" : [ "obj-4", 0 ], "destination" : [ "obj-5", 0 ] } },
 			{ "patchline" : { "source" : [ "obj-5", 0 ], "destination" : [ "obj-12", 0 ] } },

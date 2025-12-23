@@ -66,9 +66,31 @@
 					"maxclass" : "newobj",
 					"numinlets" : 1,
 					"numoutlets" : 2,
-					"outlettype" : [ "jit_matrix", "" ],
-					"patching_rect" : [ 30.0, 160.0, 200.0, 22.0 ],
-					"text" : "jit.movie @autostart 1 @loop 1"
+					"outlettype" : [ "jit_gl_texture", "" ],
+					"patching_rect" : [ 30.0, 160.0, 280.0, 22.0 ],
+					"text" : "jit.movie @autostart 1 @loop 1 @output_texture 1"
+				}
+			},
+			{
+				"box" : 				{
+					"id" : "obj-20",
+					"maxclass" : "newobj",
+					"numinlets" : 1,
+					"numoutlets" : 1,
+					"outlettype" : [ "bang" ],
+					"patching_rect" : [ 250.0, 130.0, 58.0, 22.0 ],
+					"text" : "loadbang"
+				}
+			},
+			{
+				"box" : 				{
+					"id" : "obj-21",
+					"maxclass" : "message",
+					"numinlets" : 2,
+					"numoutlets" : 1,
+					"outlettype" : [ "" ],
+					"patching_rect" : [ 250.0, 160.0, 120.0, 22.0 ],
+					"text" : "read chicken.mp4"
 				}
 			},
 			{
@@ -170,6 +192,18 @@
 			}
 		],
 		"lines" : [ 			{
+				"patchline" : 				{
+					"source" : [ "obj-20", 0 ],
+					"destination" : [ "obj-21", 0 ]
+				}
+			},
+			{
+				"patchline" : 				{
+					"source" : [ "obj-21", 0 ],
+					"destination" : [ "obj-5", 0 ]
+				}
+			},
+			{
 				"patchline" : 				{
 					"source" : [ "obj-3", 0 ],
 					"destination" : [ "obj-4", 0 ]
