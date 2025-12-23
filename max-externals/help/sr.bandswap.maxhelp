@@ -18,6 +18,15 @@
 			{ "box" : { "id" : "obj-delay", "maxclass" : "newobj", "numinlets" : 2, "numoutlets" : 1, "outlettype" : [ "bang" ], "patching_rect" : [ 400.0, 130.0, 63.0, 22.0 ], "text" : "delay 100" } },
 			{ "box" : { "id" : "obj-21", "maxclass" : "message", "numinlets" : 2, "numoutlets" : 1, "outlettype" : [ "" ], "patching_rect" : [ 400.0, 160.0, 120.0, 22.0 ], "text" : "read chickens.mp4" } },
 			{ "box" : { "id" : "obj-6", "maxclass" : "comment", "numinlets" : 1, "numoutlets" : 0, "patching_rect" : [ 400.0, 200.0, 300.0, 60.0 ], "text" : "Channel mapping:\nperm_r=2, perm_g=1, perm_b=0 = BGR swap\nperm_r=1, perm_g=0, perm_b=2 = GRB swap" } },
+			{ "box" : { "id" : "obj-perm-r-label", "maxclass" : "comment", "numinlets" : 1, "numoutlets" : 0, "patching_rect" : [ 400.0, 370.0, 150.0, 20.0 ], "text" : "perm_r (0=R, 1=G, 2=B):" } },
+			{ "box" : { "id" : "obj-perm-r-num", "maxclass" : "number", "numinlets" : 1, "numoutlets" : 2, "outlettype" : [ "", "bang" ], "patching_rect" : [ 400.0, 395.0, 50.0, 22.0 ], "minimum" : 0, "maximum" : 2 } },
+			{ "box" : { "id" : "obj-prepend-perm-r", "maxclass" : "newobj", "numinlets" : 1, "numoutlets" : 1, "outlettype" : [ "" ], "patching_rect" : [ 400.0, 425.0, 95.0, 22.0 ], "text" : "prepend perm_r" } },
+			{ "box" : { "id" : "obj-perm-g-label", "maxclass" : "comment", "numinlets" : 1, "numoutlets" : 0, "patching_rect" : [ 520.0, 370.0, 150.0, 20.0 ], "text" : "perm_g (0=R, 1=G, 2=B):" } },
+			{ "box" : { "id" : "obj-perm-g-num", "maxclass" : "number", "numinlets" : 1, "numoutlets" : 2, "outlettype" : [ "", "bang" ], "patching_rect" : [ 520.0, 395.0, 50.0, 22.0 ], "minimum" : 0, "maximum" : 2 } },
+			{ "box" : { "id" : "obj-prepend-perm-g", "maxclass" : "newobj", "numinlets" : 1, "numoutlets" : 1, "outlettype" : [ "" ], "patching_rect" : [ 520.0, 425.0, 95.0, 22.0 ], "text" : "prepend perm_g" } },
+			{ "box" : { "id" : "obj-perm-b-label", "maxclass" : "comment", "numinlets" : 1, "numoutlets" : 0, "patching_rect" : [ 640.0, 370.0, 150.0, 20.0 ], "text" : "perm_b (0=R, 1=G, 2=B):" } },
+			{ "box" : { "id" : "obj-perm-b-num", "maxclass" : "number", "numinlets" : 1, "numoutlets" : 2, "outlettype" : [ "", "bang" ], "patching_rect" : [ 640.0, 395.0, 50.0, 22.0 ], "minimum" : 0, "maximum" : 2 } },
+			{ "box" : { "id" : "obj-prepend-perm-b", "maxclass" : "newobj", "numinlets" : 1, "numoutlets" : 1, "outlettype" : [ "" ], "patching_rect" : [ 640.0, 425.0, 95.0, 22.0 ], "text" : "prepend perm_b" } },
 			{ "box" : { "id" : "obj-7", "maxclass" : "newobj", "numinlets" : 2, "numoutlets" : 2, "outlettype" : [ "jit_gl_texture", "" ], "patching_rect" : [ 30.0, 210.0, 350.0, 22.0 ], "text" : "jit.gl.pix sr_bandswap_ctx @gen sr.bandswap @perm_r 2 @perm_g 1 @perm_b 0" } },
 			{ "box" : { "id" : "obj-8", "maxclass" : "jit.pwindow", "numinlets" : 1, "numoutlets" : 2, "outlettype" : [ "jit_matrix", "" ], "patching_rect" : [ 30.0, 280.0, 320.0, 180.0 ] } },
 			{ "box" : { "id" : "obj-9", "maxclass" : "comment", "numinlets" : 1, "numoutlets" : 0, "patching_rect" : [ 400.0, 280.0, 300.0, 80.0 ], "text" : "Live noise mask on second input.\n16x16 blocks create tile regions.\nChanges every frame for chaotic glitch effect.\n\nSwap only occurs where mask > 0.5" } },
@@ -38,7 +47,13 @@
 			{ "patchline" : { "source" : [ "obj-thresh", 0 ], "destination" : [ "obj-mask", 0 ] } },
 			{ "patchline" : { "source" : [ "obj-mask", 0 ], "destination" : [ "obj-7", 1 ] } },
 			{ "patchline" : { "source" : [ "obj-5", 0 ], "destination" : [ "obj-7", 0 ] } },
-			{ "patchline" : { "source" : [ "obj-7", 0 ], "destination" : [ "obj-8", 0 ] } }
+			{ "patchline" : { "source" : [ "obj-7", 0 ], "destination" : [ "obj-8", 0 ] } },
+			{ "patchline" : { "source" : [ "obj-perm-r-num", 0 ], "destination" : [ "obj-prepend-perm-r", 0 ] } },
+			{ "patchline" : { "source" : [ "obj-prepend-perm-r", 0 ], "destination" : [ "obj-7", 0 ] } },
+			{ "patchline" : { "source" : [ "obj-perm-g-num", 0 ], "destination" : [ "obj-prepend-perm-g", 0 ] } },
+			{ "patchline" : { "source" : [ "obj-prepend-perm-g", 0 ], "destination" : [ "obj-7", 0 ] } },
+			{ "patchline" : { "source" : [ "obj-perm-b-num", 0 ], "destination" : [ "obj-prepend-perm-b", 0 ] } },
+			{ "patchline" : { "source" : [ "obj-prepend-perm-b", 0 ], "destination" : [ "obj-7", 0 ] } }
 		]
 	}
 }

@@ -335,6 +335,58 @@
 			},
 			{
 				"box": {
+					"id": "obj-17",
+					"maxclass": "comment",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						400.0,
+						190.0,
+						150.0,
+						20.0
+					],
+					"text": "seed: random seed value"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-18",
+					"maxclass": "number",
+					"numinlets": 1,
+					"numoutlets": 2,
+					"outlettype": [
+						"",
+						"bang"
+					],
+					"patching_rect": [
+						400.0,
+						215.0,
+						50.0,
+						22.0
+					],
+					"minimum": 0
+				}
+			},
+			{
+				"box": {
+					"id": "obj-19",
+					"maxclass": "message",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						400.0,
+						245.0,
+						60.0,
+						22.0
+					],
+					"text": "seed $1"
+				}
+			},
+			{
+				"box": {
 					"id": "obj-15",
 					"maxclass": "newobj",
 					"numinlets": 1,
@@ -345,7 +397,7 @@
 					],
 					"patching_rect": [
 						30.0,
-						210.0,
+						280.0,
 						400.0,
 						22.0
 					],
@@ -364,7 +416,7 @@
 					],
 					"patching_rect": [
 						30.0,
-						260.0,
+						330.0,
 						320.0,
 						180.0
 					]
@@ -520,6 +572,30 @@
 				"patchline": {
 					"source": [
 						"obj-14",
+						0
+					],
+					"destination": [
+						"obj-15",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-18",
+						0
+					],
+					"destination": [
+						"obj-19",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-19",
 						0
 					],
 					"destination": [

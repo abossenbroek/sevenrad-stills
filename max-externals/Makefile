@@ -1,7 +1,7 @@
 # SevenRad Max Externals Makefile
 # Automates build, install, and testing
 
-.PHONY: all build clean install uninstall test test-syntax test-rng test-lint test-help-lint help find-max
+.PHONY: all build clean install uninstall test test-syntax test-rng test-lint test-help-lint test-help-lint-lenient help find-max
 
 # Build directories
 BUILD_DIR := build
@@ -130,17 +130,17 @@ test-lint-test: ## Run linter test suite
 	@echo "$(GREEN)Running linter tests...$(NC)"
 	@$(PYTHON) tools/test_lint_genjit.py
 
-test-help-lint: ## Validate .maxhelp file structure and connections
-	@echo "$(GREEN)Linting .maxhelp files...$(NC)"
-	@$(PYTHON) tools/lint_maxhelp.py help/*.maxhelp
-
-test-help-lint-strict: ## Lint help patchers with warnings as errors
-	@echo "$(GREEN)Linting .maxhelp files (strict mode)...$(NC)"
+test-help-lint: ## Validate .maxhelp file structure and connections (strict mode)
+	@echo "$(GREEN)Linting .maxhelp files (strict)...$(NC)"
 	@$(PYTHON) tools/lint_maxhelp.py --strict help/*.maxhelp
 
-test-help-lint-verbose: ## Lint help patchers with verbose output
-	@echo "$(GREEN)Linting .maxhelp files (verbose)...$(NC)"
-	@$(PYTHON) tools/lint_maxhelp.py --verbose help/*.maxhelp
+test-help-lint-verbose: ## Lint help patchers with verbose output (strict mode)
+	@echo "$(GREEN)Linting .maxhelp files (verbose, strict)...$(NC)"
+	@$(PYTHON) tools/lint_maxhelp.py --strict --verbose help/*.maxhelp
+
+test-help-lint-lenient: ## Lint help patchers without strict mode (warnings only)
+	@echo "$(GREEN)Linting .maxhelp files (lenient)...$(NC)"
+	@$(PYTHON) tools/lint_maxhelp.py help/*.maxhelp
 
 test-syntax: ## Validate GenExpr shader syntax
 	@echo "$(GREEN)Running GenExpr syntax tests...$(NC)"

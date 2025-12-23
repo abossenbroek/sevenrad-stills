@@ -3,7 +3,8 @@
 Graph-based linter for .maxhelp files.
 
 Validates that help patchers have correct structure, initialization order,
-and complete signal flow using networkx graph analysis.
+complete signal flow, and proper UI components for shader parameters using
+networkx graph analysis.
 
 Usage:
     python lint_maxhelp.py help/*.maxhelp
@@ -216,6 +217,7 @@ class MaxhelpLinter:
         valid &= self._validate_signal_flow()
         valid &= self._validate_inlet_connections()
         valid &= self._validate_metadata()
+        valid &= self._validate_parameter_ui()
 
         return valid
 
@@ -508,6 +510,239 @@ class MaxhelpLinter:
 
         if not patcher.get("tags"):
             self.warning("metadata", "Missing 'tags' field")
+
+        return valid
+
+    def _extract_gen_shader(self, text: str) -> str | None:
+        """Extract @gen shader name from jit.gl.pix text."""
+        match = re.search(r"@gen\s+(\S+)", text)
+        if match:
+            return match.group(1)
+        return None
+
+    def _find_genjit_file(self, shader_name: str) -> Path | None:
+        """Find the .genjit file for a shader name."""
+        if self.filepath is None:
+            return None
+
+        # Look in code/ directory relative to help/
+        code_dir = self.filepath.parent.parent / "code"
+        genjit_file = code_dir / f"{shader_name}.genjit"
+
+        if genjit_file.exists():
+            return genjit_file
+        return None
+
+    def _parse_genjit_params(self, genjit_path: Path) -> list[dict[str, Any]]:
+        """
+        Parse parameters from a .genjit file.
+
+        Returns list of dicts with 'name' and 'default' keys.
+        """
+        params: list[dict[str, Any]] = []
+
+        try:
+            content = genjit_path.read_text(encoding="utf-8")
+            data = json.loads(content)
+        except (json.JSONDecodeError, OSError):
+            return params
+
+        # Find boxes with text starting with "param "
+        for box_wrapper in data.get("patcher", {}).get("boxes", []):
+            box = box_wrapper.get("box", {})
+            text = box.get("text", "")
+            if text.startswith("param "):
+                parts = text.split()
+                if len(parts) >= 3:
+                    # Format: "param name default" or "param name default min max"
+                    params.append(
+                        {
+                            "name": parts[1],
+                            "default": parts[2],
+                        }
+                    )
+
+        return params
+
+    def _find_ui_controls(self) -> dict[str, list[str]]:
+        """
+        Find all UI control boxes in the help patcher.
+
+        Returns dict mapping control type to list of box IDs.
+        """
+        ui_controls: dict[str, list[str]] = {
+            "dial": [],
+            "flonum": [],
+            "number": [],
+            "slider": [],
+            "button": [],
+            "toggle": [],
+            "umenu": [],
+        }
+
+        for box_id, box in self.boxes.items():
+            maxclass = box.get("maxclass", "")
+            if maxclass in ui_controls:
+                ui_controls[maxclass].append(box_id)
+
+        return ui_controls
+
+    def _find_param_messages(self) -> dict[str, list[str]]:
+        """
+        Find message boxes that send parameters to jit.gl.pix.
+
+        Returns dict mapping parameter name to list of box IDs.
+        Looks for patterns like "param_name $1" or "prepend param_name".
+        """
+        param_messages: dict[str, list[str]] = {}
+
+        for box_id, box in self.boxes.items():
+            text = box.get("text", "")
+            maxclass = box.get("maxclass", "")
+
+            # Check for message box with "$1" pattern: "param_name $1"
+            if maxclass == "message" and "$1" in text:
+                # Extract parameter name (first word before $1)
+                parts = text.split()
+                if len(parts) >= 2 and "$1" in text:
+                    param_name = parts[0]
+                    if param_name not in param_messages:
+                        param_messages[param_name] = []
+                    param_messages[param_name].append(box_id)
+
+            # Check for newobj with "prepend param_name"
+            elif maxclass == "newobj" and text.startswith("prepend "):
+                parts = text.split()
+                if len(parts) >= 2:
+                    param_name = parts[1]
+                    if param_name not in param_messages:
+                        param_messages[param_name] = []
+                    param_messages[param_name].append(box_id)
+
+        return param_messages
+
+    def _check_ui_to_pix_connection(
+        self, ui_box_ids: list[str], param_box_ids: list[str], pix_ids: list[str]
+    ) -> bool:
+        """
+        Check if there's a path from any UI control through param message to jit.gl.pix.
+
+        Returns True if a valid connection chain exists.
+        """
+        for ui_id in ui_box_ids:
+            for param_id in param_box_ids:
+                # Check UI → param message connection
+                try:
+                    if nx.has_path(self.graph, (ui_id, "box"), (param_id, "box")):
+                        # Check param message → jit.gl.pix connection
+                        for pix_id in pix_ids:
+                            if nx.has_path(
+                                self.graph, (param_id, "box"), (pix_id, "box")
+                            ):
+                                return True
+                except nx.NetworkXError:
+                    pass
+
+        return False
+
+    def _validate_parameter_ui(self) -> bool:
+        """
+        Validate that shader parameters have corresponding UI controls.
+
+        Checks:
+        1. Each genjit parameter has a message/prepend to send it to jit.gl.pix
+        2. Each parameter message is connected to jit.gl.pix
+        3. Each parameter message has an upstream UI control (dial, number, etc.)
+        """
+        valid = True
+
+        # Find all jit.gl.pix objects with @gen shaders
+        jit_gl_pixs = self._find_boxes_by_type("jit.gl.pix")
+        if not jit_gl_pixs:
+            return valid  # No shaders to validate
+
+        # Collect all shader parameters from referenced genjit files
+        all_params: dict[str, list[dict[str, Any]]] = {}  # shader -> params
+
+        for pix_id in jit_gl_pixs:
+            text = self._get_box_text(pix_id)
+            shader_name = self._extract_gen_shader(text)
+            if not shader_name:
+                continue
+
+            genjit_path = self._find_genjit_file(shader_name)
+            if not genjit_path:
+                self.info(
+                    "parameter-ui",
+                    f"Could not find genjit file for shader '{shader_name}'",
+                    pix_id,
+                )
+                continue
+
+            params = self._parse_genjit_params(genjit_path)
+            if params:
+                all_params[shader_name] = params
+
+        if not all_params:
+            return valid  # No parameters to validate
+
+        # Find parameter message/prepend boxes in help patcher
+        param_messages = self._find_param_messages()
+
+        # Find UI controls
+        ui_controls = self._find_ui_controls()
+        all_ui_ids = []
+        for ids in ui_controls.values():
+            all_ui_ids.extend(ids)
+
+        # Check each shader's parameters
+        for shader_name, params in all_params.items():
+            for param in params:
+                param_name = param["name"]
+
+                # Check if there's a message/prepend for this parameter
+                if param_name not in param_messages:
+                    self.warning(
+                        "parameter-ui",
+                        f"No message or prepend found for parameter '{param_name}' "
+                        f"from shader '{shader_name}'",
+                    )
+                    continue
+
+                param_box_ids = param_messages[param_name]
+
+                # Check if parameter message is connected to jit.gl.pix
+                connected_to_pix = False
+                for param_box_id in param_box_ids:
+                    for pix_id in jit_gl_pixs:
+                        try:
+                            if nx.has_path(
+                                self.graph, (param_box_id, "box"), (pix_id, "box")
+                            ):
+                                connected_to_pix = True
+                                break
+                        except nx.NetworkXError:
+                            pass
+                    if connected_to_pix:
+                        break
+
+                if not connected_to_pix:
+                    self.warning(
+                        "parameter-ui",
+                        f"Parameter message '{param_name}' not connected to jit.gl.pix",
+                    )
+
+                # Check if there's a UI control connected to the parameter message
+                has_ui_connection = self._check_ui_to_pix_connection(
+                    all_ui_ids, param_box_ids, jit_gl_pixs
+                )
+
+                if not has_ui_connection:
+                    self.warning(
+                        "parameter-ui",
+                        f"No UI control (dial, number, flonum, button) found for "
+                        f"parameter '{param_name}' from shader '{shader_name}'",
+                    )
 
         return valid
 

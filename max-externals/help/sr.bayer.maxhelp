@@ -12,8 +12,8 @@
 		"rect": [
 			100.0,
 			100.0,
-			800.0,
-			650.0
+			850.0,
+			750.0
 		],
 		"description": "Bayer filter mosaicing and demosaicing for sensor simulation",
 		"digest": "Two-pass Bayer CFA filter effect",
@@ -182,16 +182,69 @@
 					"numoutlets": 0,
 					"patching_rect": [
 						450.0,
-						120.0,
+						160.0,
 						300.0,
 						80.0
 					],
-					"text": "Bayer Patterns (2x2 blocks):\n0=RGGB: R G    1=BGGR: B G\n        G B            G R\n2=GRBG: G R    3=GBRG: G B\n        B G            R G"
+					"text": "Bayer Patterns (2x2 blocks):\n0 RGGB: R G    1 BGGR: B G\n        G B            G R\n2 GRBG: G R    3 GBRG: G B\n        B G            R G"
 				}
 			},
 			{
 				"box": {
-					"id": "obj-7",
+					"id": "obj-cycle-label",
+					"maxclass": "comment",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						450.0,
+						250.0,
+						120.0,
+						20.0
+					],
+					"text": "Click to cycle pattern:"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-button",
+					"maxclass": "button",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"bang"
+					],
+					"patching_rect": [
+						450.0,
+						275.0,
+						24.0,
+						24.0
+					]
+				}
+			},
+			{
+				"box": {
+					"id": "obj-counter",
+					"maxclass": "newobj",
+					"numinlets": 5,
+					"numoutlets": 4,
+					"outlettype": [
+						"int",
+						"",
+						"",
+						"int"
+					],
+					"patching_rect": [
+						450.0,
+						310.0,
+						73.0,
+						22.0
+					],
+					"text": "counter 0 3"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-pattern-num",
 					"maxclass": "number",
 					"numinlets": 1,
 					"numoutlets": 2,
@@ -200,18 +253,57 @@
 						"bang"
 					],
 					"patching_rect": [
-						450.0,
-						210.0,
+						480.0,
+						275.0,
 						50.0,
 						22.0
 					],
-					"minimum": 0,
-					"maximum": 3
+					"triangle": 0
 				}
 			},
 			{
 				"box": {
-					"id": "obj-8",
+					"id": "obj-prepend",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						450.0,
+						345.0,
+						95.0,
+						22.0
+					],
+					"text": "prepend pattern"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-select",
+					"maxclass": "newobj",
+					"numinlets": 5,
+					"numoutlets": 5,
+					"outlettype": [
+						"bang",
+						"bang",
+						"bang",
+						"bang",
+						""
+					],
+					"patching_rect": [
+						560.0,
+						310.0,
+						85.0,
+						22.0
+					],
+					"text": "select 0 1 2 3"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-name-0",
 					"maxclass": "message",
 					"numinlets": 2,
 					"numoutlets": 1,
@@ -219,12 +311,172 @@
 						""
 					],
 					"patching_rect": [
-						450.0,
-						240.0,
-						90.0,
+						560.0,
+						345.0,
+						45.0,
 						22.0
 					],
-					"text": "pattern $1"
+					"text": "RGGB"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-name-1",
+					"maxclass": "message",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						610.0,
+						345.0,
+						45.0,
+						22.0
+					],
+					"text": "BGGR"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-name-2",
+					"maxclass": "message",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						660.0,
+						345.0,
+						45.0,
+						22.0
+					],
+					"text": "GRBG"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-name-3",
+					"maxclass": "message",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						710.0,
+						345.0,
+						45.0,
+						22.0
+					],
+					"text": "GBRG"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-display",
+					"maxclass": "message",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						560.0,
+						380.0,
+						80.0,
+						22.0
+					],
+					"text": "RGGB"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-display-label",
+					"maxclass": "comment",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						645.0,
+						380.0,
+						120.0,
+						20.0
+					],
+					"text": "<- Current pattern"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-scale-label",
+					"maxclass": "comment",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						450.0,
+						415.0,
+						180.0,
+						20.0
+					],
+					"text": "Scale (1=subtle, 32=extreme):"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-scale-dial",
+					"maxclass": "dial",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"float"
+					],
+					"patching_rect": [
+						450.0,
+						440.0,
+						40.0,
+						40.0
+					],
+					"size": 32.0,
+					"min": 1.0,
+					"mult": 1.0
+				}
+			},
+			{
+				"box": {
+					"id": "obj-scale-num",
+					"maxclass": "number",
+					"numinlets": 1,
+					"numoutlets": 2,
+					"outlettype": [
+						"",
+						"bang"
+					],
+					"patching_rect": [
+						500.0,
+						455.0,
+						50.0,
+						22.0
+					],
+					"minimum": 1,
+					"maximum": 32
+				}
+			},
+			{
+				"box": {
+					"id": "obj-prepend-scale",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						450.0,
+						490.0,
+						85.0,
+						22.0
+					],
+					"text": "prepend scale"
 				}
 			},
 			{
@@ -258,7 +510,7 @@
 						400.0,
 						22.0
 					],
-					"text": "jit.gl.pix sr_bayer_ctx @gen sr.bayer.mosaic @pattern 0"
+					"text": "jit.gl.pix sr_bayer_ctx @gen sr.bayer.mosaic @pattern 0 @scale 1"
 				}
 			},
 			{
@@ -292,7 +544,7 @@
 						400.0,
 						22.0
 					],
-					"text": "jit.gl.pix sr_bayer_ctx @gen sr.bayer.demosaic @pattern 0"
+					"text": "jit.gl.pix sr_bayer_ctx @gen sr.bayer.demosaic @pattern 0 @scale 1"
 				}
 			},
 			{
@@ -320,12 +572,28 @@
 					"numinlets": 1,
 					"numoutlets": 0,
 					"patching_rect": [
-						450.0,
-						360.0,
-						300.0,
+						560.0,
+						420.0,
+						250.0,
 						100.0
 					],
-					"text": "Demosaicing uses bilinear interpolation:\n- R pixels: G from cross, B from diagonal\n- G pixels: R/B from neighbors\n- B pixels: G from cross, R from diagonal\n\nBoth passes must use same pattern!"
+					"text": "Demosaicing uses bilinear interpolation:\n- R pixels: G from cross, B from diagonal\n- G pixels: R/B from neighbors\n- B pixels: G from cross, R from diagonal\n\nBoth passes must use same pattern and scale!"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-note",
+					"maxclass": "comment",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						30.0,
+						560.0,
+						400.0,
+						40.0
+					],
+					"text": "Note: The @pattern/@scale text in jit.gl.pix won't update at runtime.\nUse the controls on the right to change values.",
+					"fontsize": 10.0
 				}
 			}
 		],
@@ -417,11 +685,11 @@
 			{
 				"patchline": {
 					"source": [
-						"obj-7",
+						"obj-button",
 						0
 					],
 					"destination": [
-						"obj-8",
+						"obj-counter",
 						0
 					]
 				}
@@ -429,7 +697,43 @@
 			{
 				"patchline": {
 					"source": [
-						"obj-8",
+						"obj-counter",
+						0
+					],
+					"destination": [
+						"obj-pattern-num",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-counter",
+						0
+					],
+					"destination": [
+						"obj-prepend",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-counter",
+						0
+					],
+					"destination": [
+						"obj-select",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-prepend",
 						0
 					],
 					"destination": [
@@ -441,7 +745,151 @@
 			{
 				"patchline": {
 					"source": [
-						"obj-8",
+						"obj-prepend",
+						0
+					],
+					"destination": [
+						"obj-12",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-select",
+						0
+					],
+					"destination": [
+						"obj-name-0",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-select",
+						1
+					],
+					"destination": [
+						"obj-name-1",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-select",
+						2
+					],
+					"destination": [
+						"obj-name-2",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-select",
+						3
+					],
+					"destination": [
+						"obj-name-3",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-name-0",
+						0
+					],
+					"destination": [
+						"obj-display",
+						1
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-name-1",
+						0
+					],
+					"destination": [
+						"obj-display",
+						1
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-name-2",
+						0
+					],
+					"destination": [
+						"obj-display",
+						1
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-name-3",
+						0
+					],
+					"destination": [
+						"obj-display",
+						1
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-scale-dial",
+						0
+					],
+					"destination": [
+						"obj-scale-num",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-scale-num",
+						0
+					],
+					"destination": [
+						"obj-prepend-scale",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-prepend-scale",
+						0
+					],
+					"destination": [
+						"obj-10",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-prepend-scale",
 						0
 					],
 					"destination": [
