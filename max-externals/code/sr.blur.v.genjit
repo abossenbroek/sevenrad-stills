@@ -1,0 +1,49 @@
+/*
+ * sr.blur.v.genjit
+ *
+ * Vertical pass of separable Gaussian blur
+ * Part of SevenRad Max 8 Effects
+ *
+ * Parameters:
+ *   sigma (float 0.0-50.0): Gaussian standard deviation
+ *
+ * Usage:
+ *   Chain with sr.blur.h for full 2D Gaussian blur:
+ *   [jit.gl.pix @gen sr.blur.h] -> [jit.gl.pix @gen sr.blur.v]
+ *
+ * Algorithm:
+ *   - Calculates blur radius as 3 * sigma (covers 99.7% of Gaussian)
+ *   - Samples vertically with Gaussian weights
+ *   - Normalizes by sum of weights to preserve brightness
+ *
+ * Note:
+ *   Both passes must use the same sigma parameter for correct results.
+ *   Separable implementation is O(n) instead of O(n^2) for large sigma.
+ *
+ * Source: src/sevenrad_stills/operations/blur_gaussian_taichi.py
+ */
+
+Param sigma(1.0);
+
+// Calculate blur radius (3 sigma covers 99.7% of distribution)
+radius = int(ceil(sigma * 3));
+
+// Accumulator for weighted color sum
+sum = vec(0, 0, 0, 0);
+weight_sum = 0;
+
+// Sample along vertical axis
+for (i = -radius; i <= radius; i += 1) {
+    // Gaussian weight function: exp(-x^2 / (2*sigma^2))
+    weight = exp(-(i * i) / (2 * sigma * sigma + 0.0001));
+
+    // Vertical offset in normalized coordinates
+    offset = vec(0, float(i) / dim.y);
+
+    // Accumulate weighted sample
+    sum += sample(in1, norm + offset) * weight;
+    weight_sum += weight;
+}
+
+// Normalize by total weight to preserve brightness
+out = sum / max(weight_sum, 0.0001);

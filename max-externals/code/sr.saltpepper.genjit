@@ -1,0 +1,104 @@
+/**
+ * sr.saltpepper - Salt and pepper noise effect
+ *
+ * Adds random white (salt) and black (pepper) pixels to image.
+ * Uses PCG hash for deterministic pseudo-random generation.
+ *
+ * Parameters:
+ *   amount: fraction of pixels affected (0.0 - 1.0)
+ *   salt_ratio: ratio of white vs black pixels (0.0 - 1.0)
+ *   seed: random seed for reproducible results
+ *
+ * Algorithm:
+ *   - Generate deterministic random values from pixel coordinates
+ *   - If rand1 < amount: replace pixel
+ *   - If rand2 < salt_ratio: use white, else use black
+ */
+
+<jit.gl.pix>
+<description>Salt and pepper noise effect</description>
+
+<param name="amount" type="float" default="0.05" />
+<param name="salt_ratio" type="float" default="0.5" />
+<param name="seed" type="int" default="0" />
+
+<language name="glsl" version="1.2">
+<bind param="amount" program="fp" />
+<bind param="salt_ratio" program="fp" />
+<bind param="seed" program="fp" />
+
+<program name="fp" type="fragment">
+<![CDATA[
+
+#version 120
+
+uniform sampler2DRect tex0;
+uniform vec2 texdim0;
+uniform float amount;
+uniform float salt_ratio;
+uniform float seed;
+
+varying vec2 texcoord0;
+
+// PCG hash constants (cast to uint in shader)
+const uint PCG_MULT = 747796405u;
+const uint PCG_INC = 2891336453u;
+const uint PCG_FACTOR = 277803737u;
+const uint COORD_PRIME_X = 374761393u;
+const uint COORD_PRIME_Y = 668265263u;
+
+// PCG hash function for deterministic random generation
+uint pcg_hash(uint state) {
+    state = state * PCG_MULT + PCG_INC;
+    state ^= state >> 16u;
+    state *= PCG_FACTOR;
+    state ^= state >> 16u;
+    return state;
+}
+
+// Generate random float [0, 1] from pixel coordinates
+float random(vec2 coord, uint iseed) {
+    // Convert coordinates to integers and combine with seed
+    uint x = uint(coord.x);
+    uint y = uint(coord.y);
+
+    // Mix coordinates with primes and seed
+    uint state = iseed;
+    state ^= x * COORD_PRIME_X;
+    state ^= y * COORD_PRIME_Y;
+
+    // Generate random value
+    state = pcg_hash(state);
+
+    // Convert to [0, 1] range
+    return float(state) / 4294967295.0;
+}
+
+void main() {
+    vec4 original = texture2DRect(tex0, texcoord0);
+    uint iseed = uint(seed);
+
+    // Generate two independent random values
+    float rand1 = random(texcoord0, iseed);
+    float rand2 = random(texcoord0, iseed + 1u);
+
+    // Check if this pixel should be affected
+    if (rand1 < amount) {
+        // Determine if salt (white) or pepper (black)
+        if (rand2 < salt_ratio) {
+            // Salt: white pixel
+            gl_FragColor = vec4(1.0, 1.0, 1.0, original.a);
+        } else {
+            // Pepper: black pixel
+            gl_FragColor = vec4(0.0, 0.0, 0.0, original.a);
+        }
+    } else {
+        // Keep original pixel
+        gl_FragColor = original;
+    }
+}
+
+]]>
+</program>
+</language>
+</jit.gl.pix>

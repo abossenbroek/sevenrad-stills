@@ -1,0 +1,9 @@
+{
+  "effect": "downscale",
+  "case_id": 2,
+  "description": "Heavy pixelation",
+  "params": {
+    "scale": 0.1,
+    "pixelate": true
+  }
+}

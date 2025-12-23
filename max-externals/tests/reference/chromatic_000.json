@@ -1,0 +1,9 @@
+{
+  "effect": "chromatic",
+  "case_id": 0,
+  "description": "Horizontal RGB fringing",
+  "params": {
+    "shift_x": 5.0,
+    "shift_y": 0.0
+  }
+}

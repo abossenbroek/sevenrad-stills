@@ -1,0 +1,10 @@
+{
+  "effect": "bandswap",
+  "case_id": 2,
+  "description": "RBG swap",
+  "params": {
+    "tile_count": 8,
+    "permutation": "RBG",
+    "seed": 456
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "effect": "chromatic",
+  "case_id": 1,
+  "description": "Vertical RGB fringing",
+  "params": {
+    "shift_x": 0.0,
+    "shift_y": 5.0
+  }
+}

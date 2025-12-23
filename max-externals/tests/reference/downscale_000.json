@@ -1,0 +1,9 @@
+{
+  "effect": "downscale",
+  "case_id": 0,
+  "description": "Half resolution pixelated",
+  "params": {
+    "scale": 0.5,
+    "pixelate": true
+  }
+}

@@ -1,0 +1,55 @@
+{
+    "name": "sevenrad",
+    "displayname": "Sevenrad Effects",
+    "version": "1.0.0",
+    "description": "GPU image processing effects ported from Taichi. Provides noise, blur, chromatic aberration, saturation, and artistic corruption effects for jit.gl.pix.",
+    "author": "Anton Bossenbroek",
+    "website": "https://github.com/abossenbroek/sevenrad-stills",
+    "max_version_min": "8.5.0",
+    "os": {
+        "macintosh": {
+            "arch": "universal"
+        },
+        "windows": {
+            "arch": "x64"
+        }
+    },
+    "filelist": {
+        "code": [
+            "sr.noise.genjit",
+            "sr.saturation.genjit",
+            "sr.chromatic.genjit",
+            "sr.blur.h.genjit",
+            "sr.blur.v.genjit",
+            "sr.blur.circular.genjit",
+            "sr.motion.genjit",
+            "sr.saltpepper.genjit",
+            "sr.corduroy.genjit",
+            "sr.bayer.mosaic.genjit",
+            "sr.bayer.demosaic.genjit",
+            "sr.bandswap.genjit",
+            "sr.slcoff.genjit",
+            "sr.corruption.genjit",
+            "sr.downscale.genjit"
+        ],
+        "externals": [
+            "sr.tilegen",
+            "sr.maskgen"
+        ],
+        "help": [
+            "sr.noise.maxhelp",
+            "sr.saturation.maxhelp",
+            "sr.chromatic.maxhelp",
+            "sr.blur.maxhelp",
+            "sr.blur.circular.maxhelp",
+            "sr.motion.maxhelp",
+            "sr.saltpepper.maxhelp",
+            "sr.corduroy.maxhelp",
+            "sr.bayer.maxhelp",
+            "sr.bandswap.maxhelp",
+            "sr.slcoff.maxhelp",
+            "sr.corruption.maxhelp",
+            "sr.downscale.maxhelp"
+        ]
+    }
+}

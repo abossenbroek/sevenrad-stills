@@ -1,0 +1,49 @@
+/*
+ * sr.blur.circular.genjit
+ *
+ * Circular disk blur (bokeh-like effect)
+ * Part of SevenRad Max 8 Effects
+ *
+ * Parameters:
+ *   radius (int 0-30): Disk radius in pixels
+ *
+ * Algorithm:
+ *   - Uniform averaging over circular disk
+ *   - Tests each point in bounding box: x^2 + y^2 <= r^2
+ *   - All samples have equal weight (box blur)
+ *
+ * Performance:
+ *   O(r^2) per pixel - may be slow for large radii.
+ *   Consider using separable blur for large sigma values.
+ *
+ * Visual Effect:
+ *   Creates smooth, circular bokeh-like blur.
+ *   Different from Gaussian blur (no edge falloff).
+ *
+ * Source: src/sevenrad_stills/operations/blur_circular_taichi.py
+ */
+
+Param radius(5);
+
+// Accumulator for color sum
+sum = vec(0, 0, 0, 0);
+count = 0;
+
+// Iterate over bounding box of the circular disk
+for (y = -radius; y <= radius; y += 1) {
+    for (x = -radius; x <= radius; x += 1) {
+        // Check if point is inside circular disk
+        // Using integer comparison to match reference implementation
+        if (x*x + y*y <= radius*radius) {
+            // Convert pixel offset to normalized coordinates
+            offset = vec(float(x) / dim.x, float(y) / dim.y);
+
+            // Sample and accumulate
+            sum += sample(in1, norm + offset);
+            count += 1;
+        }
+    }
+}
+
+// Average all samples (uniform weighting)
+out = sum / max(float(count), 1.0);

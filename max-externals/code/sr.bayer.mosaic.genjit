@@ -1,0 +1,104 @@
+/**
+ * sr.bayer.mosaic.genjit
+ *
+ * Bayer mosaicing pass for jit.gl.pix (GenExpr shader)
+ *
+ * First pass of two-pass Bayer filter effect. Extracts single color channel
+ * per pixel based on the Bayer pattern, simulating how digital image sensors
+ * capture color information through a color filter array (CFA).
+ *
+ * This creates the characteristic color artifacts when paired with the
+ * demosaicing pass (sr.bayer.demosaic).
+ *
+ * Parameters:
+ *   pattern (int 0-3): Bayer pattern selection
+ *     0 = RGGB (Red-Green-Green-Blue)
+ *     1 = BGGR (Blue-Green-Green-Red)
+ *     2 = GRBG (Green-Red-Blue-Green)
+ *     3 = GBRG (Green-Blue-Red-Green)
+ *
+ * Bayer Pattern Layout (top-left 2x2 block):
+ *   RGGB (0):  R G    BGGR (1):  B G    GRBG (2):  G R    GBRG (3):  G B
+ *              G B               G R               B G               R G
+ *
+ * Usage in Max:
+ *   [jit.gl.pix @gen sr.bayer.mosaic] -> [jit.gl.pix @gen sr.bayer.demosaic]
+ *   Send message: pattern 0
+ *
+ * Output:
+ *   Grayscale image where each pixel contains only one color channel value.
+ *   The output is stored as RGB with all three channels set to the same value
+ *   for compatibility with the demosaic pass.
+ */
+
+// Parameter declarations
+Param pattern(0);
+
+// Get current pixel coordinates
+px = int(norm.x * dim.x);
+py = int(norm.y * dim.y);
+
+// Determine position in 2x2 Bayer pattern
+cx = px % 2;
+cy = py % 2;
+
+// Read input RGB channels
+r = in1.r;
+g = in1.g;
+b = in1.b;
+
+// Extract appropriate channel based on pattern and position
+value = 0.0;
+
+// RGGB pattern (0)
+if (pattern == 0) {
+    if (cy == 0 && cx == 0) {
+        value = r;  // Top-left: R
+    } else if (cy == 0 && cx == 1) {
+        value = g;  // Top-right: G
+    } else if (cy == 1 && cx == 0) {
+        value = g;  // Bottom-left: G
+    } else {  // cy == 1 && cx == 1
+        value = b;  // Bottom-right: B
+    }
+}
+// BGGR pattern (1)
+else if (pattern == 1) {
+    if (cy == 0 && cx == 0) {
+        value = b;  // Top-left: B
+    } else if (cy == 0 && cx == 1) {
+        value = g;  // Top-right: G
+    } else if (cy == 1 && cx == 0) {
+        value = g;  // Bottom-left: G
+    } else {  // cy == 1 && cx == 1
+        value = r;  // Bottom-right: R
+    }
+}
+// GRBG pattern (2)
+else if (pattern == 2) {
+    if (cy == 0 && cx == 0) {
+        value = g;  // Top-left: G
+    } else if (cy == 0 && cx == 1) {
+        value = r;  // Top-right: R
+    } else if (cy == 1 && cx == 0) {
+        value = b;  // Bottom-left: B
+    } else {  // cy == 1 && cx == 1
+        value = g;  // Bottom-right: G
+    }
+}
+// GBRG pattern (3)
+else {
+    if (cy == 0 && cx == 0) {
+        value = g;  // Top-left: G
+    } else if (cy == 0 && cx == 1) {
+        value = b;  // Top-right: B
+    } else if (cy == 1 && cx == 0) {
+        value = r;  // Bottom-left: R
+    } else {  // cy == 1 && cx == 1
+        value = g;  // Bottom-right: G
+    }
+}
+
+// Output as grayscale (stored in RGB for demosaic compatibility)
+// Store the extracted value in all channels so demosaic can read it
+out = vec(value, value, value, 1.0);

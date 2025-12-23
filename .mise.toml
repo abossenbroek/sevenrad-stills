@@ -2,3 +2,4 @@
 uv = "latest"
 ffmpeg = "latest"
 ruby = "3.3"
+cmake = "latest"

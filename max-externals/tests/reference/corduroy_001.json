@@ -1,0 +1,11 @@
+{
+  "effect": "corduroy",
+  "case_id": 1,
+  "description": "Horizontal stripes",
+  "params": {
+    "orientation": 1,
+    "strength": 0.3,
+    "density": 0.2,
+    "seed": 42
+  }
+}

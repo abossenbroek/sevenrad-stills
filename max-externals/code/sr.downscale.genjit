@@ -1,0 +1,86 @@
+/**
+ * sr.downscale - Pixelation/downscale effect
+ *
+ * Creates pixelation effect by quantizing texture coordinates
+ * to a lower resolution grid.
+ *
+ * Parameters:
+ *   scale: scale factor (0.01 - 1.0, where 0.5 = half resolution)
+ *   pixelate: 1 = upscale back to original (blocky), 0 = actual downscale
+ *   method: 0 = nearest neighbor, 1 = bilinear interpolation
+ *
+ * Algorithm:
+ *   - Calculate lower resolution grid size
+ *   - Quantize coordinates to grid
+ *   - Sample from quantized position
+ */
+
+<jit.gl.pix>
+<description>Pixelation and downscale effect</description>
+
+<param name="scale" type="float" default="0.5" />
+<param name="pixelate" type="int" default="1" />
+<param name="method" type="int" default="0" />
+
+<language name="glsl" version="1.2">
+<bind param="scale" program="fp" />
+<bind param="pixelate" program="fp" />
+<bind param="method" program="fp" />
+
+<program name="fp" type="fragment">
+<![CDATA[
+
+#version 120
+
+uniform sampler2DRect tex0;
+uniform vec2 texdim0;
+uniform float scale;
+uniform float pixelate;
+uniform float method;
+
+varying vec2 texcoord0;
+
+void main() {
+    // Clamp scale to valid range
+    float s = clamp(scale, 0.01, 1.0);
+
+    vec2 coord;
+
+    if (pixelate > 0.5) {
+        // Pixelate mode: quantize to lower resolution then scale back up
+        // Calculate pixel size in original resolution
+        vec2 pixel_size = vec2(1.0 / s);
+
+        // Quantize coordinates to pixel grid
+        coord = floor(texcoord0 / pixel_size) * pixel_size;
+
+        // Add half pixel offset for center sampling
+        if (method < 0.5) {
+            // Nearest neighbor: sample from pixel center
+            coord += pixel_size * 0.5;
+        } else {
+            // Bilinear: sample from pixel center but let texture filtering handle it
+            coord += pixel_size * 0.5;
+        }
+    } else {
+        // Actual downscale mode: scale coordinates
+        coord = texcoord0 * s;
+    }
+
+    // Clamp coordinates to texture bounds
+    coord = clamp(coord, vec2(0.0), texdim0 - vec2(1.0));
+
+    // Sample texture
+    if (method < 0.5) {
+        // Nearest neighbor sampling
+        gl_FragColor = texture2DRect(tex0, floor(coord) + vec2(0.5));
+    } else {
+        // Bilinear sampling (hardware filtering)
+        gl_FragColor = texture2DRect(tex0, coord);
+    }
+}
+
+]]>
+</program>
+</language>
+</jit.gl.pix>

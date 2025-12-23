@@ -1,0 +1,135 @@
+/**
+ * sr.corruption.genjit
+ * Buffer corruption effects in tile regions.
+ *
+ * Simulates cosmic ray hits causing single-event upsets in satellite memory.
+ * Works with tile data from sr.tilegen external.
+ *
+ * Parameters:
+ *   mode (int 0-2): 0=XOR, 1=invert, 2=shuffle
+ *   intensity (float 0.0-1.0): effect strength
+ *   seed (int): random seed for reproducibility
+ *
+ * Inputs:
+ *   in1: source image
+ *   in2: tile mask texture from sr.tilegen (white=affected, black=passthrough)
+ *
+ * PCG hash constants (must match Python/C implementations):
+ *   COORD_PRIME_X = 374761393
+ *   COORD_PRIME_Y = 668265263
+ *   PCG_MULT = 747796405
+ *   PCG_INC = 2891336453
+ *   PCG_FACTOR = 277803737
+ *   UINT32_MAX = 4294967296.0
+ */
+
+// Parameters
+Param mode(0);
+Param intensity(0.5);
+Param seed(0);
+
+// PCG hash function for deterministic randomness
+pcg_hash(x, y, s) {
+    // Combine coordinates and seed
+    combined = int((y * 668265263 + x * 374761393 + s) % 4294967296);
+
+    // PCG permutation
+    state = (combined * 747796405 + 2891336453) % 4294967296;
+    word = (((state >> ((state >> 28) + 4)) ^ state) * 277803737) % 4294967296;
+    result = (word >> 22) ^ word;
+
+    // Normalize to [0, 1)
+    return float(result) / 4294967296.0;
+}
+
+// Sample tile mask from second input
+mask_value = sample(in2, norm).r;
+
+// Get integer pixel coordinates for hash
+px = int(norm.x * dim.x);
+py = int(norm.y * dim.y);
+
+// If mask value > 0.5, this pixel is in a corrupted tile region
+if (mask_value > 0.5) {
+    // Read original RGB channels
+    r = in1.r;
+    g = in1.g;
+    b = in1.b;
+
+    if (mode == 0) {
+        // XOR mode - mix with random noise pattern
+        // Generate random values for each channel
+        rand_r = pcg_hash(px, py, seed);
+        rand_g = pcg_hash(px, py, seed + 1);
+        rand_b = pcg_hash(px, py, seed + 2);
+
+        // Convert to [0-255] range, apply XOR-like operation
+        // We simulate XOR by blending with random noise scaled by intensity
+        r_int = int(r * 255.0);
+        g_int = int(g * 255.0);
+        b_int = int(b * 255.0);
+
+        // Generate XOR masks based on intensity
+        xor_mask_r = int(rand_r * 255.0 * intensity);
+        xor_mask_g = int(rand_g * 255.0 * intensity);
+        xor_mask_b = int(rand_b * 255.0 * intensity);
+
+        // Simulate XOR by flipping bits proportional to mask
+        // Since we can't do true XOR in GenExpr, we approximate with blend
+        r_corrupted = float(abs(r_int - xor_mask_r) % 256) / 255.0;
+        g_corrupted = float(abs(g_int - xor_mask_g) % 256) / 255.0;
+        b_corrupted = float(abs(b_int - xor_mask_b) % 256) / 255.0;
+
+        out = vec(r_corrupted, g_corrupted, b_corrupted, in1.a);
+
+    } else if (mode == 1) {
+        // Invert mode - blend with inverted colors based on intensity
+        r_inv = 1.0 - r;
+        g_inv = 1.0 - g;
+        b_inv = 1.0 - b;
+
+        r_out = r * (1.0 - intensity) + r_inv * intensity;
+        g_out = g * (1.0 - intensity) + g_inv * intensity;
+        b_out = b * (1.0 - intensity) + b_inv * intensity;
+
+        out = vec(r_out, g_out, b_out, in1.a);
+
+    } else {
+        // Shuffle mode - random channel permutation per pixel
+        // Generate random value to determine permutation
+        rand_perm = pcg_hash(px, py, seed);
+
+        // Only shuffle if random value < intensity
+        if (rand_perm < intensity) {
+            // Generate permutation index (0-5 for 6 possible permutations)
+            perm_idx = int(pcg_hash(px, py, seed + 100) * 6.0) % 6;
+
+            // Apply permutation based on index
+            if (perm_idx == 0) {
+                // RGB (no change)
+                out = vec(r, g, b, in1.a);
+            } else if (perm_idx == 1) {
+                // RBG
+                out = vec(r, b, g, in1.a);
+            } else if (perm_idx == 2) {
+                // GRB
+                out = vec(g, r, b, in1.a);
+            } else if (perm_idx == 3) {
+                // GBR
+                out = vec(g, b, r, in1.a);
+            } else if (perm_idx == 4) {
+                // BRG
+                out = vec(b, r, g, in1.a);
+            } else {
+                // BGR
+                out = vec(b, g, r, in1.a);
+            }
+        } else {
+            // Don't shuffle this pixel
+            out = vec(r, g, b, in1.a);
+        }
+    }
+} else {
+    // Outside tile region, pass through unchanged
+    out = in1;
+}

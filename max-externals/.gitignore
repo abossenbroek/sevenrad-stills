@@ -1,0 +1,16 @@
+# Build artifacts
+build/
+*.mxo
+*.mxe64
+
+# IDE/Editor
+.DS_Store
+*.xcworkspace/
+*.xcuserdata/
+
+# Compiled externals (rebuilt from source)
+externals/
+
+# Test outputs
+tests/actual/
+tests/*.log

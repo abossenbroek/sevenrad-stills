@@ -1,0 +1,140 @@
+/**
+ * sr.noise.genjit
+ *
+ * Noise effect shader for jit.gl.pix (GenExpr shader)
+ *
+ * Adds noise to images using three different modes:
+ * - gaussian: Per-pixel Gaussian noise using Box-Muller transform
+ * - row: Horizontal scan line artifacts (same noise per row)
+ * - column: Vertical artifacts (same noise per column)
+ *
+ * Parameters:
+ *   mode (int 0-2): 0=gaussian, 1=row, 2=column
+ *   amount (float 0.0-1.0): Noise intensity
+ *   seed (int): Random seed for reproducibility
+ *
+ * Usage in Max:
+ *   [jit.gl.pix @gen sr.noise]
+ *   Send messages: mode 0, amount 0.1, seed 42
+ */
+
+// Parameter declarations
+Param mode(0);
+Param amount(0.1);
+Param seed(0);
+
+// PCG hash constants (must match Python implementation exactly)
+PCG_MULT = 747796405;
+PCG_INC = 2891336453;
+PCG_FACTOR = 277803737;
+COORD_PRIME_X = 374761393;
+COORD_PRIME_Y = 668265263;
+UINT32_MAX = 4294967296.0;
+TWO_PI = 6.283185307179586;
+EPSILON = 0.0000000001;
+
+/**
+ * PCG-derived hash function for generating pseudo-random values.
+ *
+ * @param input_seed Input seed value to hash
+ * @return Hashed value as float in range [0.0, 1.0)
+ */
+pcg_hash(input_seed) {
+    // Cast to u32 to ensure correct Taichi-style arithmetic
+    state = int((uint(input_seed) * uint(PCG_MULT) + uint(PCG_INC)));
+    word = int(((state >> ((state >> 28) + 4)) ^ state) * uint(PCG_FACTOR));
+    hash_out = (word >> 22) ^ word;
+    return float(uint(hash_out)) / UINT32_MAX;
+}
+
+/**
+ * Generate deterministic random float based on coordinates and seed.
+ *
+ * @param x X coordinate (column)
+ * @param y Y coordinate (row)
+ * @param s Random seed
+ * @return Uniform random float in range [0.0, 1.0)
+ */
+rand_float(x, y, s) {
+    combined = uint(x) * uint(COORD_PRIME_X) + uint(y) * uint(COORD_PRIME_Y) + uint(s);
+    return pcg_hash(combined);
+}
+
+/**
+ * Generate Gaussian noise using Box-Muller transform.
+ *
+ * @param x X coordinate
+ * @param y Y coordinate
+ * @param s Random seed
+ * @param sigma Standard deviation (amount)
+ * @return Gaussian random value with mean=0, std=sigma
+ */
+rand_gaussian(x, y, s, sigma) {
+    u1 = rand_float(x, y, s);
+    u2 = rand_float(x, y, s + 1);
+
+    // Avoid log(0)
+    u1_safe = max(u1, EPSILON);
+
+    // Box-Muller: z = sqrt(-2*ln(u1)) * cos(2*pi*u2)
+    mag = sqrt(-2.0 * log(u1_safe));
+    z = mag * cos(TWO_PI * u2);
+
+    return z * sigma;
+}
+
+// Get current pixel coordinates
+px = int(norm.x * dim.x);
+py = int(norm.y * dim.y);
+
+// Default: pass through unchanged
+out = in1;
+
+// Mode 0: Gaussian noise (per-pixel)
+if (mode == 0) {
+    noise_r = rand_gaussian(px, py, seed, amount);
+    noise_g = rand_gaussian(px, py, seed + 1, amount);
+    noise_b = rand_gaussian(px, py, seed + 2, amount);
+
+    r_out = clamp(in1.r + noise_r, 0, 1);
+    g_out = clamp(in1.g + noise_g, 0, 1);
+    b_out = clamp(in1.b + noise_b, 0, 1);
+
+    out = vec(r_out, g_out, b_out, in1.a);
+}
+// Mode 1: Row noise (horizontal scanlines)
+else if (mode == 1) {
+    // Use py for row, x=0 for consistency across row
+    u_r = rand_float(py, 0, seed);
+    u_g = rand_float(py, 0, seed + 1);
+    u_b = rand_float(py, 0, seed + 2);
+
+    // Map [0,1] to [-amount, amount]
+    noise_r = (u_r * 2.0 - 1.0) * amount;
+    noise_g = (u_g * 2.0 - 1.0) * amount;
+    noise_b = (u_b * 2.0 - 1.0) * amount;
+
+    r_out = clamp(in1.r + noise_r, 0, 1);
+    g_out = clamp(in1.g + noise_g, 0, 1);
+    b_out = clamp(in1.b + noise_b, 0, 1);
+
+    out = vec(r_out, g_out, b_out, in1.a);
+}
+// Mode 2: Column noise (vertical artifacts)
+else {
+    // Use px for column, y=0 for consistency across column
+    u_r = rand_float(0, px, seed);
+    u_g = rand_float(0, px, seed + 1);
+    u_b = rand_float(0, px, seed + 2);
+
+    // Map [0,1] to [-amount, amount]
+    noise_r = (u_r * 2.0 - 1.0) * amount;
+    noise_g = (u_g * 2.0 - 1.0) * amount;
+    noise_b = (u_b * 2.0 - 1.0) * amount;
+
+    r_out = clamp(in1.r + noise_r, 0, 1);
+    g_out = clamp(in1.g + noise_g, 0, 1);
+    b_out = clamp(in1.b + noise_b, 0, 1);
+
+    out = vec(r_out, g_out, b_out, in1.a);
+}

@@ -1,0 +1,8 @@
+{
+  "effect": "blur_circular",
+  "case_id": 1,
+  "description": "Medium disk blur",
+  "params": {
+    "radius": 7
+  }
+}

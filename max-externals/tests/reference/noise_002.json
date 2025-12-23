@@ -1,0 +1,10 @@
+{
+  "effect": "noise",
+  "case_id": 2,
+  "description": "Horizontal scanlines",
+  "params": {
+    "mode": "row",
+    "amount": 0.2,
+    "seed": 123
+  }
+}

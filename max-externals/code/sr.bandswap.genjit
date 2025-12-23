@@ -1,0 +1,54 @@
+/**
+ * sr.bandswap.genjit
+ * RGB channel swapping in tile regions.
+ *
+ * Works with tile data from sr.tilegen external.
+ * Applies channel permutation within masked regions.
+ *
+ * Parameters:
+ *   perm_r (int 0-2): which input channel maps to red output
+ *   perm_g (int 0-2): which input channel maps to green output
+ *   perm_b (int 0-2): which input channel maps to blue output
+ *
+ * Inputs:
+ *   in1: source image
+ *   in2: tile mask texture from sr.tilegen (white=affected, black=passthrough)
+ */
+
+// Parameters
+Param perm_r(0);
+Param perm_g(1);
+Param perm_b(2);
+
+// Sample tile mask from second input
+mask_value = sample(in2, norm).r;
+
+// If mask value > 0.5, this pixel is in a tile region
+if (mask_value > 0.5) {
+    // Read original RGB channels
+    r_in = in1.r;
+    g_in = in1.g;
+    b_in = in1.b;
+
+    // Create array-like access
+    channels = vec(r_in, g_in, b_in);
+
+    // Apply permutation
+    // Note: GenExpr doesn't support array indexing directly,
+    // so we use conditionals to select channels
+
+    // Select red output channel
+    r_out = (perm_r == 0) ? channels.r : ((perm_r == 1) ? channels.g : channels.b);
+
+    // Select green output channel
+    g_out = (perm_g == 0) ? channels.r : ((perm_g == 1) ? channels.g : channels.b);
+
+    // Select blue output channel
+    b_out = (perm_b == 0) ? channels.r : ((perm_b == 1) ? channels.g : channels.b);
+
+    // Output permuted channels, preserve alpha
+    out = vec(r_out, g_out, b_out, in1.a);
+} else {
+    // Outside tile region, pass through unchanged
+    out = in1;
+}

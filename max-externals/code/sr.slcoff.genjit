@@ -1,0 +1,145 @@
+/**
+ * sr.slcoff.genjit
+ * SLC-off wedge artifact simulation.
+ *
+ * Works with mask from sr.maskgen external.
+ * Simulates Landsat 7 Scan Line Corrector failure with wedge-shaped gaps.
+ *
+ * Parameters:
+ *   fill_mode (int 0-2): 0=black, 1=white, 2=mean of surrounding
+ *
+ * Inputs:
+ *   in1: source image
+ *   in2: wedge mask texture from sr.maskgen (white=gap, black=valid)
+ *
+ * For fill_mode 2 (mean), we sample nearby valid pixels and average them.
+ * This provides a simple interpolation effect.
+ */
+
+// Parameters
+Param fill_mode(0);
+
+// Sample gap mask from second input
+mask_value = sample(in2, norm).r;
+
+// If mask < 0.5, pixel is in a gap region
+if (mask_value < 0.5) {
+    // This is a gap pixel - apply fill mode
+    if (fill_mode == 0) {
+        // Black fill
+        out = vec(0, 0, 0, in1.a);
+    } else if (fill_mode == 1) {
+        // White fill
+        out = vec(1, 1, 1, in1.a);
+    } else {
+        // Mean fill - sample nearby valid pixels
+        // Sample 8 neighbors in a small radius
+        pixel_size_x = 1.0 / dim.x;
+        pixel_size_y = 1.0 / dim.y;
+
+        // Sample in a 3x3 pattern around current pixel
+        sum_r = 0.0;
+        sum_g = 0.0;
+        sum_b = 0.0;
+        count = 0.0;
+
+        // Top-left
+        offset = vec(-pixel_size_x, -pixel_size_y);
+        neighbor_mask = sample(in2, norm + offset).r;
+        if (neighbor_mask > 0.5) {
+            neighbor = sample(in1, norm + offset);
+            sum_r += neighbor.r;
+            sum_g += neighbor.g;
+            sum_b += neighbor.b;
+            count += 1.0;
+        }
+
+        // Top
+        offset = vec(0, -pixel_size_y);
+        neighbor_mask = sample(in2, norm + offset).r;
+        if (neighbor_mask > 0.5) {
+            neighbor = sample(in1, norm + offset);
+            sum_r += neighbor.r;
+            sum_g += neighbor.g;
+            sum_b += neighbor.b;
+            count += 1.0;
+        }
+
+        // Top-right
+        offset = vec(pixel_size_x, -pixel_size_y);
+        neighbor_mask = sample(in2, norm + offset).r;
+        if (neighbor_mask > 0.5) {
+            neighbor = sample(in1, norm + offset);
+            sum_r += neighbor.r;
+            sum_g += neighbor.g;
+            sum_b += neighbor.b;
+            count += 1.0;
+        }
+
+        // Left
+        offset = vec(-pixel_size_x, 0);
+        neighbor_mask = sample(in2, norm + offset).r;
+        if (neighbor_mask > 0.5) {
+            neighbor = sample(in1, norm + offset);
+            sum_r += neighbor.r;
+            sum_g += neighbor.g;
+            sum_b += neighbor.b;
+            count += 1.0;
+        }
+
+        // Right
+        offset = vec(pixel_size_x, 0);
+        neighbor_mask = sample(in2, norm + offset).r;
+        if (neighbor_mask > 0.5) {
+            neighbor = sample(in1, norm + offset);
+            sum_r += neighbor.r;
+            sum_g += neighbor.g;
+            sum_b += neighbor.b;
+            count += 1.0;
+        }
+
+        // Bottom-left
+        offset = vec(-pixel_size_x, pixel_size_y);
+        neighbor_mask = sample(in2, norm + offset).r;
+        if (neighbor_mask > 0.5) {
+            neighbor = sample(in1, norm + offset);
+            sum_r += neighbor.r;
+            sum_g += neighbor.g;
+            sum_b += neighbor.b;
+            count += 1.0;
+        }
+
+        // Bottom
+        offset = vec(0, pixel_size_y);
+        neighbor_mask = sample(in2, norm + offset).r;
+        if (neighbor_mask > 0.5) {
+            neighbor = sample(in1, norm + offset);
+            sum_r += neighbor.r;
+            sum_g += neighbor.g;
+            sum_b += neighbor.b;
+            count += 1.0;
+        }
+
+        // Bottom-right
+        offset = vec(pixel_size_x, pixel_size_y);
+        neighbor_mask = sample(in2, norm + offset).r;
+        if (neighbor_mask > 0.5) {
+            neighbor = sample(in1, norm + offset);
+            sum_r += neighbor.r;
+            sum_g += neighbor.g;
+            sum_b += neighbor.b;
+            count += 1.0;
+        }
+
+        // If we found valid neighbors, use their average
+        // Otherwise fall back to black
+        if (count > 0.0) {
+            out = vec(sum_r / count, sum_g / count, sum_b / count, in1.a);
+        } else {
+            out = vec(0, 0, 0, in1.a);
+        }
+    }
+} else {
+    // Valid pixel region, pass through unchanged
+    out = in1;
+}

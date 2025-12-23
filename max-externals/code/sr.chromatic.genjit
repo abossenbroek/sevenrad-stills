@@ -1,0 +1,63 @@
+/**
+ * sr.chromatic - Chromatic aberration effect
+ *
+ * Simulates lens color fringing by shifting red and blue channels
+ * in opposite directions while keeping green as reference.
+ *
+ * Parameters:
+ *   shift_x: horizontal pixel shift (-50 to 50)
+ *   shift_y: vertical pixel shift (-50 to 50)
+ *
+ * Algorithm:
+ *   - Red channel: shifted by +shift
+ *   - Green channel: no shift (reference)
+ *   - Blue channel: shifted by -shift
+ */
+
+<jit.gl.pix>
+<description>Chromatic aberration color fringing effect</description>
+
+<param name="shift_x" type="float" default="5.0" />
+<param name="shift_y" type="float" default="0.0" />
+
+<language name="glsl" version="1.2">
+<bind param="shift_x" program="fp" />
+<bind param="shift_y" program="fp" />
+
+<program name="fp" type="fragment">
+<![CDATA[
+
+#version 120
+
+uniform sampler2DRect tex0;
+uniform vec2 texdim0;
+uniform float shift_x;
+uniform float shift_y;
+
+varying vec2 texcoord0;
+
+void main() {
+    // Calculate normalized shift
+    vec2 shift = vec2(shift_x, shift_y);
+
+    // Sample red channel with positive shift
+    vec2 red_coord = texcoord0 + shift;
+    float r = texture2DRect(tex0, red_coord).r;
+
+    // Sample green channel with no shift (reference)
+    float g = texture2DRect(tex0, texcoord0).g;
+
+    // Sample blue channel with negative shift
+    vec2 blue_coord = texcoord0 - shift;
+    float b = texture2DRect(tex0, blue_coord).b;
+
+    // Preserve original alpha
+    float a = texture2DRect(tex0, texcoord0).a;
+
+    gl_FragColor = vec4(r, g, b, a);
+}
+
+]]>
+</program>
+</language>
+</jit.gl.pix>

@@ -1,0 +1,8 @@
+{
+  "effect": "saturation",
+  "case_id": 2,
+  "description": "Moderately boosted",
+  "params": {
+    "factor": 1.5
+  }
+}

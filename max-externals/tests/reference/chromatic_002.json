@@ -1,0 +1,9 @@
+{
+  "effect": "chromatic",
+  "case_id": 2,
+  "description": "Diagonal fringing",
+  "params": {
+    "shift_x": 3.0,
+    "shift_y": 3.0
+  }
+}

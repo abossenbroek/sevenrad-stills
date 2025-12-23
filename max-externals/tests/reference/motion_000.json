@@ -1,0 +1,9 @@
+{
+  "effect": "motion",
+  "case_id": 0,
+  "description": "Horizontal motion",
+  "params": {
+    "kernel_size": 15,
+    "angle": 0.0
+  }
+}

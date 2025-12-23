@@ -1,0 +1,60 @@
+/*
+ * sr.motion.genjit
+ *
+ * Directional motion blur effect
+ * Part of SevenRad Max 8 Effects
+ *
+ * Parameters:
+ *   kernel_size (int 1-100): Blur length in pixels
+ *   angle (float 0-360): Direction in degrees
+ *                        0=right, 90=up, 180=left, 270=down
+ *
+ * Algorithm:
+ *   - Samples along a line in the specified direction
+ *   - Uniform weighting (box blur)
+ *   - Centered on current pixel (samples from -half to +half)
+ *
+ * Coordinate System:
+ *   - Angle 0 = positive X (right)
+ *   - Angle increases counter-clockwise
+ *   - Y coordinate negated because screen Y increases downward
+ *
+ * Visual Effect:
+ *   Creates camera motion blur or speed lines effect.
+ *   Simulates camera/object movement in specified direction.
+ *
+ * Source: src/sevenrad_stills/operations/motion_blur_taichi.py
+ */
+
+Param kernel_size(15);
+Param angle(0);
+
+// Convert angle to radians
+rad = angle * 3.14159265359 / 180.0;
+
+// Calculate direction vector in normalized coordinates
+// dx: horizontal component (cos for 0=right)
+// dy: vertical component (negative sin because Y increases downward)
+dx = cos(rad) / dim.x;
+dy = -sin(rad) / dim.y;
+
+// Accumulator for color sum
+sum = vec(0, 0, 0, 0);
+
+// Calculate half-length for centered blur
+half = float(kernel_size - 1) / 2.0;
+
+// Sample along the motion direction
+for (i = 0; i < kernel_size; i += 1) {
+    // Position along blur line, centered on current pixel
+    t = float(i) - half;
+
+    // Calculate offset in normalized coordinates
+    offset = vec(t * dx, t * dy);
+
+    // Sample and accumulate
+    sum += sample(in1, norm + offset);
+}
+
+// Average all samples (uniform weighting)
+out = sum / float(kernel_size);

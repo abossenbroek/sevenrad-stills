@@ -1,0 +1,126 @@
+/**
+ * sr.saturation.genjit
+ *
+ * Saturation adjustment shader for jit.gl.pix (GenExpr shader)
+ *
+ * Adjusts image saturation using HSV color space conversion.
+ * Converts RGB to HSV, multiplies saturation by factor, then converts back.
+ *
+ * Parameters:
+ *   factor (float 0.0-3.0): Saturation multiplier
+ *                           0.0 = grayscale
+ *                           1.0 = original
+ *                           >1.0 = boosted saturation
+ *
+ * Usage in Max:
+ *   [jit.gl.pix @gen sr.saturation]
+ *   Send messages: factor 1.5
+ */
+
+// Parameter declarations
+Param factor(1.0);
+
+// HSV conversion constants
+EPSILON = 0.000001;
+HUE_SECTOR_0 = 60.0;
+HUE_SECTOR_1 = 120.0;
+HUE_SECTOR_2 = 180.0;
+HUE_SECTOR_3 = 240.0;
+HUE_SECTOR_4 = 300.0;
+HUE_SECTORS = 6.0;
+
+// Read input pixel
+r = in1.r;
+g = in1.g;
+b = in1.b;
+a = in1.a;
+
+// RGB to HSV conversion
+cmax = max(max(r, g), b);
+cmin = min(min(r, g), b);
+delta = cmax - cmin;
+
+// Calculate Hue (in degrees 0-360)
+h = 0.0;
+if (delta > EPSILON) {
+    // Determine which channel is max
+    if (abs(cmax - r) < EPSILON) {
+        // Red is max
+        h = HUE_SECTOR_0 * (((g - b) / delta) % HUE_SECTORS);
+    }
+    else if (abs(cmax - g) < EPSILON) {
+        // Green is max
+        h = HUE_SECTOR_0 * (((b - r) / delta) + 2.0);
+    }
+    else {
+        // Blue is max
+        h = HUE_SECTOR_0 * (((r - g) / delta) + 4.0);
+    }
+}
+
+// Ensure hue is positive
+if (h < 0) {
+    h = h + 360.0;
+}
+
+// Calculate Saturation
+s = 0.0;
+if (cmax > EPSILON) {
+    s = delta / cmax;
+}
+
+// Value
+v = cmax;
+
+// Adjust saturation by factor and clamp
+s_adjusted = clamp(s * factor, 0.0, 1.0);
+
+// HSV to RGB conversion
+c = v * s_adjusted;
+x = c * (1.0 - abs(((h / HUE_SECTOR_0) % 2.0) - 1.0));
+m = v - c;
+
+// Determine RGB based on hue sector
+r_new = 0.0;
+g_new = 0.0;
+b_new = 0.0;
+
+if (h < HUE_SECTOR_0) {
+    // Sector 0: [0, 60)
+    r_new = c;
+    g_new = x;
+    b_new = 0.0;
+}
+else if (h < HUE_SECTOR_1) {
+    // Sector 1: [60, 120)
+    r_new = x;
+    g_new = c;
+    b_new = 0.0;
+}
+else if (h < HUE_SECTOR_2) {
+    // Sector 2: [120, 180)
+    r_new = 0.0;
+    g_new = c;
+    b_new = x;
+}
+else if (h < HUE_SECTOR_3) {
+    // Sector 3: [180, 240)
+    r_new = 0.0;
+    g_new = x;
+    b_new = c;
+}
+else if (h < HUE_SECTOR_4) {
+    // Sector 4: [240, 300)
+    r_new = x;
+    g_new = 0.0;
+    b_new = c;
+}
+else {
+    // Sector 5: [300, 360)
+    r_new = c;
+    g_new = 0.0;
+    b_new = x;
+}
+
+// Add m to all channels and output with preserved alpha
+out = vec(r_new + m, g_new + m, b_new + m, a);

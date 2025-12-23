@@ -1,0 +1,8 @@
+{
+  "effect": "bayer",
+  "case_id": 0,
+  "description": "RGGB pattern",
+  "params": {
+    "pattern": "RGGB"
+  }
+}

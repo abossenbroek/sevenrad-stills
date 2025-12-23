@@ -1,0 +1,276 @@
+/**
+ * sr.bayer.demosaic.genjit
+ *
+ * Bayer demosaicing pass for jit.gl.pix (GenExpr shader)
+ *
+ * Second pass of two-pass Bayer filter effect. Reconstructs full RGB image
+ * from the mosaiced single-channel data using bilinear interpolation.
+ *
+ * This shader interpolates the missing color channels at each pixel position:
+ * - At R positions: R is known, interpolate G from cross neighbors, B from diagonal
+ * - At G positions: G is known, interpolate R and B from adjacent neighbors
+ * - At B positions: B is known, interpolate G from cross neighbors, R from diagonal
+ *
+ * The result shows characteristic demosaicing artifacts including color fringing,
+ * zipper artifacts, and false colors - simulating the artifacts of digital sensors.
+ *
+ * Parameters:
+ *   pattern (int 0-3): Must match the pattern used in sr.bayer.mosaic
+ *     0 = RGGB, 1 = BGGR, 2 = GRBG, 3 = GBRG
+ *
+ * Input:
+ *   Grayscale mosaic from sr.bayer.mosaic (stored as RGB with identical channels)
+ *
+ * Usage in Max:
+ *   [jit.gl.pix @gen sr.bayer.mosaic] -> [jit.gl.pix @gen sr.bayer.demosaic]
+ *   Both objects must receive the same pattern parameter.
+ */
+
+// Parameter declarations
+Param pattern(0);
+
+// Get current pixel coordinates
+px = int(norm.x * dim.x);
+py = int(norm.y * dim.y);
+
+// Determine position in 2x2 Bayer pattern
+cx = px % 2;
+cy = py % 2;
+
+// Determine which channel is known at this position
+// 0=R, 1=G, 2=B
+channel_type = 0;
+
+if (pattern == 0) {  // RGGB
+    if (cy == 0 && cx == 0) {
+        channel_type = 0;  // R
+    } else if (cy == 0 && cx == 1) {
+        channel_type = 1;  // G
+    } else if (cy == 1 && cx == 0) {
+        channel_type = 1;  // G
+    } else {
+        channel_type = 2;  // B
+    }
+} else if (pattern == 1) {  // BGGR
+    if (cy == 0 && cx == 0) {
+        channel_type = 2;  // B
+    } else if (cy == 0 && cx == 1) {
+        channel_type = 1;  // G
+    } else if (cy == 1 && cx == 0) {
+        channel_type = 1;  // G
+    } else {
+        channel_type = 0;  // R
+    }
+} else if (pattern == 2) {  // GRBG
+    if (cy == 0 && cx == 0) {
+        channel_type = 1;  // G
+    } else if (cy == 0 && cx == 1) {
+        channel_type = 0;  // R
+    } else if (cy == 1 && cx == 0) {
+        channel_type = 2;  // B
+    } else {
+        channel_type = 1;  // G
+    }
+} else {  // GBRG (pattern == 3)
+    if (cy == 0 && cx == 0) {
+        channel_type = 1;  // G
+    } else if (cy == 0 && cx == 1) {
+        channel_type = 2;  // B
+    } else if (cy == 1 && cx == 0) {
+        channel_type = 0;  // R
+    } else {
+        channel_type = 1;  // G
+    }
+}
+
+// Get the known value at current position (from mosaic - stored in .r channel)
+value_center = in1.r;
+
+// Initialize output channels
+r_out = 0.0;
+g_out = 0.0;
+b_out = 0.0;
+
+// Pixel step in normalized coordinates
+step_x = 1.0 / dim.x;
+step_y = 1.0 / dim.y;
+
+// R position: R known, interpolate G and B
+if (channel_type == 0) {
+    r_out = value_center;
+
+    // Interpolate G from 4 cross neighbors (up, down, left, right)
+    g_sum = 0.0;
+    g_count = 0.0;
+
+    // Up
+    if (py > 0) {
+        g_sum += sample(in1, norm + vec(0, -step_y)).r;
+        g_count += 1.0;
+    }
+    // Down
+    if (py < dim.y - 1) {
+        g_sum += sample(in1, norm + vec(0, step_y)).r;
+        g_count += 1.0;
+    }
+    // Left
+    if (px > 0) {
+        g_sum += sample(in1, norm + vec(-step_x, 0)).r;
+        g_count += 1.0;
+    }
+    // Right
+    if (px < dim.x - 1) {
+        g_sum += sample(in1, norm + vec(step_x, 0)).r;
+        g_count += 1.0;
+    }
+
+    g_out = (g_count > 0) ? (g_sum / g_count) : 0.0;
+
+    // Interpolate B from 4 diagonal neighbors
+    b_sum = 0.0;
+    b_count = 0.0;
+
+    // Top-left
+    if (py > 0 && px > 0) {
+        b_sum += sample(in1, norm + vec(-step_x, -step_y)).r;
+        b_count += 1.0;
+    }
+    // Top-right
+    if (py > 0 && px < dim.x - 1) {
+        b_sum += sample(in1, norm + vec(step_x, -step_y)).r;
+        b_count += 1.0;
+    }
+    // Bottom-left
+    if (py < dim.y - 1 && px > 0) {
+        b_sum += sample(in1, norm + vec(-step_x, step_y)).r;
+        b_count += 1.0;
+    }
+    // Bottom-right
+    if (py < dim.y - 1 && px < dim.x - 1) {
+        b_sum += sample(in1, norm + vec(step_x, step_y)).r;
+        b_count += 1.0;
+    }
+
+    b_out = (b_count > 0) ? (b_sum / b_count) : 0.0;
+}
+// G position: G known, interpolate R and B
+else if (channel_type == 1) {
+    g_out = value_center;
+
+    // Interpolate R from horizontal neighbors first, vertical if not available
+    r_sum = 0.0;
+    r_count = 0.0;
+
+    // Try horizontal neighbors
+    if (px > 0) {
+        r_sum += sample(in1, norm + vec(-step_x, 0)).r;
+        r_count += 1.0;
+    }
+    if (px < dim.x - 1) {
+        r_sum += sample(in1, norm + vec(step_x, 0)).r;
+        r_count += 1.0;
+    }
+
+    // If no horizontal neighbors, try vertical
+    if (r_count == 0) {
+        if (py > 0) {
+            r_sum += sample(in1, norm + vec(0, -step_y)).r;
+            r_count += 1.0;
+        }
+        if (py < dim.y - 1) {
+            r_sum += sample(in1, norm + vec(0, step_y)).r;
+            r_count += 1.0;
+        }
+    }
+
+    r_out = (r_count > 0) ? (r_sum / r_count) : 0.0;
+
+    // Interpolate B from vertical neighbors first, horizontal if not available
+    b_sum = 0.0;
+    b_count = 0.0;
+
+    // Try vertical neighbors
+    if (py > 0) {
+        b_sum += sample(in1, norm + vec(0, -step_y)).r;
+        b_count += 1.0;
+    }
+    if (py < dim.y - 1) {
+        b_sum += sample(in1, norm + vec(0, step_y)).r;
+        b_count += 1.0;
+    }
+
+    // If no vertical neighbors, try horizontal
+    if (b_count == 0) {
+        if (px > 0) {
+            b_sum += sample(in1, norm + vec(-step_x, 0)).r;
+            b_count += 1.0;
+        }
+        if (px < dim.x - 1) {
+            b_sum += sample(in1, norm + vec(step_x, 0)).r;
+            b_count += 1.0;
+        }
+    }
+
+    b_out = (b_count > 0) ? (b_sum / b_count) : 0.0;
+}
+// B position: B known, interpolate G and R
+else {  // channel_type == 2
+    b_out = value_center;
+
+    // Interpolate G from 4 cross neighbors
+    g_sum = 0.0;
+    g_count = 0.0;
+
+    // Up
+    if (py > 0) {
+        g_sum += sample(in1, norm + vec(0, -step_y)).r;
+        g_count += 1.0;
+    }
+    // Down
+    if (py < dim.y - 1) {
+        g_sum += sample(in1, norm + vec(0, step_y)).r;
+        g_count += 1.0;
+    }
+    // Left
+    if (px > 0) {
+        g_sum += sample(in1, norm + vec(-step_x, 0)).r;
+        g_count += 1.0;
+    }
+    // Right
+    if (px < dim.x - 1) {
+        g_sum += sample(in1, norm + vec(step_x, 0)).r;
+        g_count += 1.0;
+    }
+
+    g_out = (g_count > 0) ? (g_sum / g_count) : 0.0;
+
+    // Interpolate R from 4 diagonal neighbors
+    r_sum = 0.0;
+    r_count = 0.0;
+
+    // Top-left
+    if (py > 0 && px > 0) {
+        r_sum += sample(in1, norm + vec(-step_x, -step_y)).r;
+        r_count += 1.0;
+    }
+    // Top-right
+    if (py > 0 && px < dim.x - 1) {
+        r_sum += sample(in1, norm + vec(step_x, -step_y)).r;
+        r_count += 1.0;
+    }
+    // Bottom-left
+    if (py < dim.y - 1 && px > 0) {
+        r_sum += sample(in1, norm + vec(-step_x, step_y)).r;
+        r_count += 1.0;
+    }
+    // Bottom-right
+    if (py < dim.y - 1 && px < dim.x - 1) {
+        r_sum += sample(in1, norm + vec(step_x, step_y)).r;
+        r_count += 1.0;
+    }
+
+    r_out = (r_count > 0) ? (r_sum / r_count) : 0.0;
+}
+
+// Clamp and output reconstructed RGB
+out = vec(clamp(r_out, 0, 1), clamp(g_out, 0, 1), clamp(b_out, 0, 1), 1.0);

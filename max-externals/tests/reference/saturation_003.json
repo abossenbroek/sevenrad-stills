@@ -1,0 +1,8 @@
+{
+  "effect": "saturation",
+  "case_id": 3,
+  "description": "Heavily saturated",
+  "params": {
+    "factor": 2.0
+  }
+}
