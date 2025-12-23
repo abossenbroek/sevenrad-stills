@@ -182,11 +182,31 @@
 					"numoutlets": 0,
 					"patching_rect": [
 						400.0,
-						100.0,
+						200.0,
 						150.0,
 						20.0
 					],
 					"text": "kernel_size: 1-100 pixels"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-dial-kernel",
+					"maxclass": "dial",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"float"
+					],
+					"patching_rect": [
+						400.0,
+						225.0,
+						40.0,
+						40.0
+					],
+					"size": 100.0,
+					"min": 1.0,
+					"mult": 1.0
 				}
 			},
 			{
@@ -200,8 +220,8 @@
 						"bang"
 					],
 					"patching_rect": [
-						400.0,
-						125.0,
+						450.0,
+						240.0,
 						50.0,
 						22.0
 					],
@@ -219,8 +239,8 @@
 						""
 					],
 					"patching_rect": [
-						400.0,
-						155.0,
+						450.0,
+						270.0,
 						100.0,
 						22.0
 					],
@@ -234,12 +254,32 @@
 					"numinlets": 1,
 					"numoutlets": 0,
 					"patching_rect": [
-						520.0,
-						100.0,
+						560.0,
+						200.0,
 						120.0,
 						20.0
 					],
 					"text": "angle: 0-360 degrees"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-dial-angle",
+					"maxclass": "dial",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"float"
+					],
+					"patching_rect": [
+						560.0,
+						225.0,
+						40.0,
+						40.0
+					],
+					"size": 361.0,
+					"min": 0.0,
+					"mult": 1.0
 				}
 			},
 			{
@@ -253,8 +293,8 @@
 						"bang"
 					],
 					"patching_rect": [
-						520.0,
-						125.0,
+						610.0,
+						240.0,
 						60.0,
 						22.0
 					],
@@ -272,8 +312,8 @@
 						""
 					],
 					"patching_rect": [
-						520.0,
-						155.0,
+						610.0,
+						270.0,
 						70.0,
 						22.0
 					],
@@ -406,6 +446,18 @@
 			{
 				"patchline": {
 					"source": [
+						"obj-dial-kernel",
+						0
+					],
+					"destination": [
+						"obj-7",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
 						"obj-7",
 						0
 					],
@@ -423,6 +475,18 @@
 					],
 					"destination": [
 						"obj-12",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-dial-angle",
+						0
+					],
+					"destination": [
+						"obj-10",
 						0
 					]
 				}

@@ -587,12 +587,31 @@ class MaxhelpLinter:
 
         return ui_controls
 
+    def _get_interactive_control_ids(
+        self, ui_controls: dict[str, list[str]]
+    ) -> list[str]:
+        """
+        Get IDs of interactive UI controls (dial, slider, toggle, button).
+
+        These are controls that provide visual/tactile interaction beyond
+        simple text entry (number, flonum).
+        """
+        interactive_types = ["dial", "slider", "toggle", "button"]
+        ids = []
+        for ctrl_type in interactive_types:
+            ids.extend(ui_controls.get(ctrl_type, []))
+        return ids
+
     def _find_param_messages(self) -> dict[str, list[str]]:
         """
         Find message boxes that send parameters to jit.gl.pix.
 
         Returns dict mapping parameter name to list of box IDs.
-        Looks for patterns like "param_name $1" or "prepend param_name".
+        Looks for patterns like:
+        - "param_name $1" (variable message)
+        - "param_name VALUE" (fixed value, for cycling buttons)
+        - "param1 V1, param2 V2, ..." (multi-param preset messages)
+        - "prepend param_name" (newobj)
         """
         param_messages: dict[str, list[str]] = {}
 
@@ -609,6 +628,24 @@ class MaxhelpLinter:
                     if param_name not in param_messages:
                         param_messages[param_name] = []
                     param_messages[param_name].append(box_id)
+
+            # Check for message box with fixed or multi-param values
+            elif maxclass == "message" and "$1" not in text:
+                # Split by comma for multi-param messages like "perm_r 0, perm_g 1"
+                segments = [s.strip() for s in text.split(",")]
+
+                for segment in segments:
+                    parts = segment.split()
+                    if len(parts) == 2:
+                        param_name = parts[0]
+                        # Check if second part looks like a number (int or float)
+                        try:
+                            float(parts[1])
+                            if param_name not in param_messages:
+                                param_messages[param_name] = []
+                            param_messages[param_name].append(box_id)
+                        except ValueError:
+                            pass
 
             # Check for newobj with "prepend param_name"
             elif maxclass == "newobj" and text.startswith("prepend "):
@@ -652,7 +689,8 @@ class MaxhelpLinter:
         Checks:
         1. Each genjit parameter has a message/prepend to send it to jit.gl.pix
         2. Each parameter message is connected to jit.gl.pix
-        3. Each parameter message has an upstream UI control (dial, number, etc.)
+        3. Each parameter message has an upstream interactive UI control
+           (dial, slider, toggle, button)
         """
         valid = True
 
@@ -695,6 +733,9 @@ class MaxhelpLinter:
         for ids in ui_controls.values():
             all_ui_ids.extend(ids)
 
+        # Get interactive controls (dial, slider, toggle, button)
+        interactive_ui_ids = self._get_interactive_control_ids(ui_controls)
+
         # Check each shader's parameters
         for shader_name, params in all_params.items():
             for param in params:
@@ -732,16 +773,30 @@ class MaxhelpLinter:
                         f"Parameter message '{param_name}' not connected to jit.gl.pix",
                     )
 
-                # Check if there's a UI control connected to the parameter message
-                has_ui_connection = self._check_ui_to_pix_connection(
+                # Check if there's ANY UI control connected to the parameter
+                has_any_ui = self._check_ui_to_pix_connection(
                     all_ui_ids, param_box_ids, jit_gl_pixs
                 )
 
-                if not has_ui_connection:
+                # Check if there's an INTERACTIVE control (dial, slider, toggle, button)
+                has_interactive_ui = self._check_ui_to_pix_connection(
+                    interactive_ui_ids, param_box_ids, jit_gl_pixs
+                )
+
+                if not has_any_ui:
+                    # No UI at all - this is an error
+                    self.error(
+                        "parameter-ui",
+                        f"No UI control found for parameter '{param_name}' "
+                        f"from shader '{shader_name}'",
+                    )
+                    valid = False
+                elif not has_interactive_ui:
+                    # Has number/flonum but no interactive control - warning
                     self.warning(
                         "parameter-ui",
-                        f"No UI control (dial, number, flonum, button) found for "
-                        f"parameter '{param_name}' from shader '{shader_name}'",
+                        f"Parameter '{param_name}' has no interactive control "
+                        f"(dial, slider, toggle, button) - only number/flonum",
                     )
 
         return valid

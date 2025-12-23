@@ -12,8 +12,8 @@
 		"rect": [
 			100.0,
 			100.0,
-			800.0,
-			600.0
+			850.0,
+			650.0
 		],
 		"description": "Buffer corruption effects simulating cosmic ray memory upsets",
 		"digest": "XOR, invert, and shuffle corruption in tile regions",
@@ -239,11 +239,193 @@
 					"numoutlets": 0,
 					"patching_rect": [
 						450.0,
-						100.0,
 						200.0,
-						40.0
+						80.0,
+						20.0
 					],
-					"text": "mode:\n0=XOR, 1=invert, 2=shuffle"
+					"text": "mode (click)"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-mode-btn",
+					"maxclass": "button",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"bang"
+					],
+					"patching_rect": [
+						450.0,
+						225.0,
+						24.0,
+						24.0
+					]
+				}
+			},
+			{
+				"box": {
+					"id": "obj-mode-counter",
+					"maxclass": "newobj",
+					"numinlets": 5,
+					"numoutlets": 4,
+					"outlettype": [
+						"int",
+						"",
+						"",
+						"int"
+					],
+					"patching_rect": [
+						450.0,
+						255.0,
+						80.0,
+						22.0
+					],
+					"text": "counter 0 2"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-mode-select",
+					"maxclass": "newobj",
+					"numinlets": 4,
+					"numoutlets": 4,
+					"outlettype": [
+						"bang",
+						"bang",
+						"bang",
+						""
+					],
+					"patching_rect": [
+						450.0,
+						285.0,
+						80.0,
+						22.0
+					],
+					"text": "select 0 1 2"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-m0",
+					"maxclass": "message",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						450.0,
+						315.0,
+						55.0,
+						22.0
+					],
+					"text": "mode 0"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-m1",
+					"maxclass": "message",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						450.0,
+						340.0,
+						55.0,
+						22.0
+					],
+					"text": "mode 1"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-m2",
+					"maxclass": "message",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						450.0,
+						365.0,
+						55.0,
+						22.0
+					],
+					"text": "mode 2"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-n0",
+					"maxclass": "message",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						510.0,
+						315.0,
+						50.0,
+						22.0
+					],
+					"text": "set XOR"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-n1",
+					"maxclass": "message",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						510.0,
+						340.0,
+						50.0,
+						22.0
+					],
+					"text": "set Inv"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-n2",
+					"maxclass": "message",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						510.0,
+						365.0,
+						50.0,
+						22.0
+					],
+					"text": "set Shuf"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-mode-name",
+					"maxclass": "comment",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						480.0,
+						227.0,
+						50.0,
+						20.0
+					],
+					"text": "XOR"
 				}
 			},
 			{
@@ -258,7 +440,7 @@
 					],
 					"patching_rect": [
 						450.0,
-						150.0,
+						395.0,
 						50.0,
 						22.0
 					],
@@ -277,7 +459,7 @@
 					],
 					"patching_rect": [
 						450.0,
-						180.0,
+						425.0,
 						80.0,
 						22.0
 					],
@@ -291,12 +473,32 @@
 					"numinlets": 1,
 					"numoutlets": 0,
 					"patching_rect": [
-						550.0,
-						100.0,
+						570.0,
+						200.0,
 						100.0,
 						20.0
 					],
 					"text": "intensity: 0.0-1.0"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-dial-intensity",
+					"maxclass": "dial",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"float"
+					],
+					"patching_rect": [
+						570.0,
+						225.0,
+						40.0,
+						40.0
+					],
+					"size": 100.0,
+					"min": 0.0,
+					"mult": 0.01
 				}
 			},
 			{
@@ -310,8 +512,8 @@
 						"bang"
 					],
 					"patching_rect": [
-						550.0,
-						125.0,
+						620.0,
+						240.0,
 						60.0,
 						22.0
 					],
@@ -329,8 +531,8 @@
 						""
 					],
 					"patching_rect": [
-						550.0,
-						155.0,
+						620.0,
+						270.0,
 						80.0,
 						22.0
 					],
@@ -344,12 +546,32 @@
 					"numinlets": 1,
 					"numoutlets": 0,
 					"patching_rect": [
-						660.0,
-						100.0,
+						700.0,
+						200.0,
 						80.0,
 						20.0
 					],
-					"text": "seed: integer"
+					"text": "seed: 0-1000"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-dial-seed",
+					"maxclass": "dial",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"float"
+					],
+					"patching_rect": [
+						700.0,
+						225.0,
+						40.0,
+						40.0
+					],
+					"size": 1000.0,
+					"min": 0.0,
+					"mult": 1.0
 				}
 			},
 			{
@@ -363,11 +585,12 @@
 						"bang"
 					],
 					"patching_rect": [
-						660.0,
-						125.0,
-						60.0,
+						750.0,
+						240.0,
+						50.0,
 						22.0
-					]
+					],
+					"minimum": 0
 				}
 			},
 			{
@@ -380,9 +603,9 @@
 						""
 					],
 					"patching_rect": [
-						660.0,
-						155.0,
-						70.0,
+						750.0,
+						270.0,
+						60.0,
 						22.0
 					],
 					"text": "seed $1"
@@ -433,7 +656,7 @@
 					"numoutlets": 0,
 					"patching_rect": [
 						400.0,
-						320.0,
+						460.0,
 						350.0,
 						120.0
 					],
@@ -442,6 +665,198 @@
 			}
 		],
 		"lines": [
+			{
+				"patchline": {
+					"source": [
+						"obj-mode-btn",
+						0
+					],
+					"destination": [
+						"obj-mode-counter",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-mode-counter",
+						0
+					],
+					"destination": [
+						"obj-mode-select",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-mode-select",
+						0
+					],
+					"destination": [
+						"obj-m0",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-mode-select",
+						1
+					],
+					"destination": [
+						"obj-m1",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-mode-select",
+						2
+					],
+					"destination": [
+						"obj-m2",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-mode-select",
+						0
+					],
+					"destination": [
+						"obj-n0",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-mode-select",
+						1
+					],
+					"destination": [
+						"obj-n1",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-mode-select",
+						2
+					],
+					"destination": [
+						"obj-n2",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-m0",
+						0
+					],
+					"destination": [
+						"obj-15",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-m1",
+						0
+					],
+					"destination": [
+						"obj-15",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-m2",
+						0
+					],
+					"destination": [
+						"obj-15",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-n0",
+						0
+					],
+					"destination": [
+						"obj-mode-name",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-n1",
+						0
+					],
+					"destination": [
+						"obj-mode-name",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-n2",
+						0
+					],
+					"destination": [
+						"obj-mode-name",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-dial-intensity",
+						0
+					],
+					"destination": [
+						"obj-10",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-dial-seed",
+						0
+					],
+					"destination": [
+						"obj-13",
+						0
+					]
+				}
+			},
 			{
 				"patchline": {
 					"source": [

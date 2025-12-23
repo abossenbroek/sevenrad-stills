@@ -100,6 +100,44 @@
 			},
 			{
 				"box": {
+					"id": "obj-dial-count",
+					"maxclass": "dial",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"float"
+					],
+					"patching_rect": [
+						400.0,
+						145.0,
+						40.0,
+						40.0
+					],
+					"size": 1000.0,
+					"min": 0.0,
+					"mult": 1.0
+				}
+			},
+			{
+				"box": {
+					"id": "obj-expr-count",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						450.0,
+						155.0,
+						55.0,
+						22.0
+					],
+					"text": "expr $f1+1"
+				}
+			},
+			{
+				"box": {
 					"id": "obj-5",
 					"maxclass": "number",
 					"numinlets": 1,
@@ -109,8 +147,8 @@
 						"bang"
 					],
 					"patching_rect": [
-						400.0,
-						145.0,
+						510.0,
+						155.0,
 						50.0,
 						22.0
 					],
@@ -128,8 +166,8 @@
 						""
 					],
 					"patching_rect": [
-						400.0,
-						175.0,
+						510.0,
+						185.0,
 						100.0,
 						22.0
 					],
@@ -143,12 +181,32 @@
 					"numinlets": 1,
 					"numoutlets": 0,
 					"patching_rect": [
-						520.0,
-						120.0,
+						400.0,
+						210.0,
 						120.0,
 						20.0
 					],
 					"text": "tile_size_min: 0.01-1.0"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-dial-min",
+					"maxclass": "dial",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"float"
+					],
+					"patching_rect": [
+						400.0,
+						235.0,
+						40.0,
+						40.0
+					],
+					"size": 100.0,
+					"min": 0.0,
+					"mult": 0.01
 				}
 			},
 			{
@@ -162,8 +220,8 @@
 						"bang"
 					],
 					"patching_rect": [
-						520.0,
-						145.0,
+						450.0,
+						250.0,
 						60.0,
 						22.0
 					],
@@ -181,8 +239,8 @@
 						""
 					],
 					"patching_rect": [
-						520.0,
-						175.0,
+						450.0,
+						280.0,
 						100.0,
 						22.0
 					],
@@ -196,12 +254,32 @@
 					"numinlets": 1,
 					"numoutlets": 0,
 					"patching_rect": [
-						640.0,
-						120.0,
-						120.0,
+						560.0,
+						210.0,
+						130.0,
 						20.0
 					],
 					"text": "tile_size_max: 0.01-1.0"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-dial-max",
+					"maxclass": "dial",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"float"
+					],
+					"patching_rect": [
+						560.0,
+						235.0,
+						40.0,
+						40.0
+					],
+					"size": 100.0,
+					"min": 0.0,
+					"mult": 0.01
 				}
 			},
 			{
@@ -215,8 +293,8 @@
 						"bang"
 					],
 					"patching_rect": [
-						640.0,
-						145.0,
+						610.0,
+						250.0,
 						60.0,
 						22.0
 					],
@@ -234,8 +312,8 @@
 						""
 					],
 					"patching_rect": [
-						640.0,
-						175.0,
+						610.0,
+						280.0,
 						100.0,
 						22.0
 					],
@@ -325,6 +403,30 @@
 			{
 				"patchline": {
 					"source": [
+						"obj-dial-count",
+						0
+					],
+					"destination": [
+						"obj-expr-count",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-expr-count",
+						0
+					],
+					"destination": [
+						"obj-5",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
 						"obj-5",
 						0
 					],
@@ -349,6 +451,18 @@
 			{
 				"patchline": {
 					"source": [
+						"obj-dial-min",
+						0
+					],
+					"destination": [
+						"obj-8",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
 						"obj-8",
 						0
 					],
@@ -366,6 +480,18 @@
 					],
 					"destination": [
 						"obj-13",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-dial-max",
+						0
+					],
+					"destination": [
+						"obj-11",
 						0
 					]
 				}

@@ -182,11 +182,31 @@
 					"numoutlets": 0,
 					"patching_rect": [
 						400.0,
-						100.0,
+						200.0,
 						150.0,
 						20.0
 					],
 					"text": "amount: 0.0-1.0 (fraction)"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-dial-amount",
+					"maxclass": "dial",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"float"
+					],
+					"patching_rect": [
+						400.0,
+						225.0,
+						40.0,
+						40.0
+					],
+					"size": 100.0,
+					"min": 0.0,
+					"mult": 0.01
 				}
 			},
 			{
@@ -200,8 +220,8 @@
 						"bang"
 					],
 					"patching_rect": [
-						400.0,
-						125.0,
+						450.0,
+						240.0,
 						60.0,
 						22.0
 					],
@@ -219,8 +239,8 @@
 						""
 					],
 					"patching_rect": [
-						400.0,
-						155.0,
+						450.0,
+						270.0,
 						80.0,
 						22.0
 					],
@@ -234,12 +254,32 @@
 					"numinlets": 1,
 					"numoutlets": 0,
 					"patching_rect": [
-						520.0,
-						100.0,
+						540.0,
+						200.0,
 						150.0,
 						20.0
 					],
 					"text": "salt_ratio: 0.0-1.0"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-dial-salt",
+					"maxclass": "dial",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"float"
+					],
+					"patching_rect": [
+						540.0,
+						225.0,
+						40.0,
+						40.0
+					],
+					"size": 100.0,
+					"min": 0.0,
+					"mult": 0.01
 				}
 			},
 			{
@@ -253,8 +293,8 @@
 						"bang"
 					],
 					"patching_rect": [
-						520.0,
-						125.0,
+						590.0,
+						240.0,
 						60.0,
 						22.0
 					],
@@ -272,8 +312,8 @@
 						""
 					],
 					"patching_rect": [
-						520.0,
-						155.0,
+						590.0,
+						270.0,
 						100.0,
 						22.0
 					],
@@ -406,6 +446,18 @@
 			{
 				"patchline": {
 					"source": [
+						"obj-dial-amount",
+						0
+					],
+					"destination": [
+						"obj-7",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
 						"obj-7",
 						0
 					],
@@ -423,6 +475,18 @@
 					],
 					"destination": [
 						"obj-12",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-dial-salt",
+						0
+					],
+					"destination": [
+						"obj-10",
 						0
 					]
 				}

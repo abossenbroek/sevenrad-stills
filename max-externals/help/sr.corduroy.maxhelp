@@ -182,31 +182,43 @@
 					"numoutlets": 0,
 					"patching_rect": [
 						400.0,
-						100.0,
 						200.0,
+						80.0,
 						20.0
 					],
-					"text": "orientation: 0=vertical, 1=horizontal"
+					"text": "orientation"
 				}
 			},
 			{
 				"box": {
-					"id": "obj-7",
-					"maxclass": "number",
+					"id": "obj-orient-toggle",
+					"maxclass": "toggle",
 					"numinlets": 1,
-					"numoutlets": 2,
+					"numoutlets": 1,
 					"outlettype": [
-						"",
-						"bang"
+						"int"
 					],
 					"patching_rect": [
 						400.0,
-						125.0,
-						50.0,
-						22.0
+						225.0,
+						24.0,
+						24.0
+					]
+				}
+			},
+			{
+				"box": {
+					"id": "obj-orient-label",
+					"maxclass": "comment",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						430.0,
+						227.0,
+						60.0,
+						20.0
 					],
-					"minimum": 0,
-					"maximum": 1
+					"text": "V / H"
 				}
 			},
 			{
@@ -220,7 +232,7 @@
 					],
 					"patching_rect": [
 						400.0,
-						155.0,
+						255.0,
 						100.0,
 						22.0
 					],
@@ -234,12 +246,32 @@
 					"numinlets": 1,
 					"numoutlets": 0,
 					"patching_rect": [
-						520.0,
+						500.0,
+						200.0,
 						100.0,
-						120.0,
 						20.0
 					],
 					"text": "strength: 0.0-1.0"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-dial-strength",
+					"maxclass": "dial",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"float"
+					],
+					"patching_rect": [
+						500.0,
+						225.0,
+						40.0,
+						40.0
+					],
+					"size": 100.0,
+					"min": 0.0,
+					"mult": 0.01
 				}
 			},
 			{
@@ -253,8 +285,8 @@
 						"bang"
 					],
 					"patching_rect": [
-						520.0,
-						125.0,
+						550.0,
+						240.0,
 						60.0,
 						22.0
 					],
@@ -272,8 +304,8 @@
 						""
 					],
 					"patching_rect": [
-						520.0,
-						155.0,
+						550.0,
+						270.0,
 						80.0,
 						22.0
 					],
@@ -287,12 +319,32 @@
 					"numinlets": 1,
 					"numoutlets": 0,
 					"patching_rect": [
-						620.0,
-						100.0,
+						400.0,
+						300.0,
 						100.0,
 						20.0
 					],
 					"text": "density: 0.0-1.0"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-dial-density",
+					"maxclass": "dial",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"float"
+					],
+					"patching_rect": [
+						400.0,
+						325.0,
+						40.0,
+						40.0
+					],
+					"size": 100.0,
+					"min": 0.0,
+					"mult": 0.01
 				}
 			},
 			{
@@ -306,8 +358,8 @@
 						"bang"
 					],
 					"patching_rect": [
-						620.0,
-						125.0,
+						450.0,
+						340.0,
 						60.0,
 						22.0
 					],
@@ -325,8 +377,8 @@
 						""
 					],
 					"patching_rect": [
-						620.0,
-						155.0,
+						450.0,
+						370.0,
 						80.0,
 						22.0
 					],
@@ -340,12 +392,32 @@
 					"numinlets": 1,
 					"numoutlets": 0,
 					"patching_rect": [
-						400.0,
-						190.0,
-						150.0,
+						550.0,
+						300.0,
+						100.0,
 						20.0
 					],
-					"text": "seed: random seed value"
+					"text": "seed: 0-1000"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-dial-seed",
+					"maxclass": "dial",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"float"
+					],
+					"patching_rect": [
+						550.0,
+						325.0,
+						40.0,
+						40.0
+					],
+					"size": 1000.0,
+					"min": 0.0,
+					"mult": 1.0
 				}
 			},
 			{
@@ -359,8 +431,8 @@
 						"bang"
 					],
 					"patching_rect": [
-						400.0,
-						215.0,
+						600.0,
+						340.0,
 						50.0,
 						22.0
 					],
@@ -377,8 +449,8 @@
 						""
 					],
 					"patching_rect": [
-						400.0,
-						245.0,
+						600.0,
+						370.0,
 						60.0,
 						22.0
 					],
@@ -511,7 +583,7 @@
 			{
 				"patchline": {
 					"source": [
-						"obj-7",
+						"obj-orient-toggle",
 						0
 					],
 					"destination": [
@@ -528,6 +600,18 @@
 					],
 					"destination": [
 						"obj-15",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-dial-strength",
+						0
+					],
+					"destination": [
+						"obj-10",
 						0
 					]
 				}
@@ -559,6 +643,18 @@
 			{
 				"patchline": {
 					"source": [
+						"obj-dial-density",
+						0
+					],
+					"destination": [
+						"obj-13",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
 						"obj-13",
 						0
 					],
@@ -576,6 +672,18 @@
 					],
 					"destination": [
 						"obj-15",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-dial-seed",
+						0
+					],
+					"destination": [
+						"obj-18",
 						0
 					]
 				}

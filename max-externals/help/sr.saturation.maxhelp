@@ -185,12 +185,32 @@
 					"numinlets": 1,
 					"numoutlets": 0,
 					"patching_rect": [
-						400.0,
-						100.0,
+						550.0,
 						200.0,
+						120.0,
 						20.0
 					],
 					"text": "factor: 0.0 - 3.0"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-dial-factor",
+					"maxclass": "dial",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"float"
+					],
+					"patching_rect": [
+						550.0,
+						225.0,
+						40.0,
+						40.0
+					],
+					"size": 301.0,
+					"min": 0.0,
+					"mult": 0.01
 				}
 			},
 			{
@@ -204,8 +224,8 @@
 						"bang"
 					],
 					"patching_rect": [
-						400.0,
-						125.0,
+						600.0,
+						240.0,
 						60.0,
 						22.0
 					],
@@ -223,8 +243,8 @@
 						""
 					],
 					"patching_rect": [
-						400.0,
-						155.0,
+						600.0,
+						270.0,
 						80.0,
 						22.0
 					],
@@ -419,6 +439,18 @@
 					],
 					"destination": [
 						"obj-9",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-dial-factor",
+						0
+					],
+					"destination": [
+						"obj-7",
 						0
 					]
 				}
