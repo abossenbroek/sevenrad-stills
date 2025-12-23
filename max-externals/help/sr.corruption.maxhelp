@@ -130,12 +130,30 @@
 						"bang"
 					],
 					"patching_rect": [
-						250.0,
-						130.0,
+						400.0,
+						100.0,
 						58.0,
 						22.0
 					],
 					"text": "loadbang"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-delay",
+					"maxclass": "newobj",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						"bang"
+					],
+					"patching_rect": [
+						250.0,
+						130.0,
+						63.0,
+						22.0
+					],
+					"text": "delay 100"
 				}
 			},
 			{
@@ -154,6 +172,63 @@
 						22.0
 					],
 					"text": "read chickens.mp4"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-noise",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 2,
+					"outlettype": [
+						"jit_matrix",
+						""
+					],
+					"patching_rect": [
+						110.0,
+						130.0,
+						120.0,
+						22.0
+					],
+					"text": "jit.noise 4 char 16 16"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-op",
+					"maxclass": "newobj",
+					"numinlets": 2,
+					"numoutlets": 2,
+					"outlettype": [
+						"jit_matrix",
+						""
+					],
+					"patching_rect": [
+						110.0,
+						160.0,
+						120.0,
+						22.0
+					],
+					"text": "jit.op @op > @val 128"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-tex",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 2,
+					"outlettype": [
+						"jit_gl_texture",
+						""
+					],
+					"patching_rect": [
+						110.0,
+						200.0,
+						250.0,
+						22.0
+					],
+					"text": "jit.gl.texture sr_corruption_ctx @name mask"
 				}
 			},
 			{
@@ -374,6 +449,30 @@
 						0
 					],
 					"destination": [
+						"obj-world",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-20",
+						0
+					],
+					"destination": [
+						"obj-delay",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-delay",
+						0
+					],
+					"destination": [
 						"obj-21",
 						0
 					]
@@ -412,6 +511,54 @@
 					"destination": [
 						"obj-5",
 						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-4",
+						0
+					],
+					"destination": [
+						"obj-noise",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-noise",
+						0
+					],
+					"destination": [
+						"obj-op",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-op",
+						0
+					],
+					"destination": [
+						"obj-tex",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-tex",
+						0
+					],
+					"destination": [
+						"obj-15",
+						1
 					]
 				}
 			},

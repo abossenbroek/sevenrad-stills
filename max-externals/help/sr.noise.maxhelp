@@ -157,12 +157,30 @@
 						"bang"
 					],
 					"patching_rect": [
-						250.0,
-						120.0,
+						400.0,
+						100.0,
 						58.0,
 						22.0
 					],
 					"text": "loadbang"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-delay",
+					"maxclass": "newobj",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						"bang"
+					],
+					"patching_rect": [
+						250.0,
+						120.0,
+						63.0,
+						22.0
+					],
+					"text": "delay 100"
 				}
 			},
 			{
@@ -428,6 +446,30 @@
 				"patchline": {
 					"source": [
 						"obj-21",
+						0
+					],
+					"destination": [
+						"obj-world",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-21",
+						0
+					],
+					"destination": [
+						"obj-delay",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-delay",
 						0
 					],
 					"destination": [
