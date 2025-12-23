@@ -218,6 +218,7 @@ class MaxhelpLinter:
         valid &= self._validate_inlet_connections()
         valid &= self._validate_metadata()
         valid &= self._validate_parameter_ui()
+        valid &= self._validate_no_overlaps()
 
         return valid
 
@@ -510,6 +511,96 @@ class MaxhelpLinter:
 
         if not patcher.get("tags"):
             self.warning("metadata", "Missing 'tags' field")
+
+        return valid
+
+    def _are_boxes_connected(self, id1: str, id2: str) -> bool:
+        """Check if two boxes are directly connected by a patchline."""
+        try:
+            # Check both directions
+            if nx.has_path(self.graph, (id1, "box"), (id2, "box")):
+                # Verify it's a direct connection (path length 1)
+                path = nx.shortest_path(self.graph, (id1, "box"), (id2, "box"))
+                if len(path) == 2:
+                    return True
+            if nx.has_path(self.graph, (id2, "box"), (id1, "box")):
+                path = nx.shortest_path(self.graph, (id2, "box"), (id1, "box"))
+                if len(path) == 2:
+                    return True
+        except nx.NetworkXError:
+            pass
+        return False
+
+    def _validate_no_overlaps(self) -> bool:
+        """
+        Validate that UI components don't overlap each other.
+
+        Checks patching_rect of interactive elements to ensure sufficient spacing.
+        Comments are excluded as they often intentionally label other objects.
+        Connected boxes are allowed to overlap (common Max patching style).
+        """
+        valid = True
+
+        # UI element types that should not overlap (excluding comments)
+        interactive_types = {
+            "dial",
+            "slider",
+            "button",
+            "toggle",
+            "number",
+            "flonum",
+            "message",
+            "newobj",
+            "umenu",
+            "jit.pwindow",
+        }
+
+        # Collect interactive boxes with their rectangles
+        interactive_boxes: list[tuple[str, list[float]]] = []
+
+        for box_id, box in self.boxes.items():
+            maxclass = box.get("maxclass", "")
+            if maxclass in interactive_types:
+                rect = box.get("patching_rect", [])
+                if len(rect) >= 4:
+                    interactive_boxes.append((box_id, rect))
+
+        # Check each pair for overlaps
+        for i, (id1, rect1) in enumerate(interactive_boxes):
+            x1, y1, w1, h1 = rect1[0], rect1[1], rect1[2], rect1[3]
+
+            for id2, rect2 in interactive_boxes[i + 1 :]:
+                x2, y2, w2, h2 = rect2[0], rect2[1], rect2[2], rect2[3]
+
+                # Check for rectangle intersection
+                h_overlap = x1 < x2 + w2 and x1 + w1 > x2
+                v_overlap = y1 < y2 + h2 and y1 + h1 > y2
+
+                if h_overlap and v_overlap:
+                    # Skip if boxes are directly connected (intentional overlap)
+                    if self._are_boxes_connected(id1, id2):
+                        continue
+
+                    # Calculate overlap area for severity assessment
+                    overlap_x = max(0, min(x1 + w1, x2 + w2) - max(x1, x2))
+                    overlap_y = max(0, min(y1 + h1, y2 + h2) - max(y1, y2))
+                    overlap_area = overlap_x * overlap_y
+                    min_area = min(w1 * h1, w2 * h2)
+
+                    # Significant overlap (>25% of smaller box)
+                    if overlap_area > 0.25 * min_area:
+                        self.error(
+                            "overlap",
+                            f"Boxes '{id1}' and '{id2}' overlap "
+                            f"({int(overlap_area)}px²)",
+                        )
+                        valid = False
+                    elif overlap_area > 100:  # Only warn for overlaps > 100px²
+                        self.warning(
+                            "overlap",
+                            f"Boxes '{id1}' and '{id2}' partially overlap "
+                            f"({int(overlap_area)}px²)",
+                        )
 
         return valid
 
