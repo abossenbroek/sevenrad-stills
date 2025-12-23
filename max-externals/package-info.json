@@ -8,10 +8,8 @@
     "max_version_min": "8.5.0",
     "os": {
         "macintosh": {
-            "arch": "universal"
-        },
-        "windows": {
-            "arch": "x64"
+            "platform": ["x64", "arm64"],
+            "min_version": "10.13"
         }
     },
     "filelist": {
