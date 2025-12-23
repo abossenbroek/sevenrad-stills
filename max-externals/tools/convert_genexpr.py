@@ -204,8 +204,12 @@ def generate_patcher_json(params: list[tuple[str, str]], code: str, title: str) 
     # Number of inlets = number of texture inputs (NOT params)
     # Params are accessed by name, not via patchlines
 
+    # Fix output variable: Max Gen expects 'out1', not 'out'
+    # Replace 'out =' with 'out1 =' (but not 'out1 =' which is already correct)
+    fixed_code = re.sub(r"\bout\s*=", "out1 =", code)
+
     # Format code for JSON (use \r\n as in official files)
-    formatted_code = code.replace("\n", "\r\n")
+    formatted_code = fixed_code.replace("\n", "\r\n")
 
     boxes.append(
         {
