@@ -110,7 +110,7 @@
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 250.0, 150.0, 120.0, 22.0 ],
-					"text" : "read chicken.mp4"
+					"text" : "read chickens.mp4"
 				}
 			},
 			{

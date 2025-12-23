@@ -1,7 +1,7 @@
 # SevenRad Max Externals Makefile
 # Automates build, install, and testing
 
-.PHONY: all build clean install uninstall test test-syntax test-rng help find-max
+.PHONY: all build clean install uninstall test test-syntax test-rng test-lint help find-max
 
 # Build directories
 BUILD_DIR := build
@@ -115,8 +115,20 @@ uninstall: ## Remove package from Max Packages directory
 
 ## Test targets
 
-test: test-syntax test-rng ## Run all Python tests (no Max required)
+test: test-lint test-syntax test-rng ## Run all Python tests (no Max required)
 	@echo "$(GREEN)All Python tests passed$(NC)"
+
+test-lint: ## Validate .genjit file format
+	@echo "$(GREEN)Linting .genjit files...$(NC)"
+	@$(PYTHON) tools/lint_genjit.py code/*.genjit
+
+test-lint-strict: ## Lint with warnings as errors
+	@echo "$(GREEN)Linting .genjit files (strict mode)...$(NC)"
+	@$(PYTHON) tools/lint_genjit.py --strict code/*.genjit
+
+test-lint-test: ## Run linter test suite
+	@echo "$(GREEN)Running linter tests...$(NC)"
+	@$(PYTHON) tools/test_lint_genjit.py
 
 test-syntax: ## Validate GenExpr shader syntax
 	@echo "$(GREEN)Running GenExpr syntax tests...$(NC)"

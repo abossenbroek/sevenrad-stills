@@ -1,54 +1,237 @@
-/**
- * sr.bandswap.genjit
- * RGB channel swapping in tile regions.
- *
- * Works with tile data from sr.tilegen external.
- * Applies channel permutation within masked regions.
- *
- * Parameters:
- *   perm_r (int 0-2): which input channel maps to red output
- *   perm_g (int 0-2): which input channel maps to green output
- *   perm_b (int 0-2): which input channel maps to blue output
- *
- * Inputs:
- *   in1: source image
- *   in2: tile mask texture from sr.tilegen (white=affected, black=passthrough)
- */
-
-// Parameters
-Param perm_r(0);
-Param perm_g(1);
-Param perm_b(2);
-
-// Sample tile mask from second input
-mask_value = sample(in2, norm).r;
-
-// If mask value > 0.5, this pixel is in a tile region
-if (mask_value > 0.5) {
-    // Read original RGB channels
-    r_in = in1.r;
-    g_in = in1.g;
-    b_in = in1.b;
-
-    // Create array-like access
-    channels = vec(r_in, g_in, b_in);
-
-    // Apply permutation
-    // Note: GenExpr doesn't support array indexing directly,
-    // so we use conditionals to select channels
-
-    // Select red output channel
-    r_out = (perm_r == 0) ? channels.r : ((perm_r == 1) ? channels.g : channels.b);
-
-    // Select green output channel
-    g_out = (perm_g == 0) ? channels.r : ((perm_g == 1) ? channels.g : channels.b);
-
-    // Select blue output channel
-    b_out = (perm_b == 0) ? channels.r : ((perm_b == 1) ? channels.g : channels.b);
-
-    // Output permuted channels, preserve alpha
-    out = vec(r_out, g_out, b_out, in1.a);
-} else {
-    // Outside tile region, pass through unchanged
-    out = in1;
+{
+	"patcher": {
+		"fileversion": 1,
+		"appversion": {
+			"major": 8,
+			"minor": 6,
+			"revision": 0
+		},
+		"rect": [
+			100.0,
+			100.0,
+			650.0,
+			550.0
+		],
+		"bgcolor": [
+			0.9,
+			0.9,
+			0.9,
+			0.9
+		],
+		"bglocked": 0,
+		"openinpresentation": 0,
+		"default_fontsize": 12.0,
+		"default_fontface": 0,
+		"default_fontname": "Arial",
+		"gridonopen": 0,
+		"gridsize": [
+			15.0,
+			15.0
+		],
+		"gridsnaponopen": 0,
+		"statusbarvisible": 0,
+		"toolbarvisible": 1,
+		"boxanimatetime": 200,
+		"imprint": 0,
+		"enablehscroll": 1,
+		"enablevscroll": 1,
+		"devicewidth": 0.0,
+		"description": "",
+		"digest": "",
+		"tags": "",
+		"title": "sr.bandswap.genjit",
+		"boxes": [
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-1",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						50.0,
+						60.0,
+						30.0,
+						20.0
+					],
+					"text": "in 1"
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-2",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						130.0,
+						60.0,
+						30.0,
+						20.0
+					],
+					"text": "in 2"
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-3",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						130.0,
+						30.0,
+						100.0,
+						20.0
+					],
+					"text": "param perm_r 0"
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-4",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						250.0,
+						30.0,
+						100.0,
+						20.0
+					],
+					"text": "param perm_g 1"
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-5",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						370.0,
+						30.0,
+						100.0,
+						20.0
+					],
+					"text": "param perm_b 2"
+				}
+			},
+			{
+				"box": {
+					"code": "mask_value = sample(in2, norm).r;\r\n\r\n// If mask value > 0.5, this pixel is in a tile region\r\nif (mask_value > 0.5) {\r\n    // Read original RGB channels\r\n    r_in = in1.r;\r\n    g_in = in1.g;\r\n    b_in = in1.b;\r\n\r\n    // Create array-like access\r\n    channels = vec(r_in, g_in, b_in);\r\n\r\n    // Apply permutation\r\n    // Note: GenExpr doesn't support array indexing directly,\r\n    // so we use conditionals to select channels\r\n\r\n    // Select red output channel\r\n    r_out = (perm_r == 0) ? channels.r : ((perm_r == 1) ? channels.g : channels.b);\r\n\r\n    // Select green output channel\r\n    g_out = (perm_g == 0) ? channels.r : ((perm_g == 1) ? channels.g : channels.b);\r\n\r\n    // Select blue output channel\r\n    b_out = (perm_b == 0) ? channels.r : ((perm_b == 1) ? channels.g : channels.b);\r\n\r\n    // Output permuted channels, preserve alpha\r\n    out = vec(r_out, g_out, b_out, in1.a);\r\n} else {\r\n    // Outside tile region, pass through unchanged\r\n    out = in1;\r\n}",
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-6",
+					"maxclass": "codebox",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						50.0,
+						120.0,
+						500.0,
+						340.0
+					]
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-7",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						50.0,
+						480.0,
+						37.0,
+						20.0
+					],
+					"text": "out 1"
+				}
+			}
+		],
+		"lines": [
+			{
+				"patchline": {
+					"destination": [
+						"obj-6",
+						0
+					],
+					"disabled": 0,
+					"hidden": 0,
+					"source": [
+						"obj-1",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"destination": [
+						"obj-6",
+						1
+					],
+					"disabled": 0,
+					"hidden": 0,
+					"source": [
+						"obj-2",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"destination": [
+						"obj-7",
+						0
+					],
+					"disabled": 0,
+					"hidden": 0,
+					"source": [
+						"obj-6",
+						0
+					]
+				}
+			}
+		],
+		"dependency_cache": [
+			{
+				"name": "codebox.mxo",
+				"type": "iLaX"
+			},
+			{
+				"name": "param.mxo",
+				"type": "iLaX"
+			}
+		]
+	}
 }

@@ -1,104 +1,143 @@
-/**
- * sr.saltpepper - Salt and pepper noise effect
- *
- * Adds random white (salt) and black (pepper) pixels to image.
- * Uses PCG hash for deterministic pseudo-random generation.
- *
- * Parameters:
- *   amount: fraction of pixels affected (0.0 - 1.0)
- *   salt_ratio: ratio of white vs black pixels (0.0 - 1.0)
- *   seed: random seed for reproducible results
- *
- * Algorithm:
- *   - Generate deterministic random values from pixel coordinates
- *   - If rand1 < amount: replace pixel
- *   - If rand2 < salt_ratio: use white, else use black
- */
-
-<jit.gl.pix>
-<description>Salt and pepper noise effect</description>
-
-<param name="amount" type="float" default="0.05" />
-<param name="salt_ratio" type="float" default="0.5" />
-<param name="seed" type="int" default="0" />
-
-<language name="glsl" version="1.2">
-<bind param="amount" program="fp" />
-<bind param="salt_ratio" program="fp" />
-<bind param="seed" program="fp" />
-
-<program name="fp" type="fragment">
-<![CDATA[
-
-#version 120
-
-uniform sampler2DRect tex0;
-uniform vec2 texdim0;
-uniform float amount;
-uniform float salt_ratio;
-uniform float seed;
-
-varying vec2 texcoord0;
-
-// PCG hash constants (cast to uint in shader)
-const uint PCG_MULT = 747796405u;
-const uint PCG_INC = 2891336453u;
-const uint PCG_FACTOR = 277803737u;
-const uint COORD_PRIME_X = 374761393u;
-const uint COORD_PRIME_Y = 668265263u;
-
-// PCG hash function for deterministic random generation
-uint pcg_hash(uint state) {
-    state = state * PCG_MULT + PCG_INC;
-    state ^= state >> 16u;
-    state *= PCG_FACTOR;
-    state ^= state >> 16u;
-    return state;
+{
+	"patcher": {
+		"fileversion": 1,
+		"appversion": {
+			"major": 8,
+			"minor": 6,
+			"revision": 0
+		},
+		"rect": [
+			100.0,
+			100.0,
+			650.0,
+			550.0
+		],
+		"bgcolor": [
+			0.9,
+			0.9,
+			0.9,
+			0.9
+		],
+		"bglocked": 0,
+		"openinpresentation": 0,
+		"default_fontsize": 12.0,
+		"default_fontface": 0,
+		"default_fontname": "Arial",
+		"gridonopen": 0,
+		"gridsize": [
+			15.0,
+			15.0
+		],
+		"gridsnaponopen": 0,
+		"statusbarvisible": 0,
+		"toolbarvisible": 1,
+		"boxanimatetime": 200,
+		"imprint": 0,
+		"enablehscroll": 1,
+		"enablevscroll": 1,
+		"devicewidth": 0.0,
+		"description": "",
+		"digest": "",
+		"tags": "",
+		"title": "sr.saltpepper.genjit",
+		"boxes": [
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-1",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						50.0,
+						60.0,
+						30.0,
+						20.0
+					],
+					"text": "in 1"
+				}
+			},
+			{
+				"box": {
+					"code": "<jit.gl.pix>\r\n<description>Salt and pepper noise effect</description>\r\n\r\n<param name=\"amount\" type=\"float\" default=\"0.05\" />\r\n<param name=\"salt_ratio\" type=\"float\" default=\"0.5\" />\r\n<param name=\"seed\" type=\"int\" default=\"0\" />\r\n\r\n<language name=\"glsl\" version=\"1.2\">\r\n<bind param=\"amount\" program=\"fp\" />\r\n<bind param=\"salt_ratio\" program=\"fp\" />\r\n<bind param=\"seed\" program=\"fp\" />\r\n\r\n<program name=\"fp\" type=\"fragment\">\r\n<![CDATA[\r\n\r\n#version 120\r\n\r\nuniform sampler2DRect tex0;\r\nuniform vec2 texdim0;\r\nuniform float amount;\r\nuniform float salt_ratio;\r\nuniform float seed;\r\n\r\nvarying vec2 texcoord0;\r\n\r\n// PCG hash constants (cast to uint in shader)\r\nconst uint PCG_MULT = 747796405u;\r\nconst uint PCG_INC = 2891336453u;\r\nconst uint PCG_FACTOR = 277803737u;\r\nconst uint COORD_PRIME_X = 374761393u;\r\nconst uint COORD_PRIME_Y = 668265263u;\r\n\r\n// PCG hash function for deterministic random generation\r\nuint pcg_hash(uint state) {\r\n    state = state * PCG_MULT + PCG_INC;\r\n    state ^= state >> 16u;\r\n    state *= PCG_FACTOR;\r\n    state ^= state >> 16u;\r\n    return state;\r\n}\r\n\r\n// Generate random float [0, 1] from pixel coordinates\r\nfloat random(vec2 coord, uint iseed) {\r\n    // Convert coordinates to integers and combine with seed\r\n    uint x = uint(coord.x);\r\n    uint y = uint(coord.y);\r\n\r\n    // Mix coordinates with primes and seed\r\n    uint state = iseed;\r\n    state ^= x * COORD_PRIME_X;\r\n    state ^= y * COORD_PRIME_Y;\r\n\r\n    // Generate random value\r\n    state = pcg_hash(state);\r\n\r\n    // Convert to [0, 1] range\r\n    return float(state) / 4294967295.0;\r\n}\r\n\r\nvoid main() {\r\n    vec4 original = texture2DRect(tex0, texcoord0);\r\n    uint iseed = uint(seed);\r\n\r\n    // Generate two independent random values\r\n    float rand1 = random(texcoord0, iseed);\r\n    float rand2 = random(texcoord0, iseed + 1u);\r\n\r\n    // Check if this pixel should be affected\r\n    if (rand1 < amount) {\r\n        // Determine if salt (white) or pepper (black)\r\n        if (rand2 < salt_ratio) {\r\n            // Salt: white pixel\r\n            gl_FragColor = vec4(1.0, 1.0, 1.0, original.a);\r\n        } else {\r\n            // Pepper: black pixel\r\n            gl_FragColor = vec4(0.0, 0.0, 0.0, original.a);\r\n        }\r\n    } else {\r\n        // Keep original pixel\r\n        gl_FragColor = original;\r\n    }\r\n}\r\n\r\n]]>\r\n</program>\r\n</language>\r\n</jit.gl.pix>",
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-2",
+					"maxclass": "codebox",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						50.0,
+						120.0,
+						500.0,
+						340.0
+					]
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-3",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						50.0,
+						480.0,
+						37.0,
+						20.0
+					],
+					"text": "out 1"
+				}
+			}
+		],
+		"lines": [
+			{
+				"patchline": {
+					"destination": [
+						"obj-2",
+						0
+					],
+					"disabled": 0,
+					"hidden": 0,
+					"source": [
+						"obj-1",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"destination": [
+						"obj-3",
+						0
+					],
+					"disabled": 0,
+					"hidden": 0,
+					"source": [
+						"obj-2",
+						0
+					]
+				}
+			}
+		],
+		"dependency_cache": [
+			{
+				"name": "codebox.mxo",
+				"type": "iLaX"
+			},
+			{
+				"name": "param.mxo",
+				"type": "iLaX"
+			}
+		]
+	}
 }
-
-// Generate random float [0, 1] from pixel coordinates
-float random(vec2 coord, uint iseed) {
-    // Convert coordinates to integers and combine with seed
-    uint x = uint(coord.x);
-    uint y = uint(coord.y);
-
-    // Mix coordinates with primes and seed
-    uint state = iseed;
-    state ^= x * COORD_PRIME_X;
-    state ^= y * COORD_PRIME_Y;
-
-    // Generate random value
-    state = pcg_hash(state);
-
-    // Convert to [0, 1] range
-    return float(state) / 4294967295.0;
-}
-
-void main() {
-    vec4 original = texture2DRect(tex0, texcoord0);
-    uint iseed = uint(seed);
-
-    // Generate two independent random values
-    float rand1 = random(texcoord0, iseed);
-    float rand2 = random(texcoord0, iseed + 1u);
-
-    // Check if this pixel should be affected
-    if (rand1 < amount) {
-        // Determine if salt (white) or pepper (black)
-        if (rand2 < salt_ratio) {
-            // Salt: white pixel
-            gl_FragColor = vec4(1.0, 1.0, 1.0, original.a);
-        } else {
-            // Pepper: black pixel
-            gl_FragColor = vec4(0.0, 0.0, 0.0, original.a);
-        }
-    } else {
-        // Keep original pixel
-        gl_FragColor = original;
-    }
-}
-
-]]>
-</program>
-</language>
-</jit.gl.pix>

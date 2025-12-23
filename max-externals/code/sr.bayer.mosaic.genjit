@@ -1,104 +1,163 @@
-/**
- * sr.bayer.mosaic.genjit
- *
- * Bayer mosaicing pass for jit.gl.pix (GenExpr shader)
- *
- * First pass of two-pass Bayer filter effect. Extracts single color channel
- * per pixel based on the Bayer pattern, simulating how digital image sensors
- * capture color information through a color filter array (CFA).
- *
- * This creates the characteristic color artifacts when paired with the
- * demosaicing pass (sr.bayer.demosaic).
- *
- * Parameters:
- *   pattern (int 0-3): Bayer pattern selection
- *     0 = RGGB (Red-Green-Green-Blue)
- *     1 = BGGR (Blue-Green-Green-Red)
- *     2 = GRBG (Green-Red-Blue-Green)
- *     3 = GBRG (Green-Blue-Red-Green)
- *
- * Bayer Pattern Layout (top-left 2x2 block):
- *   RGGB (0):  R G    BGGR (1):  B G    GRBG (2):  G R    GBRG (3):  G B
- *              G B               G R               B G               R G
- *
- * Usage in Max:
- *   [jit.gl.pix @gen sr.bayer.mosaic] -> [jit.gl.pix @gen sr.bayer.demosaic]
- *   Send message: pattern 0
- *
- * Output:
- *   Grayscale image where each pixel contains only one color channel value.
- *   The output is stored as RGB with all three channels set to the same value
- *   for compatibility with the demosaic pass.
- */
-
-// Parameter declarations
-Param pattern(0);
-
-// Get current pixel coordinates
-px = int(norm.x * dim.x);
-py = int(norm.y * dim.y);
-
-// Determine position in 2x2 Bayer pattern
-cx = px % 2;
-cy = py % 2;
-
-// Read input RGB channels
-r = in1.r;
-g = in1.g;
-b = in1.b;
-
-// Extract appropriate channel based on pattern and position
-value = 0.0;
-
-// RGGB pattern (0)
-if (pattern == 0) {
-    if (cy == 0 && cx == 0) {
-        value = r;  // Top-left: R
-    } else if (cy == 0 && cx == 1) {
-        value = g;  // Top-right: G
-    } else if (cy == 1 && cx == 0) {
-        value = g;  // Bottom-left: G
-    } else {  // cy == 1 && cx == 1
-        value = b;  // Bottom-right: B
-    }
+{
+	"patcher": {
+		"fileversion": 1,
+		"appversion": {
+			"major": 8,
+			"minor": 6,
+			"revision": 0
+		},
+		"rect": [
+			100.0,
+			100.0,
+			650.0,
+			550.0
+		],
+		"bgcolor": [
+			0.9,
+			0.9,
+			0.9,
+			0.9
+		],
+		"bglocked": 0,
+		"openinpresentation": 0,
+		"default_fontsize": 12.0,
+		"default_fontface": 0,
+		"default_fontname": "Arial",
+		"gridonopen": 0,
+		"gridsize": [
+			15.0,
+			15.0
+		],
+		"gridsnaponopen": 0,
+		"statusbarvisible": 0,
+		"toolbarvisible": 1,
+		"boxanimatetime": 200,
+		"imprint": 0,
+		"enablehscroll": 1,
+		"enablevscroll": 1,
+		"devicewidth": 0.0,
+		"description": "",
+		"digest": "",
+		"tags": "",
+		"title": "sr.bayer.mosaic.genjit",
+		"boxes": [
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-1",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						50.0,
+						60.0,
+						30.0,
+						20.0
+					],
+					"text": "in 1"
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-2",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						130.0,
+						30.0,
+						100.0,
+						20.0
+					],
+					"text": "param pattern 0"
+				}
+			},
+			{
+				"box": {
+					"code": "px = int(norm.x * dim.x);\r\npy = int(norm.y * dim.y);\r\n\r\n// Determine position in 2x2 Bayer pattern\r\ncx = px % 2;\r\ncy = py % 2;\r\n\r\n// Read input RGB channels\r\nr = in1.r;\r\ng = in1.g;\r\nb = in1.b;\r\n\r\n// Extract appropriate channel based on pattern and position\r\nvalue = 0.0;\r\n\r\n// RGGB pattern (0)\r\nif (pattern == 0) {\r\n    if (cy == 0 && cx == 0) {\r\n        value = r;  // Top-left: R\r\n    } else if (cy == 0 && cx == 1) {\r\n        value = g;  // Top-right: G\r\n    } else if (cy == 1 && cx == 0) {\r\n        value = g;  // Bottom-left: G\r\n    } else {  // cy == 1 && cx == 1\r\n        value = b;  // Bottom-right: B\r\n    }\r\n}\r\n// BGGR pattern (1)\r\nelse if (pattern == 1) {\r\n    if (cy == 0 && cx == 0) {\r\n        value = b;  // Top-left: B\r\n    } else if (cy == 0 && cx == 1) {\r\n        value = g;  // Top-right: G\r\n    } else if (cy == 1 && cx == 0) {\r\n        value = g;  // Bottom-left: G\r\n    } else {  // cy == 1 && cx == 1\r\n        value = r;  // Bottom-right: R\r\n    }\r\n}\r\n// GRBG pattern (2)\r\nelse if (pattern == 2) {\r\n    if (cy == 0 && cx == 0) {\r\n        value = g;  // Top-left: G\r\n    } else if (cy == 0 && cx == 1) {\r\n        value = r;  // Top-right: R\r\n    } else if (cy == 1 && cx == 0) {\r\n        value = b;  // Bottom-left: B\r\n    } else {  // cy == 1 && cx == 1\r\n        value = g;  // Bottom-right: G\r\n    }\r\n}\r\n// GBRG pattern (3)\r\nelse {\r\n    if (cy == 0 && cx == 0) {\r\n        value = g;  // Top-left: G\r\n    } else if (cy == 0 && cx == 1) {\r\n        value = b;  // Top-right: B\r\n    } else if (cy == 1 && cx == 0) {\r\n        value = r;  // Bottom-left: R\r\n    } else {  // cy == 1 && cx == 1\r\n        value = g;  // Bottom-right: G\r\n    }\r\n}\r\n\r\n// Output as grayscale (stored in RGB for demosaic compatibility)\r\n// Store the extracted value in all channels so demosaic can read it\r\nout = vec(value, value, value, 1.0);",
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-3",
+					"maxclass": "codebox",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						50.0,
+						120.0,
+						500.0,
+						340.0
+					]
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-4",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						50.0,
+						480.0,
+						37.0,
+						20.0
+					],
+					"text": "out 1"
+				}
+			}
+		],
+		"lines": [
+			{
+				"patchline": {
+					"destination": [
+						"obj-3",
+						0
+					],
+					"disabled": 0,
+					"hidden": 0,
+					"source": [
+						"obj-1",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"destination": [
+						"obj-4",
+						0
+					],
+					"disabled": 0,
+					"hidden": 0,
+					"source": [
+						"obj-3",
+						0
+					]
+				}
+			}
+		],
+		"dependency_cache": [
+			{
+				"name": "codebox.mxo",
+				"type": "iLaX"
+			},
+			{
+				"name": "param.mxo",
+				"type": "iLaX"
+			}
+		]
+	}
 }
-// BGGR pattern (1)
-else if (pattern == 1) {
-    if (cy == 0 && cx == 0) {
-        value = b;  // Top-left: B
-    } else if (cy == 0 && cx == 1) {
-        value = g;  // Top-right: G
-    } else if (cy == 1 && cx == 0) {
-        value = g;  // Bottom-left: G
-    } else {  // cy == 1 && cx == 1
-        value = r;  // Bottom-right: R
-    }
-}
-// GRBG pattern (2)
-else if (pattern == 2) {
-    if (cy == 0 && cx == 0) {
-        value = g;  // Top-left: G
-    } else if (cy == 0 && cx == 1) {
-        value = r;  // Top-right: R
-    } else if (cy == 1 && cx == 0) {
-        value = b;  // Bottom-left: B
-    } else {  // cy == 1 && cx == 1
-        value = g;  // Bottom-right: G
-    }
-}
-// GBRG pattern (3)
-else {
-    if (cy == 0 && cx == 0) {
-        value = g;  // Top-left: G
-    } else if (cy == 0 && cx == 1) {
-        value = b;  // Top-right: B
-    } else if (cy == 1 && cx == 0) {
-        value = r;  // Bottom-left: R
-    } else {  // cy == 1 && cx == 1
-        value = g;  // Bottom-right: G
-    }
-}
-
-// Output as grayscale (stored in RGB for demosaic compatibility)
-// Store the extracted value in all channels so demosaic can read it
-out = vec(value, value, value, 1.0);

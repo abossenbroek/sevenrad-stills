@@ -1,145 +1,197 @@
-/**
- * sr.slcoff.genjit
- * SLC-off wedge artifact simulation.
- *
- * Works with mask from sr.maskgen external.
- * Simulates Landsat 7 Scan Line Corrector failure with wedge-shaped gaps.
- *
- * Parameters:
- *   fill_mode (int 0-2): 0=black, 1=white, 2=mean of surrounding
- *
- * Inputs:
- *   in1: source image
- *   in2: wedge mask texture from sr.maskgen (white=gap, black=valid)
- *
- * For fill_mode 2 (mean), we sample nearby valid pixels and average them.
- * This provides a simple interpolation effect.
- */
-
-// Parameters
-Param fill_mode(0);
-
-// Sample gap mask from second input
-mask_value = sample(in2, norm).r;
-
-// If mask < 0.5, pixel is in a gap region
-if (mask_value < 0.5) {
-    // This is a gap pixel - apply fill mode
-    if (fill_mode == 0) {
-        // Black fill
-        out = vec(0, 0, 0, in1.a);
-    } else if (fill_mode == 1) {
-        // White fill
-        out = vec(1, 1, 1, in1.a);
-    } else {
-        // Mean fill - sample nearby valid pixels
-        // Sample 8 neighbors in a small radius
-        pixel_size_x = 1.0 / dim.x;
-        pixel_size_y = 1.0 / dim.y;
-
-        // Sample in a 3x3 pattern around current pixel
-        sum_r = 0.0;
-        sum_g = 0.0;
-        sum_b = 0.0;
-        count = 0.0;
-
-        // Top-left
-        offset = vec(-pixel_size_x, -pixel_size_y);
-        neighbor_mask = sample(in2, norm + offset).r;
-        if (neighbor_mask > 0.5) {
-            neighbor = sample(in1, norm + offset);
-            sum_r += neighbor.r;
-            sum_g += neighbor.g;
-            sum_b += neighbor.b;
-            count += 1.0;
-        }
-
-        // Top
-        offset = vec(0, -pixel_size_y);
-        neighbor_mask = sample(in2, norm + offset).r;
-        if (neighbor_mask > 0.5) {
-            neighbor = sample(in1, norm + offset);
-            sum_r += neighbor.r;
-            sum_g += neighbor.g;
-            sum_b += neighbor.b;
-            count += 1.0;
-        }
-
-        // Top-right
-        offset = vec(pixel_size_x, -pixel_size_y);
-        neighbor_mask = sample(in2, norm + offset).r;
-        if (neighbor_mask > 0.5) {
-            neighbor = sample(in1, norm + offset);
-            sum_r += neighbor.r;
-            sum_g += neighbor.g;
-            sum_b += neighbor.b;
-            count += 1.0;
-        }
-
-        // Left
-        offset = vec(-pixel_size_x, 0);
-        neighbor_mask = sample(in2, norm + offset).r;
-        if (neighbor_mask > 0.5) {
-            neighbor = sample(in1, norm + offset);
-            sum_r += neighbor.r;
-            sum_g += neighbor.g;
-            sum_b += neighbor.b;
-            count += 1.0;
-        }
-
-        // Right
-        offset = vec(pixel_size_x, 0);
-        neighbor_mask = sample(in2, norm + offset).r;
-        if (neighbor_mask > 0.5) {
-            neighbor = sample(in1, norm + offset);
-            sum_r += neighbor.r;
-            sum_g += neighbor.g;
-            sum_b += neighbor.b;
-            count += 1.0;
-        }
-
-        // Bottom-left
-        offset = vec(-pixel_size_x, pixel_size_y);
-        neighbor_mask = sample(in2, norm + offset).r;
-        if (neighbor_mask > 0.5) {
-            neighbor = sample(in1, norm + offset);
-            sum_r += neighbor.r;
-            sum_g += neighbor.g;
-            sum_b += neighbor.b;
-            count += 1.0;
-        }
-
-        // Bottom
-        offset = vec(0, pixel_size_y);
-        neighbor_mask = sample(in2, norm + offset).r;
-        if (neighbor_mask > 0.5) {
-            neighbor = sample(in1, norm + offset);
-            sum_r += neighbor.r;
-            sum_g += neighbor.g;
-            sum_b += neighbor.b;
-            count += 1.0;
-        }
-
-        // Bottom-right
-        offset = vec(pixel_size_x, pixel_size_y);
-        neighbor_mask = sample(in2, norm + offset).r;
-        if (neighbor_mask > 0.5) {
-            neighbor = sample(in1, norm + offset);
-            sum_r += neighbor.r;
-            sum_g += neighbor.g;
-            sum_b += neighbor.b;
-            count += 1.0;
-        }
-
-        // If we found valid neighbors, use their average
-        // Otherwise fall back to black
-        if (count > 0.0) {
-            out = vec(sum_r / count, sum_g / count, sum_b / count, in1.a);
-        } else {
-            out = vec(0, 0, 0, in1.a);
-        }
-    }
-} else {
-    // Valid pixel region, pass through unchanged
-    out = in1;
+{
+	"patcher": {
+		"fileversion": 1,
+		"appversion": {
+			"major": 8,
+			"minor": 6,
+			"revision": 0
+		},
+		"rect": [
+			100.0,
+			100.0,
+			650.0,
+			550.0
+		],
+		"bgcolor": [
+			0.9,
+			0.9,
+			0.9,
+			0.9
+		],
+		"bglocked": 0,
+		"openinpresentation": 0,
+		"default_fontsize": 12.0,
+		"default_fontface": 0,
+		"default_fontname": "Arial",
+		"gridonopen": 0,
+		"gridsize": [
+			15.0,
+			15.0
+		],
+		"gridsnaponopen": 0,
+		"statusbarvisible": 0,
+		"toolbarvisible": 1,
+		"boxanimatetime": 200,
+		"imprint": 0,
+		"enablehscroll": 1,
+		"enablevscroll": 1,
+		"devicewidth": 0.0,
+		"description": "",
+		"digest": "",
+		"tags": "",
+		"title": "sr.slcoff.genjit",
+		"boxes": [
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-1",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						50.0,
+						60.0,
+						30.0,
+						20.0
+					],
+					"text": "in 1"
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-2",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						130.0,
+						60.0,
+						30.0,
+						20.0
+					],
+					"text": "in 2"
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-3",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						130.0,
+						30.0,
+						100.0,
+						20.0
+					],
+					"text": "param fill_mode 0"
+				}
+			},
+			{
+				"box": {
+					"code": "mask_value = sample(in2, norm).r;\r\n\r\n// If mask < 0.5, pixel is in a gap region\r\nif (mask_value < 0.5) {\r\n    // This is a gap pixel - apply fill mode\r\n    if (fill_mode == 0) {\r\n        // Black fill\r\n        out = vec(0, 0, 0, in1.a);\r\n    } else if (fill_mode == 1) {\r\n        // White fill\r\n        out = vec(1, 1, 1, in1.a);\r\n    } else {\r\n        // Mean fill - sample nearby valid pixels\r\n        // Sample 8 neighbors in a small radius\r\n        pixel_size_x = 1.0 / dim.x;\r\n        pixel_size_y = 1.0 / dim.y;\r\n\r\n        // Sample in a 3x3 pattern around current pixel\r\n        sum_r = 0.0;\r\n        sum_g = 0.0;\r\n        sum_b = 0.0;\r\n        count = 0.0;\r\n\r\n        // Top-left\r\n        offset = vec(-pixel_size_x, -pixel_size_y);\r\n        neighbor_mask = sample(in2, norm + offset).r;\r\n        if (neighbor_mask > 0.5) {\r\n            neighbor = sample(in1, norm + offset);\r\n            sum_r += neighbor.r;\r\n            sum_g += neighbor.g;\r\n            sum_b += neighbor.b;\r\n            count += 1.0;\r\n        }\r\n\r\n        // Top\r\n        offset = vec(0, -pixel_size_y);\r\n        neighbor_mask = sample(in2, norm + offset).r;\r\n        if (neighbor_mask > 0.5) {\r\n            neighbor = sample(in1, norm + offset);\r\n            sum_r += neighbor.r;\r\n            sum_g += neighbor.g;\r\n            sum_b += neighbor.b;\r\n            count += 1.0;\r\n        }\r\n\r\n        // Top-right\r\n        offset = vec(pixel_size_x, -pixel_size_y);\r\n        neighbor_mask = sample(in2, norm + offset).r;\r\n        if (neighbor_mask > 0.5) {\r\n            neighbor = sample(in1, norm + offset);\r\n            sum_r += neighbor.r;\r\n            sum_g += neighbor.g;\r\n            sum_b += neighbor.b;\r\n            count += 1.0;\r\n        }\r\n\r\n        // Left\r\n        offset = vec(-pixel_size_x, 0);\r\n        neighbor_mask = sample(in2, norm + offset).r;\r\n        if (neighbor_mask > 0.5) {\r\n            neighbor = sample(in1, norm + offset);\r\n            sum_r += neighbor.r;\r\n            sum_g += neighbor.g;\r\n            sum_b += neighbor.b;\r\n            count += 1.0;\r\n        }\r\n\r\n        // Right\r\n        offset = vec(pixel_size_x, 0);\r\n        neighbor_mask = sample(in2, norm + offset).r;\r\n        if (neighbor_mask > 0.5) {\r\n            neighbor = sample(in1, norm + offset);\r\n            sum_r += neighbor.r;\r\n            sum_g += neighbor.g;\r\n            sum_b += neighbor.b;\r\n            count += 1.0;\r\n        }\r\n\r\n        // Bottom-left\r\n        offset = vec(-pixel_size_x, pixel_size_y);\r\n        neighbor_mask = sample(in2, norm + offset).r;\r\n        if (neighbor_mask > 0.5) {\r\n            neighbor = sample(in1, norm + offset);\r\n            sum_r += neighbor.r;\r\n            sum_g += neighbor.g;\r\n            sum_b += neighbor.b;\r\n            count += 1.0;\r\n        }\r\n\r\n        // Bottom\r\n        offset = vec(0, pixel_size_y);\r\n        neighbor_mask = sample(in2, norm + offset).r;\r\n        if (neighbor_mask > 0.5) {\r\n            neighbor = sample(in1, norm + offset);\r\n            sum_r += neighbor.r;\r\n            sum_g += neighbor.g;\r\n            sum_b += neighbor.b;\r\n            count += 1.0;\r\n        }\r\n\r\n        // Bottom-right\r\n        offset = vec(pixel_size_x, pixel_size_y);\r\n        neighbor_mask = sample(in2, norm + offset).r;\r\n        if (neighbor_mask > 0.5) {\r\n            neighbor = sample(in1, norm + offset);\r\n            sum_r += neighbor.r;\r\n            sum_g += neighbor.g;\r\n            sum_b += neighbor.b;\r\n            count += 1.0;\r\n        }\r\n\r\n        // If we found valid neighbors, use their average\r\n        // Otherwise fall back to black\r\n        if (count > 0.0) {\r\n            out = vec(sum_r / count, sum_g / count, sum_b / count, in1.a);\r\n        } else {\r\n            out = vec(0, 0, 0, in1.a);\r\n        }\r\n    }\r\n} else {\r\n    // Valid pixel region, pass through unchanged\r\n    out = in1;\r\n}",
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-4",
+					"maxclass": "codebox",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						50.0,
+						120.0,
+						500.0,
+						340.0
+					]
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-5",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						50.0,
+						480.0,
+						37.0,
+						20.0
+					],
+					"text": "out 1"
+				}
+			}
+		],
+		"lines": [
+			{
+				"patchline": {
+					"destination": [
+						"obj-4",
+						0
+					],
+					"disabled": 0,
+					"hidden": 0,
+					"source": [
+						"obj-1",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"destination": [
+						"obj-4",
+						1
+					],
+					"disabled": 0,
+					"hidden": 0,
+					"source": [
+						"obj-2",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"destination": [
+						"obj-5",
+						0
+					],
+					"disabled": 0,
+					"hidden": 0,
+					"source": [
+						"obj-4",
+						0
+					]
+				}
+			}
+		],
+		"dependency_cache": [
+			{
+				"name": "codebox.mxo",
+				"type": "iLaX"
+			},
+			{
+				"name": "param.mxo",
+				"type": "iLaX"
+			}
+		]
+	}
 }

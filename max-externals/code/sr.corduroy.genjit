@@ -1,97 +1,223 @@
-/**
- * sr.corduroy.genjit
- *
- * Corduroy striping effect for jit.gl.pix (GenExpr shader)
- *
- * Simulates "corduroy" or "banding" artifacts from push-broom/whisk-broom
- * scanners where individual detector elements have slightly different
- * sensitivity due to calibration drift or manufacturing variations.
- *
- * Parameters:
- *   orientation (int 0-1): 0=vertical stripes, 1=horizontal stripes
- *   strength (float 0.0-1.0): stripe intensity variation
- *   density (float 0.0-1.0): fraction of lines affected
- *   seed (int): random seed for reproducibility
- *
- * Usage in Max:
- *   [jit.gl.pix @gen sr.corduroy]
- *   Send messages: orientation 0, strength 0.3, density 0.2, seed 42
- */
-
-// Parameter declarations
-Param orientation(0);
-Param strength(0.3);
-Param density(0.2);
-Param seed(0);
-
-// PCG hash constants (must match Python implementation exactly)
-PCG_MULT = 747796405;
-PCG_INC = 2891336453;
-PCG_FACTOR = 277803737;
-COORD_PRIME_X = 374761393;
-COORD_PRIME_Y = 668265263;
-UINT32_MAX = 4294967296.0;
-
-/**
- * PCG-derived hash function for generating pseudo-random values.
- *
- * @param input_seed Input seed value to hash
- * @return Hashed value as float in range [0.0, 1.0)
- */
-pcg_hash(input_seed) {
-    // Cast to u32 to ensure correct Taichi-style arithmetic
-    state = int((uint(input_seed) * uint(PCG_MULT) + uint(PCG_INC)));
-    word = int(((state >> ((state >> 28) + 4)) ^ state) * uint(PCG_FACTOR));
-    hash_out = (word >> 22) ^ word;
-    return float(uint(hash_out)) / UINT32_MAX;
-}
-
-/**
- * Generate deterministic random float based on line index and seed.
- *
- * @param line_idx Line index (row or column number)
- * @param channel Channel offset (for independent per-channel randomness)
- * @param s Random seed
- * @return Uniform random float in range [0.0, 1.0)
- */
-rand_line(line_idx, channel, s) {
-    combined = uint(line_idx) * uint(COORD_PRIME_X) + uint(channel) * uint(COORD_PRIME_Y) + uint(s);
-    return pcg_hash(combined);
-}
-
-// Get current pixel coordinates
-px = int(norm.x * dim.x);
-py = int(norm.y * dim.y);
-
-// Select line index based on orientation
-// 0 = vertical stripes (same multiplier per column)
-// 1 = horizontal stripes (same multiplier per row)
-line_idx = (orientation == 0) ? px : py;
-
-// Check if this line is affected by corduroy
-// Use line_idx and seed to generate deterministic random value
-r_density = rand_line(line_idx, 0, seed);
-
-// Default: pass through unchanged
-out = in1;
-
-// Apply corduroy effect if this line is affected
-if (r_density < density) {
-    // Generate brightness multiplier for this line
-    // Range: [1.0 - strength*0.2, 1.0 + strength*0.2]
-    // This matches STRENGTH_SCALE = 0.2 from Python implementation
-    r_mult = rand_line(line_idx, 1, seed);
-
-    // Map [0, 1) to [1 - strength*0.2, 1 + strength*0.2]
-    // r_mult in [0, 1) -> (r_mult - 0.5) in [-0.5, 0.5)
-    // -> (r_mult - 0.5) * strength * 0.4 in [-strength*0.2, strength*0.2)
-    // -> 1.0 + ... in [1-strength*0.2, 1+strength*0.2)
-    mult = 1.0 + (r_mult - 0.5) * strength * 0.4;
-
-    // Apply multiplier to RGB channels, preserve alpha
-    r_new = clamp(in1.r * mult, 0, 1);
-    g_new = clamp(in1.g * mult, 0, 1);
-    b_new = clamp(in1.b * mult, 0, 1);
-
-    out = vec(r_new, g_new, b_new, in1.a);
+{
+	"patcher": {
+		"fileversion": 1,
+		"appversion": {
+			"major": 8,
+			"minor": 6,
+			"revision": 0
+		},
+		"rect": [
+			100.0,
+			100.0,
+			650.0,
+			550.0
+		],
+		"bgcolor": [
+			0.9,
+			0.9,
+			0.9,
+			0.9
+		],
+		"bglocked": 0,
+		"openinpresentation": 0,
+		"default_fontsize": 12.0,
+		"default_fontface": 0,
+		"default_fontname": "Arial",
+		"gridonopen": 0,
+		"gridsize": [
+			15.0,
+			15.0
+		],
+		"gridsnaponopen": 0,
+		"statusbarvisible": 0,
+		"toolbarvisible": 1,
+		"boxanimatetime": 200,
+		"imprint": 0,
+		"enablehscroll": 1,
+		"enablevscroll": 1,
+		"devicewidth": 0.0,
+		"description": "",
+		"digest": "",
+		"tags": "",
+		"title": "sr.corduroy.genjit",
+		"boxes": [
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-1",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						50.0,
+						60.0,
+						30.0,
+						20.0
+					],
+					"text": "in 1"
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-2",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						130.0,
+						30.0,
+						100.0,
+						20.0
+					],
+					"text": "param orientation 0"
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-3",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						250.0,
+						30.0,
+						100.0,
+						20.0
+					],
+					"text": "param strength 0.3"
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-4",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						370.0,
+						30.0,
+						100.0,
+						20.0
+					],
+					"text": "param density 0.2"
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-5",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						490.0,
+						30.0,
+						100.0,
+						20.0
+					],
+					"text": "param seed 0"
+				}
+			},
+			{
+				"box": {
+					"code": "PCG_MULT = 747796405;\r\nPCG_INC = 2891336453;\r\nPCG_FACTOR = 277803737;\r\nCOORD_PRIME_X = 374761393;\r\nCOORD_PRIME_Y = 668265263;\r\nUINT32_MAX = 4294967296.0;\r\n\r\n/**\r\n * PCG-derived hash function for generating pseudo-random values.\r\n *\r\n * @param input_seed Input seed value to hash\r\n * @return Hashed value as float in range [0.0, 1.0)\r\n */\r\npcg_hash(input_seed) {\r\n    // Cast to u32 to ensure correct Taichi-style arithmetic\r\n    state = int((uint(input_seed) * uint(PCG_MULT) + uint(PCG_INC)));\r\n    word = int(((state >> ((state >> 28) + 4)) ^ state) * uint(PCG_FACTOR));\r\n    hash_out = (word >> 22) ^ word;\r\n    return float(uint(hash_out)) / UINT32_MAX;\r\n}\r\n\r\n/**\r\n * Generate deterministic random float based on line index and seed.\r\n *\r\n * @param line_idx Line index (row or column number)\r\n * @param channel Channel offset (for independent per-channel randomness)\r\n * @param s Random seed\r\n * @return Uniform random float in range [0.0, 1.0)\r\n */\r\nrand_line(line_idx, channel, s) {\r\n    combined = uint(line_idx) * uint(COORD_PRIME_X) + uint(channel) * uint(COORD_PRIME_Y) + uint(s);\r\n    return pcg_hash(combined);\r\n}\r\n\r\n// Get current pixel coordinates\r\npx = int(norm.x * dim.x);\r\npy = int(norm.y * dim.y);\r\n\r\n// Select line index based on orientation\r\n// 0 = vertical stripes (same multiplier per column)\r\n// 1 = horizontal stripes (same multiplier per row)\r\nline_idx = (orientation == 0) ? px : py;\r\n\r\n// Check if this line is affected by corduroy\r\n// Use line_idx and seed to generate deterministic random value\r\nr_density = rand_line(line_idx, 0, seed);\r\n\r\n// Default: pass through unchanged\r\nout = in1;\r\n\r\n// Apply corduroy effect if this line is affected\r\nif (r_density < density) {\r\n    // Generate brightness multiplier for this line\r\n    // Range: [1.0 - strength*0.2, 1.0 + strength*0.2]\r\n    // This matches STRENGTH_SCALE = 0.2 from Python implementation\r\n    r_mult = rand_line(line_idx, 1, seed);\r\n\r\n    // Map [0, 1) to [1 - strength*0.2, 1 + strength*0.2]\r\n    // r_mult in [0, 1) -> (r_mult - 0.5) in [-0.5, 0.5)\r\n    // -> (r_mult - 0.5) * strength * 0.4 in [-strength*0.2, strength*0.2)\r\n    // -> 1.0 + ... in [1-strength*0.2, 1+strength*0.2)\r\n    mult = 1.0 + (r_mult - 0.5) * strength * 0.4;\r\n\r\n    // Apply multiplier to RGB channels, preserve alpha\r\n    r_new = clamp(in1.r * mult, 0, 1);\r\n    g_new = clamp(in1.g * mult, 0, 1);\r\n    b_new = clamp(in1.b * mult, 0, 1);\r\n\r\n    out = vec(r_new, g_new, b_new, in1.a);\r\n}",
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-6",
+					"maxclass": "codebox",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						50.0,
+						120.0,
+						500.0,
+						340.0
+					]
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-7",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						50.0,
+						480.0,
+						37.0,
+						20.0
+					],
+					"text": "out 1"
+				}
+			}
+		],
+		"lines": [
+			{
+				"patchline": {
+					"destination": [
+						"obj-6",
+						0
+					],
+					"disabled": 0,
+					"hidden": 0,
+					"source": [
+						"obj-1",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"destination": [
+						"obj-7",
+						0
+					],
+					"disabled": 0,
+					"hidden": 0,
+					"source": [
+						"obj-6",
+						0
+					]
+				}
+			}
+		],
+		"dependency_cache": [
+			{
+				"name": "codebox.mxo",
+				"type": "iLaX"
+			},
+			{
+				"name": "param.mxo",
+				"type": "iLaX"
+			}
+		]
+	}
 }
