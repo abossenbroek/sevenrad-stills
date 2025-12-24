@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from max_linter.extractors.genjit import GenjitExtractor
+from max_linter.genexpr import GenExprValidator
 from max_linter.results import DiagnosticSeverity, LintResult
 from max_linter.validators.clangd import ClangdValidator
 from max_linter.validators.glsl import GLSLValidator
@@ -44,6 +45,7 @@ def lint_file(
     filepath: Path,
     glsl_validator: GLSLValidator,
     clangd_validator: ClangdValidator,
+    genexpr_validator: GenExprValidator,
     fallback: bool = False,
 ) -> LintResult:
     """Lint a single .genjit file.
@@ -52,6 +54,7 @@ def lint_file(
         filepath: Path to the file
         glsl_validator: GLSL validator instance
         clangd_validator: Clangd validator instance
+        genexpr_validator: GenExpr validator instance
         fallback: If True, skip LSP validation if servers unavailable
 
     Returns:
@@ -78,12 +81,9 @@ def lint_file(
                 )
                 all_diagnostics.extend(diagnostics)
         else:  # genexpr
-            if clangd_validator.is_available() or not fallback:
-                diagnostics = clangd_validator.validate(
-                    shader.code,
-                    filename=f"{filepath.stem}.c",
-                )
-                all_diagnostics.extend(diagnostics)
+            # Use GenExprValidator for GenExpr shaders
+            diagnostics = genexpr_validator.validate(shader.code)
+            all_diagnostics.extend(diagnostics)
 
     # Filter out "not available" warnings in fallback mode
     if fallback:
@@ -179,6 +179,7 @@ def main(args: list[str] | None = None) -> int:
     # Initialize validators
     glsl_validator = GLSLValidator()
     clangd_validator = ClangdValidator()
+    genexpr_validator = GenExprValidator()
 
     # Lint files
     results: list[LintResult] = []
@@ -187,6 +188,7 @@ def main(args: list[str] | None = None) -> int:
             filepath,
             glsl_validator,
             clangd_validator,
+            genexpr_validator,
             fallback=parsed.fallback,
         )
         results.append(result)

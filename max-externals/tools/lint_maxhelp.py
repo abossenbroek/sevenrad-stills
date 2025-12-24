@@ -36,6 +36,19 @@ from typing import Any
 
 import networkx as nx
 
+# Add path to linter package if needed
+sys.path.insert(0, str(Path(__file__).parent.parent / "linter" / "src"))
+
+try:
+    from max_linter.genexpr import GenExprValidator
+    from max_linter.results import DiagnosticSeverity as LSPSeverity
+
+    GENEXPR_AVAILABLE = True
+except ImportError:
+    GENEXPR_AVAILABLE = False
+    GenExprValidator = None  # type: ignore[misc, assignment]
+    LSPSeverity = None  # type: ignore[misc, assignment]
+
 
 class Severity(Enum):
     """Validation message severity levels."""
@@ -71,6 +84,8 @@ class MaxhelpLinter:
         self.data: dict[str, Any] = {}
         self.graph: nx.DiGraph = nx.DiGraph()
         self.boxes: dict[str, dict[str, Any]] = {}
+        # Initialize GenExprValidator if available
+        self.genexpr_validator = GenExprValidator() if GENEXPR_AVAILABLE else None
 
     def error(self, rule: str, message: str, object_id: str | None = None) -> None:
         """Add an error."""
@@ -928,6 +943,49 @@ class MaxhelpLinter:
 
         return params
 
+    def _validate_genexpr_code(self, code: str, shader_name: str) -> bool:
+        """
+        Validate GenExpr shader code using the GenExprValidator.
+
+        Args:
+            code: GenExpr shader code to validate
+            shader_name: Name of the shader for error messages
+
+        Returns:
+            True if valid, False if errors found
+        """
+        if not self.genexpr_validator:
+            self.info(
+                "genexpr-validation",
+                f"GenExprValidator not available - skipping syntax validation for {shader_name}",
+            )
+            return True
+
+        valid = True
+        diagnostics = self.genexpr_validator.validate(code)
+
+        for diag in diagnostics:
+            # Convert LSP diagnostic severity to our severity
+            if diag.severity == LSPSeverity.ERROR:
+                self.error(
+                    "genexpr-syntax",
+                    f"GenExpr error in {shader_name}.genjit line {diag.range.start.line + 1}: {diag.message}",
+                )
+                valid = False
+            elif diag.severity == LSPSeverity.WARNING:
+                self.warning(
+                    "genexpr-syntax",
+                    f"GenExpr warning in {shader_name}.genjit line {diag.range.start.line + 1}: {diag.message}",
+                )
+            else:
+                # INFORMATION or HINT
+                self.info(
+                    "genexpr-syntax",
+                    f"GenExpr info in {shader_name}.genjit line {diag.range.start.line + 1}: {diag.message}",
+                )
+
+        return valid
+
     def _validate_genjit_format(
         self, genjit_path: Path, shader_name: str
     ) -> tuple[bool, list[dict[str, Any]]]:
@@ -942,6 +1000,7 @@ class MaxhelpLinter:
         - Has proper 'param name default' objects (not XML <param>)
         - Codebox uses GenExpr syntax (in1, out1, sample, norm, dim)
         - No user-defined function syntax (name() { ... })
+        - Uses GenExprValidator for syntax and semantic validation
 
         Args:
             genjit_path: Path to the .genjit file
@@ -1068,6 +1127,10 @@ class MaxhelpLinter:
                     f"No 'param' objects found in {shader_name}.genjit. "
                     f"Parameters should be declared as 'param name default' objects.",
                 )
+
+            # Validate GenExpr code using GenExprValidator
+            genexpr_valid = self._validate_genexpr_code(codebox_content, shader_name)
+            valid &= genexpr_valid
 
         return valid, params
 

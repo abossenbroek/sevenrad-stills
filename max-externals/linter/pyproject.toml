@@ -9,6 +9,7 @@ authors = [{ name = "SevenRad" }]
 dependencies = [
     "python-lsp-jsonrpc>=1.1.2",
     "networkx>=3.2",
+    "lark>=1.1.9",
 ]
 
 [project.optional-dependencies]
