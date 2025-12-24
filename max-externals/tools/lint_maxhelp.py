@@ -107,19 +107,39 @@ class MaxhelpLinter:
             # Also add a "box" node for easier lookup
             graph.add_node((box_id, "box"), box=box)
 
-        # Add edges from patchlines
+        # Add edges from patchlines with type information
         for line in self.data.get("patcher", {}).get("lines", []):
             patchline = line.get("patchline", {})
             src = patchline.get("source", [])
             dst = patchline.get("destination", [])
 
             if len(src) >= 2 and len(dst) >= 2:
-                src_node = (src[0], "out", src[1])
-                dst_node = (dst[0], "in", dst[1])
-                graph.add_edge(src_node, dst_node)
+                src_box_id = src[0]
+                src_outlet = src[1]
+                dst_box_id = dst[0]
+                dst_inlet = dst[1]
+
+                # Get source and destination boxes
+                src_box = self.boxes.get(src_box_id, {})
+                dst_box = self.boxes.get(dst_box_id, {})
+
+                # Determine outlet and inlet types
+                outlet_type = self._get_outlet_type(src_box, src_outlet)
+                inlet_type = self._get_expected_inlet_type(dst_box, dst_inlet)
+
+                src_node = (src_box_id, "out", src_outlet)
+                dst_node = (dst_box_id, "in", dst_inlet)
+
+                # Store type info in edge attributes
+                graph.add_edge(
+                    src_node,
+                    dst_node,
+                    outlet_type=outlet_type,
+                    inlet_type=inlet_type,
+                )
 
                 # Also connect outlet to inlet at box level for path finding
-                graph.add_edge((src[0], "box"), (dst[0], "box"))
+                graph.add_edge((src_box_id, "box"), (dst_box_id, "box"))
 
         return graph
 
@@ -172,6 +192,95 @@ class MaxhelpLinter:
         name = stem.replace(".", "_") + "_ctx"
         return name
 
+    def _get_outlet_type(self, box: dict[str, Any], outlet_idx: int) -> str:
+        """
+        Determine the type of data from an outlet.
+
+        Returns one of: 'texture', 'matrix', 'info', 'bang_or_message', 'unknown'
+        """
+        text = box.get("text", "")
+        maxclass = box.get("maxclass", "")
+
+        # For Jitter objects, outlet 1+ is typically info/dump outlet
+        is_jitter = (
+            "jit." in text
+            or maxclass.startswith("jit.")
+            or maxclass in ("jit.pwindow",)
+        )
+
+        # First check explicit outlettype in box definition
+        result = self._check_explicit_outlettype(box, outlet_idx, is_jitter)
+        if result:
+            return result
+
+        # Infer type from object text for Jitter objects
+        outlet_0_type = self._infer_jitter_outlet_type(text, maxclass)
+        if outlet_0_type:
+            return outlet_0_type if outlet_idx == 0 else "info"
+
+        # Non-Jitter objects that output bang/message
+        if "metro" in text or "loadbang" in text or maxclass == "loadbang":
+            return "bang_or_message"
+
+        return "unknown"
+
+    def _check_explicit_outlettype(
+        self, box: dict[str, Any], outlet_idx: int, is_jitter: bool
+    ) -> str | None:
+        """Check explicit outlettype array. Returns None if not found."""
+        outlettype = box.get("outlettype", [])
+        if outlet_idx >= len(outlettype):
+            return None
+        otype = outlettype[outlet_idx]
+        if otype == "jit_gl_texture":
+            return "texture"
+        if otype == "jit_matrix":
+            return "matrix"
+        if otype == "":
+            # Empty string: for Jitter objects outlet > 0 is info
+            return "info" if is_jitter and outlet_idx > 0 else "bang_or_message"
+        return None
+
+    def _infer_jitter_outlet_type(self, text: str, maxclass: str) -> str | None:
+        """Infer the outlet 0 type for Jitter objects. Returns None if not a Jitter object."""
+        # jit.movie with @output_texture 1 outputs texture
+        if "jit.movie" in text:
+            return "texture" if "@output_texture 1" in text else "matrix"
+        # jit.gl.pix and jit.gl.texture output texture
+        if "jit.gl.pix" in text or "jit.gl.texture" in text:
+            return "texture"
+        # jit.matrix outputs matrix
+        if "jit.matrix" in text or maxclass == "jit.matrix":
+            return "matrix"
+        return None
+
+    def _get_expected_inlet_type(self, box: dict[str, Any], _inlet_idx: int) -> str:
+        """
+        Determine the expected type of data for an inlet.
+
+        Returns one of: 'texture', 'matrix', 'any', 'unknown'
+        """
+        text = box.get("text", "")
+        maxclass = box.get("maxclass", "")
+
+        # jit.gl.pix expects texture input
+        if "jit.gl.pix" in text:
+            return "texture"
+
+        # jit.pwindow can accept either texture or matrix
+        if maxclass == "jit.pwindow":
+            return "any"
+
+        # jit.matrix objects expect matrix
+        if "jit.matrix" in text and "@output_texture" not in text:
+            return "matrix"
+
+        # Most newobj can accept bang/message
+        if maxclass == "newobj":
+            return "any"
+
+        return "unknown"
+
     def validate_file(self, filepath: Path) -> bool:
         """
         Validate a single .maxhelp file.
@@ -223,6 +332,7 @@ class MaxhelpLinter:
         valid &= self._validate_context_initialization()
         valid &= self._validate_signal_flow()
         valid &= self._validate_inlet_connections()
+        valid &= self._validate_connection_types()
         valid &= self._validate_metadata()
         valid &= self._validate_parameter_ui()
         valid &= self._validate_no_overlaps()
@@ -396,6 +506,10 @@ class MaxhelpLinter:
         Validate the GPU texture pipeline is complete.
 
         Expected flow: qmetro → jit.movie → jit.gl.pix → jit.pwindow
+
+        Note: jit.movie/jit.pwindow are only required for shader effect patchers
+        (those with jit.gl.pix). Help patchers for C externals may not use this
+        pipeline.
         """
         valid = True
 
@@ -407,6 +521,25 @@ class MaxhelpLinter:
         jit_movies = self._find_boxes_by_type("jit.movie")
         jit_gl_pixs = self._find_boxes_by_type("jit.gl.pix")
         jit_pwindows = self._find_boxes_by_maxclass("jit.pwindow")
+
+        # Determine if this is a shader effect patcher (has jit.gl.pix)
+        is_shader_patcher = bool(jit_gl_pixs)
+
+        # Required components only for shader effect patchers
+        if is_shader_patcher:
+            if not jit_movies:
+                self.error(
+                    "signal-flow",
+                    "Missing jit.movie - shader effect needs a video input source",
+                )
+                valid = False
+
+            if not jit_pwindows:
+                self.error(
+                    "signal-flow",
+                    "Missing jit.pwindow - shader effect needs a video output display",
+                )
+                valid = False
 
         # Check qmetro → jit.movie
         if qmetros and jit_movies:
@@ -505,6 +638,71 @@ class MaxhelpLinter:
                         f"jit.gl.pix has {numinlets} inlets but inlet(s) {sorted(missing)} not connected",
                         pix_id,
                     )
+
+        return valid
+
+    def _validate_connection_types(self) -> bool:
+        """
+        Validate that connected outlets and inlets have compatible types.
+
+        Detects type mismatches like:
+        - Texture outlet connected to matrix inlet
+        - Info/dump outlet connected to texture or matrix inlet
+        """
+        valid = True
+
+        for src, dst, data in self.graph.edges(data=True):
+            # Only check port-to-port connections (not box-level edges)
+            if src[1] != "out" or dst[1] != "in":
+                continue
+
+            outlet_type = data.get("outlet_type", "unknown")
+            inlet_type = data.get("inlet_type", "unknown")
+
+            src_box_id = src[0]
+            dst_box_id = dst[0]
+            src_box = self.boxes.get(src_box_id, {})
+            dst_box = self.boxes.get(dst_box_id, {})
+            src_text = src_box.get("text", src_box.get("maxclass", ""))
+            dst_text = dst_box.get("text", dst_box.get("maxclass", ""))
+
+            # Skip if types are unknown or compatible
+            if outlet_type == "unknown" or inlet_type == "unknown":
+                continue
+            if inlet_type == "any":
+                continue
+            if outlet_type == "bang_or_message":
+                continue
+
+            # Texture → Matrix is wrong
+            if outlet_type == "texture" and inlet_type == "matrix":
+                self.error(
+                    "connection-type",
+                    f"Texture outlet connected to matrix inlet: "
+                    f"'{src_text}' outlet {src[2]} → '{dst_text}' inlet {dst[2]}",
+                    f"{src_box_id} → {dst_box_id}",
+                )
+                valid = False
+
+            # Matrix → Texture is wrong
+            if outlet_type == "matrix" and inlet_type == "texture":
+                self.error(
+                    "connection-type",
+                    f"Matrix outlet connected to texture inlet: "
+                    f"'{src_text}' outlet {src[2]} → '{dst_text}' inlet {dst[2]}",
+                    f"{src_box_id} → {dst_box_id}",
+                )
+                valid = False
+
+            # Info/dump outlet to texture or matrix inlet is likely wrong
+            if outlet_type == "info" and inlet_type in ("texture", "matrix"):
+                self.warning(
+                    "connection-type",
+                    f"Info outlet connected to {inlet_type} inlet: "
+                    f"'{src_text}' outlet {src[2]} → '{dst_text}' inlet {dst[2]}. "
+                    "Info outlets typically output metadata, not image data.",
+                    f"{src_box_id} → {dst_box_id}",
+                )
 
         return valid
 

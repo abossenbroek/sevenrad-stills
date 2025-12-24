@@ -322,6 +322,78 @@
 			},
 			{
 				"box": {
+					"id": "obj-seed-label",
+					"maxclass": "comment",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						440.0,
+						310.0,
+						100.0,
+						20.0
+					],
+					"text": "seed: integer (RNG)"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-dial-seed",
+					"maxclass": "dial",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"float"
+					],
+					"patching_rect": [
+						440.0,
+						335.0,
+						40.0,
+						40.0
+					],
+					"size": 1000.0,
+					"min": 0.0,
+					"mult": 1.0
+				}
+			},
+			{
+				"box": {
+					"id": "obj-seed-num",
+					"maxclass": "number",
+					"numinlets": 1,
+					"numoutlets": 2,
+					"outlettype": [
+						"",
+						"bang"
+					],
+					"patching_rect": [
+						490.0,
+						350.0,
+						60.0,
+						22.0
+					],
+					"minimum": 0
+				}
+			},
+			{
+				"box": {
+					"id": "obj-seed-msg",
+					"maxclass": "message",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						490.0,
+						380.0,
+						60.0,
+						22.0
+					],
+					"text": "seed $1"
+				}
+			},
+			{
+				"box": {
 					"id": "obj-12",
 					"maxclass": "newobj",
 					"numinlets": 1,
@@ -507,6 +579,42 @@
 				"patchline": {
 					"source": [
 						"obj-11",
+						0
+					],
+					"destination": [
+						"obj-12",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-dial-seed",
+						0
+					],
+					"destination": [
+						"obj-seed-num",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-seed-num",
+						0
+					],
+					"destination": [
+						"obj-seed-msg",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-seed-msg",
 						0
 					],
 					"destination": [

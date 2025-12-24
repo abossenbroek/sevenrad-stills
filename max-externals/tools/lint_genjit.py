@@ -44,11 +44,51 @@ GLSL_RESERVED_WORDS = {
     "sampler3D",
     "samplerCube",
     "sampler2DShadow",
+    "sampler1D",
+    "sampler2DArray",
+    "samplerCubeShadow",
+    "isampler2D",
+    "usampler2D",
+    "isampler3D",
+    "usampler3D",
+    "samplerBuffer",
+    # Matrix types (can't use as variable names)
+    "mat2",
+    "mat3",
+    "mat4",
+    "mat2x2",
+    "mat2x3",
+    "mat2x4",
+    "mat3x2",
+    "mat3x3",
+    "mat3x4",
+    "mat4x2",
+    "mat4x3",
+    "mat4x4",
+    # Control flow keywords that are reserved
+    "struct",
+    "const",
+    "break",
+    "continue",
+    "case",
+    "default",
+    "do",
     # Other reserved
     "discard",
     "centroid",
     "layout",
     "inout",
+    "uniform",
+    "buffer",
+    "shared",
+    "coherent",
+    "volatile",
+    "restrict",
+    "readonly",
+    "writeonly",
+    "atomic_uint",
+    "true",
+    "false",
 }
 
 # Control flow keywords that look like function calls but are valid
@@ -581,7 +621,7 @@ class GenjitLinter:
         return valid
 
     def _validate_params(self, boxes: list[dict[str, Any]]) -> bool:
-        """Validate param objects."""
+        """Validate param objects including range validation."""
         valid = True
 
         param_boxes = [
@@ -597,7 +637,10 @@ class GenjitLinter:
             self.info("No param objects found (shader may not have parameters)")
             return True
 
-        param_pattern = re.compile(r"^param\s+(\w+)\s+([\d.\-\se]+)$")
+        # Pattern for "param name default" or "param name default min max"
+        param_pattern = re.compile(
+            r"^param\s+(\w+)\s+([\d.\-]+)(?:\s+([\d.\-]+)\s+([\d.\-]+))?$"
+        )
 
         for i, param_box in enumerate(param_boxes):
             text = param_box.get("text", "")
@@ -607,13 +650,41 @@ class GenjitLinter:
             if not match:
                 self.error(
                     f"Param {i} has invalid format: '{text}'. "
-                    "Expected: 'param <name> <value>' or 'param <name> <default> <min> <max>'"
+                    "Expected: 'param <name> <default>' or 'param <name> <default> <min> <max>'"
                 )
                 valid = False
                 continue
 
             param_name = match.group(1)
-            param_values = match.group(2)
+
+            # Parse numeric values for range validation
+            try:
+                default_val = float(match.group(2))
+
+                # If min and max are provided, validate ranges
+                if match.group(3) is not None and match.group(4) is not None:
+                    min_val = float(match.group(3))
+                    max_val = float(match.group(4))
+
+                    # Check min < max
+                    if min_val >= max_val:
+                        self.error(
+                            f"Param '{param_name}' has invalid range: "
+                            f"min ({min_val}) >= max ({max_val})"
+                        )
+                        valid = False
+
+                    # Check default is within range
+                    if default_val < min_val or default_val > max_val:
+                        self.error(
+                            f"Param '{param_name}' default ({default_val}) "
+                            f"is outside range [{min_val}, {max_val}]"
+                        )
+                        valid = False
+
+            except ValueError as e:
+                self.error(f"Param '{param_name}' has non-numeric value: {e}")
+                valid = False
 
             # Validate inlet/outlet counts
             if param_box.get("numinlets") != 0:

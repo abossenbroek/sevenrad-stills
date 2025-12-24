@@ -23,6 +23,7 @@ GENEXPR_BUILTINS = {
     "out2",
     "out3",
     "out4",
+    "out",  # Alias for out1
     # Coordinates
     "norm",
     "cell",
@@ -34,7 +35,31 @@ GENEXPR_BUILTINS = {
     "vec",
     "swiz",
     "param",
-    # Math functions (subset)
+    "Param",  # Capital P variant
+    # Buffer operations
+    "poke",
+    "peek",
+    "splat",
+    # Numeric safety
+    "fixdenorm",
+    "fixnan",
+    "isnan",
+    "isinf",
+    # Range operations
+    "foldback",
+    "fold",
+    "wrap",
+    "mirror",
+    "scale",
+    # Signal processing
+    "dcblock",
+    "latch",
+    "interp",
+    "lookup",
+    # MIDI/frequency
+    "mtof",
+    "ftom",
+    # Math functions (comprehensive)
     "abs",
     "ceil",
     "floor",
@@ -42,6 +67,8 @@ GENEXPR_BUILTINS = {
     "trunc",
     "fract",
     "sign",
+    "mod",
+    "fmod",
     "sin",
     "cos",
     "tan",
@@ -52,6 +79,9 @@ GENEXPR_BUILTINS = {
     "sinh",
     "cosh",
     "tanh",
+    "asinh",
+    "acosh",
+    "atanh",
     "exp",
     "exp2",
     "log",
@@ -60,10 +90,13 @@ GENEXPR_BUILTINS = {
     "pow",
     "sqrt",
     "rsqrt",
+    "cbrt",
+    "hypot",
     "min",
     "max",
     "clamp",
     "mix",
+    "lerp",
     "step",
     "smoothstep",
     "length",
@@ -75,10 +108,24 @@ GENEXPR_BUILTINS = {
     "refract",
     "noise",
     "pnoise",
+    "snoise",
     # Type conversions
     "int",
     "float",
     "uint",
+    # Common user variable names (implicit declarations in GenExpr)
+    "color",
+    "result",
+    "sum",
+    "temp",
+    "val",
+    "value",
+    "r",
+    "g",
+    "b",
+    "a",
+    "rgb",
+    "rgba",
 }
 
 
@@ -220,21 +267,24 @@ void genexpr_main() {
             if "incompatible" in msg_lower and "library function" in msg_lower:
                 continue
 
-            # Skip "undeclared identifier" for GenExpr built-ins
+            # Skip "undeclared identifier" ONLY for KNOWN GenExpr built-ins
+            # Do NOT filter all undeclared identifiers - this hides real typos!
             if "undeclared identifier" in msg_lower:
                 # Extract identifier from message like:
                 # "use of undeclared identifier 'param'"
-                skip = False
-                for builtin in GENEXPR_BUILTINS:
-                    if f"'{builtin}'" in diag.message:
-                        skip = True
-                        break
-                if skip:
-                    continue
-                # GenExpr allows implicit variable declarations - filter all undeclared
-                # identifier errors as these are typically GenExpr variables
-                # This is aggressive but necessary since GenExpr is not C
-                continue
+                import re as _re
+
+                id_match = _re.search(r"'(\w+)'", diag.message)
+                if id_match:
+                    identifier = id_match.group(1)
+                    # Only skip if it's a KNOWN GenExpr builtin
+                    if identifier in GENEXPR_BUILTINS:
+                        continue
+                    # Allow common single-letter loop variables
+                    if identifier in {"i", "j", "k", "x", "y", "z", "t", "n", "m"}:
+                        continue
+                # Keep the diagnostic - it's likely a real typo or undefined variable
+                # Don't continue here - let it fall through to be reported
 
             # Skip implicit declaration warnings (GenExpr functions)
             if "implicit declaration" in msg_lower:

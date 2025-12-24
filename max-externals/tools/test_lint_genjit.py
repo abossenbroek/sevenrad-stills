@@ -97,7 +97,7 @@ def create_valid_genjit() -> dict:
     }
 
 
-def test_case(name: str, data: dict | str, should_fail: bool = True) -> bool:
+def run_test_case(name: str, data: dict | str, should_fail: bool = True) -> bool:
     """
     Test a single case.
 
@@ -152,12 +152,12 @@ def main() -> int:
 
     # Test 1: Valid genjit file
     tests_total += 1
-    if test_case("Valid GenExpr shader", create_valid_genjit(), should_fail=False):
+    if run_test_case("Valid GenExpr shader", create_valid_genjit(), should_fail=False):
         tests_passed += 1
 
     # Test 2: Not JSON at all
     tests_total += 1
-    if test_case(
+    if run_test_case(
         "Not JSON - plain text",
         "This is not JSON at all\nJust plain text",
         should_fail=True,
@@ -166,7 +166,7 @@ def main() -> int:
 
     # Test 3: GenExpr code instead of JSON
     tests_total += 1
-    if test_case(
+    if run_test_case(
         "GenExpr code instead of JSON",
         "// GenExpr shader\nParam factor(1.0);\nout1 = sample(in1, norm);",
         should_fail=True,
@@ -175,28 +175,28 @@ def main() -> int:
 
     # Test 4: Missing patcher key
     tests_total += 1
-    if test_case("Missing 'patcher' key", {"wrong_key": {}}, should_fail=True):
+    if run_test_case("Missing 'patcher' key", {"wrong_key": {}}, should_fail=True):
         tests_passed += 1
 
     # Test 5: Missing fileversion
     tests_total += 1
     data = create_valid_genjit()
     del data["patcher"]["fileversion"]
-    if test_case("Missing fileversion", data, should_fail=True):
+    if run_test_case("Missing fileversion", data, should_fail=True):
         tests_passed += 1
 
     # Test 6: Missing boxes
     tests_total += 1
     data = create_valid_genjit()
     del data["patcher"]["boxes"]
-    if test_case("Missing boxes array", data, should_fail=True):
+    if run_test_case("Missing boxes array", data, should_fail=True):
         tests_passed += 1
 
     # Test 7: Empty boxes
     tests_total += 1
     data = create_valid_genjit()
     data["patcher"]["boxes"] = []
-    if test_case("Empty boxes array", data, should_fail=True):
+    if run_test_case("Empty boxes array", data, should_fail=True):
         tests_passed += 1
 
     # Test 8: Missing 'in 1' object
@@ -205,7 +205,7 @@ def main() -> int:
     data["patcher"]["boxes"] = [
         b for b in data["patcher"]["boxes"] if b["box"].get("text") != "in 1"
     ]
-    if test_case("Missing 'in 1' object", data, should_fail=True):
+    if run_test_case("Missing 'in 1' object", data, should_fail=True):
         tests_passed += 1
 
     # Test 9: Missing 'out 1' object
@@ -214,7 +214,7 @@ def main() -> int:
     data["patcher"]["boxes"] = [
         b for b in data["patcher"]["boxes"] if b["box"].get("text") != "out 1"
     ]
-    if test_case("Missing 'out 1' object", data, should_fail=True):
+    if run_test_case("Missing 'out 1' object", data, should_fail=True):
         tests_passed += 1
 
     # Test 10: Missing codebox
@@ -223,7 +223,7 @@ def main() -> int:
     data["patcher"]["boxes"] = [
         b for b in data["patcher"]["boxes"] if b["box"].get("maxclass") != "codebox"
     ]
-    if test_case("Missing codebox", data, should_fail=True):
+    if run_test_case("Missing codebox", data, should_fail=True):
         tests_passed += 1
 
     # Test 11: Codebox with empty code
@@ -232,7 +232,7 @@ def main() -> int:
     for box in data["patcher"]["boxes"]:
         if box["box"].get("maxclass") == "codebox":
             box["box"]["code"] = ""
-    if test_case("Codebox with empty code", data, should_fail=True):
+    if run_test_case("Codebox with empty code", data, should_fail=True):
         tests_passed += 1
 
     # Test 12: Codebox without output assignment
@@ -241,14 +241,14 @@ def main() -> int:
     for box in data["patcher"]["boxes"]:
         if box["box"].get("maxclass") == "codebox":
             box["box"]["code"] = "// No output\ncolor = sample(in1, norm);\n"
-    if test_case("Codebox without output", data, should_fail=True):
+    if run_test_case("Codebox without output", data, should_fail=True):
         tests_passed += 1
 
     # Test 13: Invalid patchline reference
     tests_total += 1
     data = create_valid_genjit()
     data["patcher"]["lines"][0]["patchline"]["source"] = ["obj-999", 0]
-    if test_case("Invalid patchline source reference", data, should_fail=True):
+    if run_test_case("Invalid patchline source reference", data, should_fail=True):
         tests_passed += 1
 
     # Test 14: No connection from input to codebox
@@ -260,7 +260,7 @@ def main() -> int:
         if line["patchline"]["destination"][0] != "obj-3"
         or line["patchline"]["source"][0] != "obj-1"
     ]
-    if test_case("No input-to-codebox connection", data, should_fail=True):
+    if run_test_case("No input-to-codebox connection", data, should_fail=True):
         tests_passed += 1
 
     # Test 15: No connection from codebox to output
@@ -271,7 +271,7 @@ def main() -> int:
         for line in data["patcher"]["lines"]
         if line["patchline"]["destination"][0] != "obj-4"
     ]
-    if test_case("No codebox-to-output connection", data, should_fail=True):
+    if run_test_case("No codebox-to-output connection", data, should_fail=True):
         tests_passed += 1
 
     # Test 16: Param with wrong inlet count
@@ -280,7 +280,7 @@ def main() -> int:
     for box in data["patcher"]["boxes"]:
         if box["box"].get("text", "").startswith("param"):
             box["box"]["numinlets"] = 1  # Should be 0
-    if test_case("Param with wrong inlet count", data, should_fail=True):
+    if run_test_case("Param with wrong inlet count", data, should_fail=True):
         tests_passed += 1
 
     # Test 17: Valid GLSL shader
@@ -299,7 +299,7 @@ void main() {
 </program>
 </jit.gl.pix>
 """
-    if test_case("Valid GLSL shader", data, should_fail=False):
+    if run_test_case("Valid GLSL shader", data, should_fail=False):
         tests_passed += 1
 
     # Test 18: GLSL without gl_FragColor
@@ -315,21 +315,21 @@ void main() {
 }
 </program>
 </jit.gl.pix>"""
-    if test_case("GLSL without gl_FragColor", data, should_fail=True):
+    if run_test_case("GLSL without gl_FragColor", data, should_fail=True):
         tests_passed += 1
 
     # Test 19: Invalid box ID format
     tests_total += 1
     data = create_valid_genjit()
     data["patcher"]["boxes"][0]["box"]["id"] = "invalid-id"
-    if test_case("Invalid box ID format", data, should_fail=True):
+    if run_test_case("Invalid box ID format", data, should_fail=True):
         tests_passed += 1
 
     # Test 20: Patchline with invalid format
     tests_total += 1
     data = create_valid_genjit()
     data["patcher"]["lines"][0]["patchline"]["source"] = "obj-1"  # Should be array
-    if test_case("Patchline with invalid format", data, should_fail=True):
+    if run_test_case("Patchline with invalid format", data, should_fail=True):
         tests_passed += 1
 
     # ========================================
@@ -348,7 +348,7 @@ half = float(kernel_size - 1) / 2.0;
 t = float(i) - half;
 out1 = sample(in1, norm);
 """
-    if test_case("GLSL reserved word 'half' as variable", data, should_fail=True):
+    if run_test_case("GLSL reserved word 'half' as variable", data, should_fail=True):
         tests_passed += 1
 
     # Test 22: Valid variable names (not reserved)
@@ -361,7 +361,7 @@ half_size = float(kernel_size - 1) / 2.0;
 t = float(i) - half_size;
 out1 = sample(in1, norm);
 """
-    if test_case("Valid variable names (half_size)", data, should_fail=False):
+    if run_test_case("Valid variable names (half_size)", data, should_fail=False):
         tests_passed += 1
 
     # Test 23: Function definition (unsupported)
@@ -376,7 +376,7 @@ pcg_hash(input_seed) {
 }
 out1 = sample(in1, norm) * pcg_hash(42);
 """
-    if test_case("Function definition (unsupported)", data, should_fail=True):
+    if run_test_case("Function definition (unsupported)", data, should_fail=True):
         tests_passed += 1
 
     # Test 24: Control flow (should NOT fail)
@@ -394,7 +394,7 @@ if (mode == 0) {
     out1 = sum / 10.0;
 }
 """
-    if test_case("Control flow (if/for allowed)", data, should_fail=False):
+    if run_test_case("Control flow (if/for allowed)", data, should_fail=False):
         tests_passed += 1
 
     # Test 25: Multiple function definitions
@@ -407,7 +407,7 @@ pcg_hash(seed) { return seed * 2; }
 rand_float(x, y, s) { return pcg_hash(x + y + s); }
 out1 = rand_float(1, 2, 3);
 """
-    if test_case("Multiple function definitions", data, should_fail=True):
+    if run_test_case("Multiple function definitions", data, should_fail=True):
         tests_passed += 1
 
     # Test 26: Unmatched opening parenthesis
@@ -418,7 +418,7 @@ out1 = rand_float(1, 2, 3);
             box["box"]["code"] = """// Missing closing paren
 out1 = sample(in1, norm;
 """
-    if test_case("Unmatched opening parenthesis", data, should_fail=True):
+    if run_test_case("Unmatched opening parenthesis", data, should_fail=True):
         tests_passed += 1
 
     # Test 27: Unmatched closing parenthesis
@@ -429,7 +429,7 @@ out1 = sample(in1, norm;
             box["box"]["code"] = """// Extra closing paren
 out1 = sample(in1, norm));
 """
-    if test_case("Unmatched closing parenthesis", data, should_fail=True):
+    if run_test_case("Unmatched closing parenthesis", data, should_fail=True):
         tests_passed += 1
 
     # Test 28: Unmatched opening brace
@@ -441,7 +441,7 @@ out1 = sample(in1, norm));
 if (mode == 0) {
     out1 = sample(in1, norm);
 """
-    if test_case("Unmatched opening brace", data, should_fail=True):
+    if run_test_case("Unmatched opening brace", data, should_fail=True):
         tests_passed += 1
 
     # Test 29: Balanced complex delimiters
@@ -459,7 +459,7 @@ if (arr[0] > sample(in1, vec(norm.x, norm.y)).r) {
     out1 = in1;
 }
 """
-    if test_case("Balanced complex delimiters", data, should_fail=False):
+    if run_test_case("Balanced complex delimiters", data, should_fail=False):
         tests_passed += 1
 
     # Test 30: GLSL reserved word 'precision' as variable
@@ -471,7 +471,101 @@ if (arr[0] > sample(in1, vec(norm.x, norm.y)).r) {
 precision = 0.01;
 out1 = floor(in1.r / precision) * precision;
 """
-    if test_case("GLSL reserved word 'precision' as variable", data, should_fail=True):
+    if run_test_case(
+        "GLSL reserved word 'precision' as variable", data, should_fail=True
+    ):
+        tests_passed += 1
+
+    # ========================================
+    # NEW RED-TEAM TESTS (reserved words, param ranges)
+    # ========================================
+
+    print("\n--- Testing new reserved words and param validation ---\n")
+
+    # Test 31: Reserved word 'struct' as variable
+    tests_total += 1
+    data = create_valid_genjit()
+    for box in data["patcher"]["boxes"]:
+        if box["box"].get("maxclass") == "codebox":
+            box["box"]["code"] = """// Using 'struct' as variable
+struct = 1.0;
+out1 = sample(in1, norm) * struct;
+"""
+    if run_test_case("GLSL reserved word 'struct' as variable", data, should_fail=True):
+        tests_passed += 1
+
+    # Test 32: Reserved word 'const' as variable
+    tests_total += 1
+    data = create_valid_genjit()
+    for box in data["patcher"]["boxes"]:
+        if box["box"].get("maxclass") == "codebox":
+            box["box"]["code"] = """// Using 'const' as variable
+const = 1.0;
+out1 = sample(in1, norm) * const;
+"""
+    if run_test_case("GLSL reserved word 'const' as variable", data, should_fail=True):
+        tests_passed += 1
+
+    # Test 33: Reserved word 'break' as variable
+    tests_total += 1
+    data = create_valid_genjit()
+    for box in data["patcher"]["boxes"]:
+        if box["box"].get("maxclass") == "codebox":
+            box["box"]["code"] = """// Using 'break' as variable
+break = 0.5;
+out1 = in1 * break;
+"""
+    if run_test_case("GLSL reserved word 'break' as variable", data, should_fail=True):
+        tests_passed += 1
+
+    # Test 34: Param with min >= max (invalid range)
+    tests_total += 1
+    data = create_valid_genjit()
+    for box in data["patcher"]["boxes"]:
+        if box["box"].get("text", "").startswith("param"):
+            box["box"]["text"] = (
+                "param factor 0.5 1.0 0.0"  # min=1.0, max=0.0 (invalid)
+            )
+    if run_test_case("Param with min >= max (invalid range)", data, should_fail=True):
+        tests_passed += 1
+
+    # Test 35: Param with default > max
+    tests_total += 1
+    data = create_valid_genjit()
+    for box in data["patcher"]["boxes"]:
+        if box["box"].get("text", "").startswith("param"):
+            box["box"]["text"] = "param factor 2.0 0.0 1.0"  # default=2.0 > max=1.0
+    if run_test_case("Param with default > max", data, should_fail=True):
+        tests_passed += 1
+
+    # Test 36: Param with default < min
+    tests_total += 1
+    data = create_valid_genjit()
+    for box in data["patcher"]["boxes"]:
+        if box["box"].get("text", "").startswith("param"):
+            box["box"]["text"] = "param factor -1.0 0.0 1.0"  # default=-1.0 < min=0.0
+    if run_test_case("Param with default < min", data, should_fail=True):
+        tests_passed += 1
+
+    # Test 37: Valid param with default in range
+    tests_total += 1
+    data = create_valid_genjit()
+    for box in data["patcher"]["boxes"]:
+        if box["box"].get("text", "").startswith("param"):
+            box["box"]["text"] = "param factor 0.5 0.0 1.0"  # Valid: 0.0 < 0.5 < 1.0
+    if run_test_case("Valid param with default in range", data, should_fail=False):
+        tests_passed += 1
+
+    # Test 38: Reserved word 'mat4' as variable
+    tests_total += 1
+    data = create_valid_genjit()
+    for box in data["patcher"]["boxes"]:
+        if box["box"].get("maxclass") == "codebox":
+            box["box"]["code"] = """// Using matrix type as variable
+mat4 = 1.0;
+out1 = in1 * mat4;
+"""
+    if run_test_case("GLSL reserved word 'mat4' as variable", data, should_fail=True):
         tests_passed += 1
 
     # Summary

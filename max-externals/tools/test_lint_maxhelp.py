@@ -59,11 +59,13 @@ class TestOverlapDetection:
         test_file.write_text(json.dumps(patcher))
 
         linter = MaxhelpLinter()
-        valid = linter.validate_file(test_file)
+        linter.validate_file(test_file)
 
-        assert valid
-        assert len(linter.errors) == 0
-        assert len([w for w in linter.warnings if w.rule == "overlap"]) == 0
+        # Check specifically for overlap errors (not other validation errors)
+        overlap_errors = [e for e in linter.errors if e.rule == "overlap"]
+        overlap_warnings = [w for w in linter.warnings if w.rule == "overlap"]
+        assert len(overlap_errors) == 0
+        assert len(overlap_warnings) == 0
 
     def test_significant_overlap_error(self, tmp_path: Path) -> None:
         """Test that significant overlaps (>25%) trigger errors."""
@@ -153,10 +155,9 @@ class TestOverlapDetection:
         test_file.write_text(json.dumps(patcher))
 
         linter = MaxhelpLinter()
-        valid = linter.validate_file(test_file)
+        linter.validate_file(test_file)
 
         # Should not report overlap for connected boxes
-        assert valid
         overlap_errors = [e for e in linter.errors if e.rule == "overlap"]
         assert len(overlap_errors) == 0
 
@@ -182,10 +183,11 @@ class TestOverlapDetection:
         test_file.write_text(json.dumps(patcher))
 
         linter = MaxhelpLinter()
-        valid = linter.validate_file(test_file)
+        linter.validate_file(test_file)
 
-        assert valid
-        assert len([e for e in linter.errors if e.rule == "overlap"]) == 0
+        # Check specifically for overlap errors (not other validation errors)
+        overlap_errors = [e for e in linter.errors if e.rule == "overlap"]
+        assert len(overlap_errors) == 0
 
     def test_multiple_overlaps_all_reported(self, tmp_path: Path) -> None:
         """Test that multiple overlaps are all detected and reported."""
@@ -301,9 +303,9 @@ class TestOverlapDetection:
         test_file.write_text(json.dumps(patcher))
 
         linter = MaxhelpLinter()
-        valid = linter.validate_file(test_file)
+        linter.validate_file(test_file)
 
-        assert valid
+        # Check specifically for overlap errors (not other validation errors)
         overlap_errors = [e for e in linter.errors if e.rule == "overlap"]
         assert len(overlap_errors) == 0
 
@@ -328,9 +330,9 @@ class TestOverlapDetection:
         test_file.write_text(json.dumps(patcher))
 
         linter = MaxhelpLinter()
-        valid = linter.validate_file(test_file)
+        linter.validate_file(test_file)
 
-        assert valid
+        # Check specifically for overlap errors (not other validation errors)
         overlap_errors = [e for e in linter.errors if e.rule == "overlap"]
         assert len(overlap_errors) == 0
 
@@ -390,6 +392,294 @@ class TestStrictMode:
 
         # In strict mode, warnings should cause has_errors() to return True
         assert linter.has_errors()
+
+
+class TestRequiredComponents:
+    """Test that required components (video input/output) are validated."""
+
+    def test_missing_jit_movie_error(self, tmp_path: Path) -> None:
+        """Test that missing jit.movie triggers error."""
+        boxes = [
+            {
+                "id": "obj-pix",
+                "maxclass": "newobj",
+                "numinlets": 1,
+                "numoutlets": 1,
+                "text": "jit.gl.pix @gen sr.effect",
+                "patching_rect": [100.0, 100.0, 150.0, 22.0],
+            },
+            {
+                "id": "obj-pwindow",
+                "maxclass": "jit.pwindow",
+                "numinlets": 1,
+                "numoutlets": 2,
+                "patching_rect": [100.0, 150.0, 320.0, 180.0],
+            },
+        ]
+
+        patcher = create_test_patcher(boxes)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        valid = linter.validate_file(test_file)
+
+        assert not valid
+        signal_errors = [e for e in linter.errors if e.rule == "signal-flow"]
+        assert any(
+            "jit.movie" in e.message or "video input" in e.message
+            for e in signal_errors
+        )
+
+    def test_missing_jit_pwindow_error(self, tmp_path: Path) -> None:
+        """Test that missing jit.pwindow triggers error."""
+        boxes = [
+            {
+                "id": "obj-movie",
+                "maxclass": "newobj",
+                "numinlets": 1,
+                "numoutlets": 2,
+                "text": "jit.movie @output_texture 1",
+                "patching_rect": [100.0, 100.0, 150.0, 22.0],
+            },
+            {
+                "id": "obj-pix",
+                "maxclass": "newobj",
+                "numinlets": 1,
+                "numoutlets": 1,
+                "text": "jit.gl.pix @gen sr.effect",
+                "patching_rect": [100.0, 150.0, 150.0, 22.0],
+            },
+        ]
+
+        patcher = create_test_patcher(boxes)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        valid = linter.validate_file(test_file)
+
+        assert not valid
+        signal_errors = [e for e in linter.errors if e.rule == "signal-flow"]
+        assert any("jit.pwindow" in e.message for e in signal_errors)
+
+    def test_complete_pipeline_valid(self, tmp_path: Path) -> None:
+        """Test that complete pipeline with all components is valid."""
+        boxes = [
+            {
+                "id": "obj-movie",
+                "maxclass": "newobj",
+                "numinlets": 1,
+                "numoutlets": 2,
+                "text": "jit.movie @output_texture 1",
+                "outlettype": ["jit_gl_texture", ""],
+                "patching_rect": [100.0, 100.0, 150.0, 22.0],
+            },
+            {
+                "id": "obj-pix",
+                "maxclass": "newobj",
+                "numinlets": 1,
+                "numoutlets": 1,
+                "text": "jit.gl.pix @gen sr.effect",
+                "patching_rect": [100.0, 150.0, 150.0, 22.0],
+            },
+            {
+                "id": "obj-pwindow",
+                "maxclass": "jit.pwindow",
+                "numinlets": 1,
+                "numoutlets": 2,
+                "patching_rect": [100.0, 200.0, 320.0, 180.0],
+            },
+        ]
+
+        lines = [
+            {"source": ["obj-movie", 0], "destination": ["obj-pix", 0]},
+            {"source": ["obj-pix", 0], "destination": ["obj-pwindow", 0]},
+        ]
+
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        # Should NOT have errors about missing components
+        missing_errors = [
+            e
+            for e in linter.errors
+            if e.rule == "signal-flow" and ("Missing" in e.message)
+        ]
+        assert len(missing_errors) == 0
+
+
+class TestConnectionTypes:
+    """Test connection type validation (red-team fix)."""
+
+    def test_texture_to_matrix_error(self, tmp_path: Path) -> None:
+        """Test that texture→matrix connections trigger errors."""
+        boxes = [
+            {
+                "id": "obj-movie",
+                "maxclass": "newobj",
+                "numinlets": 1,
+                "numoutlets": 2,
+                "text": "jit.movie @output_texture 1",
+                "outlettype": ["jit_gl_texture", ""],
+                "patching_rect": [100.0, 100.0, 150.0, 22.0],
+            },
+            {
+                "id": "obj-matrix",
+                "maxclass": "newobj",
+                "numinlets": 1,
+                "numoutlets": 2,
+                "text": "jit.matrix 4 char 320 240",
+                "patching_rect": [100.0, 150.0, 150.0, 22.0],
+            },
+        ]
+
+        lines = [
+            {
+                "source": ["obj-movie", 0],
+                "destination": ["obj-matrix", 0],
+            }
+        ]
+
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        # Should have an error about connection type mismatch
+        connection_errors = [e for e in linter.errors if e.rule == "connection-type"]
+        assert len(connection_errors) >= 1
+        assert "texture" in connection_errors[0].message.lower()
+
+    def test_matrix_to_texture_error(self, tmp_path: Path) -> None:
+        """Test that matrix→texture connections trigger errors."""
+        boxes = [
+            {
+                "id": "obj-movie",
+                "maxclass": "newobj",
+                "numinlets": 1,
+                "numoutlets": 2,
+                "text": "jit.movie",  # No @output_texture, outputs matrix
+                "patching_rect": [100.0, 100.0, 100.0, 22.0],
+            },
+            {
+                "id": "obj-pix",
+                "maxclass": "newobj",
+                "numinlets": 1,
+                "numoutlets": 1,
+                "text": "jit.gl.pix @gen sr.effect",
+                "patching_rect": [100.0, 150.0, 150.0, 22.0],
+            },
+        ]
+
+        lines = [
+            {
+                "source": ["obj-movie", 0],
+                "destination": ["obj-pix", 0],
+            }
+        ]
+
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        # Should have an error about connection type mismatch
+        connection_errors = [e for e in linter.errors if e.rule == "connection-type"]
+        assert len(connection_errors) >= 1
+        assert "matrix" in connection_errors[0].message.lower()
+
+    def test_texture_to_texture_valid(self, tmp_path: Path) -> None:
+        """Test that texture→texture connections are valid."""
+        boxes = [
+            {
+                "id": "obj-movie",
+                "maxclass": "newobj",
+                "numinlets": 1,
+                "numoutlets": 2,
+                "text": "jit.movie @output_texture 1",
+                "outlettype": ["jit_gl_texture", ""],
+                "patching_rect": [100.0, 100.0, 150.0, 22.0],
+            },
+            {
+                "id": "obj-pix",
+                "maxclass": "newobj",
+                "numinlets": 1,
+                "numoutlets": 1,
+                "text": "jit.gl.pix @gen sr.effect",
+                "patching_rect": [100.0, 150.0, 150.0, 22.0],
+            },
+        ]
+
+        lines = [
+            {
+                "source": ["obj-movie", 0],
+                "destination": ["obj-pix", 0],
+            }
+        ]
+
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        # Should NOT have connection-type errors
+        connection_errors = [e for e in linter.errors if e.rule == "connection-type"]
+        assert len(connection_errors) == 0
+
+    def test_info_outlet_to_texture_warning(self, tmp_path: Path) -> None:
+        """Test that info outlet→texture inlet triggers warning."""
+        boxes = [
+            {
+                "id": "obj-movie",
+                "maxclass": "newobj",
+                "numinlets": 1,
+                "numoutlets": 2,
+                "text": "jit.movie @output_texture 1",
+                "outlettype": ["jit_gl_texture", ""],
+                "patching_rect": [100.0, 100.0, 150.0, 22.0],
+            },
+            {
+                "id": "obj-pix",
+                "maxclass": "newobj",
+                "numinlets": 1,
+                "numoutlets": 1,
+                "text": "jit.gl.pix @gen sr.effect",
+                "patching_rect": [100.0, 150.0, 150.0, 22.0],
+            },
+        ]
+
+        # Connect outlet 1 (info) to jit.gl.pix inlet 0 (expects texture)
+        lines = [
+            {
+                "source": ["obj-movie", 1],  # Info outlet
+                "destination": ["obj-pix", 0],
+            }
+        ]
+
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        # Should have a warning about info outlet to texture inlet
+        connection_warnings = [
+            w for w in linter.warnings if w.rule == "connection-type"
+        ]
+        assert len(connection_warnings) >= 1
+        assert "info" in connection_warnings[0].message.lower()
 
 
 if __name__ == "__main__":
