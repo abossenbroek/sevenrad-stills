@@ -12,8 +12,8 @@
 		"rect": [
 			100.0,
 			100.0,
-			700.0,
-			500.0
+			800.0,
+			550.0
 		],
 		"description": "Pixelation/downscale effect",
 		"digest": "Creates retro pixelated look by reducing effective resolution",
@@ -45,7 +45,7 @@
 					"patching_rect": [
 						30.0,
 						45.0,
-						500.0,
+						600.0,
 						40.0
 					],
 					"text": "Reduces effective resolution to create pixelated/retro look.\nscale 0.5 = half resolution, scale 0.1 = heavy pixelation"
@@ -59,8 +59,8 @@
 					"numoutlets": 0,
 					"patching_rect": [
 						550.0,
-						130.0,
-						150.0,
+						100.0,
+						180.0,
 						22.0
 					],
 					"text": "jit.world sr_downscale_ctx @visible 0"
@@ -114,7 +114,7 @@
 					"patching_rect": [
 						30.0,
 						160.0,
-						380.0,
+						400.0,
 						22.0
 					],
 					"text": "jit.movie @autostart 1 @loop 1 @output_texture 1 @drawto sr_downscale_ctx"
@@ -176,17 +176,17 @@
 			},
 			{
 				"box": {
-					"id": "obj-6",
+					"id": "obj-label-scale",
 					"maxclass": "comment",
 					"numinlets": 1,
 					"numoutlets": 0,
 					"patching_rect": [
-						440.0,
-						200.0,
+						550.0,
+						140.0,
 						150.0,
 						20.0
 					],
-					"text": "scale: 0.01 - 1.0"
+					"text": "Scale: 0.01 - 1.0"
 				}
 			},
 			{
@@ -199,8 +199,8 @@
 						"float"
 					],
 					"patching_rect": [
-						440.0,
-						225.0,
+						550.0,
+						165.0,
 						40.0,
 						40.0
 					],
@@ -211,7 +211,7 @@
 			},
 			{
 				"box": {
-					"id": "obj-7",
+					"id": "obj-flonum-scale",
 					"maxclass": "flonum",
 					"numinlets": 1,
 					"numoutlets": 2,
@@ -220,8 +220,8 @@
 						"bang"
 					],
 					"patching_rect": [
-						490.0,
-						240.0,
+						600.0,
+						175.0,
 						60.0,
 						22.0
 					],
@@ -231,7 +231,7 @@
 			},
 			{
 				"box": {
-					"id": "obj-8",
+					"id": "obj-msg-scale",
 					"maxclass": "message",
 					"numinlets": 2,
 					"numoutlets": 1,
@@ -239,12 +239,112 @@
 						""
 					],
 					"patching_rect": [
-						490.0,
-						270.0,
+						600.0,
+						205.0,
 						80.0,
 						22.0
 					],
 					"text": "scale $1"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-label-pixelate",
+					"maxclass": "comment",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						550.0,
+						240.0,
+						200.0,
+						20.0
+					],
+					"text": "Pixelate Mode: 0=off, 1=on"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-toggle-pixelate",
+					"maxclass": "toggle",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"int"
+					],
+					"patching_rect": [
+						550.0,
+						265.0,
+						24.0,
+						24.0
+					]
+				}
+			},
+			{
+				"box": {
+					"id": "obj-msg-pixelate",
+					"maxclass": "message",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						600.0,
+						265.0,
+						90.0,
+						22.0
+					],
+					"text": "pixelate $1"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-label-method",
+					"maxclass": "comment",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						550.0,
+						300.0,
+						200.0,
+						20.0
+					],
+					"text": "Method: 0=nearest, 1=bilinear"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-toggle-method",
+					"maxclass": "toggle",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"int"
+					],
+					"patching_rect": [
+						550.0,
+						325.0,
+						24.0,
+						24.0
+					]
+				}
+			},
+			{
+				"box": {
+					"id": "obj-msg-method",
+					"maxclass": "message",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						600.0,
+						325.0,
+						80.0,
+						22.0
+					],
+					"text": "method $1"
 				}
 			},
 			{
@@ -260,10 +360,10 @@
 					"patching_rect": [
 						30.0,
 						210.0,
-						400.0,
+						480.0,
 						22.0
 					],
-					"text": "jit.gl.pix sr_downscale_ctx @gen sr.downscale @scale 0.25"
+					"text": "jit.gl.pix sr_downscale_ctx @gen sr.downscale @scale 0.25 @pixelate 1 @method 0"
 				}
 			},
 			{
@@ -282,6 +382,21 @@
 						320.0,
 						180.0
 					]
+				}
+			},
+			{
+				"box": {
+					"id": "obj-info",
+					"maxclass": "comment",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						550.0,
+						370.0,
+						200.0,
+						60.0
+					],
+					"text": "Pixelate: creates blocky pixels\nDownscale: shrinks image\nNearest: sharp edges\nBilinear: smooth interpolation"
 				}
 			}
 		],
@@ -377,7 +492,7 @@
 						0
 					],
 					"destination": [
-						"obj-7",
+						"obj-flonum-scale",
 						0
 					]
 				}
@@ -385,11 +500,11 @@
 			{
 				"patchline": {
 					"source": [
-						"obj-7",
+						"obj-flonum-scale",
 						0
 					],
 					"destination": [
-						"obj-8",
+						"obj-msg-scale",
 						0
 					]
 				}
@@ -397,7 +512,55 @@
 			{
 				"patchline": {
 					"source": [
-						"obj-8",
+						"obj-msg-scale",
+						0
+					],
+					"destination": [
+						"obj-9",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-toggle-pixelate",
+						0
+					],
+					"destination": [
+						"obj-msg-pixelate",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-msg-pixelate",
+						0
+					],
+					"destination": [
+						"obj-9",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-toggle-method",
+						0
+					],
+					"destination": [
+						"obj-msg-method",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-msg-method",
 						0
 					],
 					"destination": [

@@ -63,10 +63,70 @@
 			},
 			{
 				"box": {
-					"code": "<jit.gl.pix>\r\n<description>Pixelation and downscale effect</description>\r\n\r\n<param name=\"scale\" type=\"float\" default=\"0.5\" />\r\n<param name=\"pixelate\" type=\"int\" default=\"1\" />\r\n<param name=\"method\" type=\"int\" default=\"0\" />\r\n\r\n<language name=\"glsl\" version=\"1.2\">\r\n<bind param=\"scale\" program=\"fp\" />\r\n<bind param=\"pixelate\" program=\"fp\" />\r\n<bind param=\"method\" program=\"fp\" />\r\n\r\n<program name=\"fp\" type=\"fragment\">\r\n<![CDATA[\r\n\r\n#version 120\r\n\r\nuniform sampler2DRect tex0;\r\nuniform vec2 texdim0;\r\nuniform float scale;\r\nuniform float pixelate;\r\nuniform float method;\r\n\r\nvarying vec2 texcoord0;\r\n\r\nvoid main() {\r\n    // Clamp scale to valid range\r\n    float s = clamp(scale, 0.01, 1.0);\r\n\r\n    vec2 coord;\r\n\r\n    if (pixelate > 0.5) {\r\n        // Pixelate mode: quantize to lower resolution then scale back up\r\n        // Calculate pixel size in original resolution\r\n        vec2 pixel_size = vec2(1.0 / s);\r\n\r\n        // Quantize coordinates to pixel grid\r\n        coord = floor(texcoord0 / pixel_size) * pixel_size;\r\n\r\n        // Add half pixel offset for center sampling\r\n        if (method < 0.5) {\r\n            // Nearest neighbor: sample from pixel center\r\n            coord += pixel_size * 0.5;\r\n        } else {\r\n            // Bilinear: sample from pixel center but let texture filtering handle it\r\n            coord += pixel_size * 0.5;\r\n        }\r\n    } else {\r\n        // Actual downscale mode: scale coordinates\r\n        coord = texcoord0 * s;\r\n    }\r\n\r\n    // Clamp coordinates to texture bounds\r\n    coord = clamp(coord, vec2(0.0), texdim0 - vec2(1.0));\r\n\r\n    // Sample texture\r\n    if (method < 0.5) {\r\n        // Nearest neighbor sampling\r\n        gl_FragColor = texture2DRect(tex0, floor(coord) + vec2(0.5));\r\n    } else {\r\n        // Bilinear sampling (hardware filtering)\r\n        gl_FragColor = texture2DRect(tex0, coord);\r\n    }\r\n}\r\n\r\n]]>\r\n</program>\r\n</language>\r\n</jit.gl.pix>",
 					"fontname": "Arial",
 					"fontsize": 12.0,
 					"id": "obj-2",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						130.0,
+						30.0,
+						100.0,
+						20.0
+					],
+					"text": "param scale 0.5"
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-3",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						250.0,
+						30.0,
+						100.0,
+						20.0
+					],
+					"text": "param pixelate 1"
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-4",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						370.0,
+						30.0,
+						100.0,
+						20.0
+					],
+					"text": "param method 0"
+				}
+			},
+			{
+				"box": {
+					"code": "/*\r\n * sr.downscale.genjit\r\n *\r\n * Pixelation and downscale effect\r\n * Part of SevenRad Max 8 Effects\r\n *\r\n * Parameters:\r\n *   scale (float 0.01-1.0): Scale factor, lower = more pixelated (default: 0.5)\r\n *   pixelate (int 0-1): 1 = pixelate mode, 0 = downscale mode (default: 1)\r\n *   method (int 0-1): 0 = nearest neighbor, 1 = bilinear (default: 0)\r\n *\r\n * Modes:\r\n *   Pixelate: Quantizes to lower resolution grid, creates blocky pixels\r\n *   Downscale: Scales coordinates, shrinks image\r\n *\r\n * Source: Python downscale implementation\r\n */\r\n\r\n// Clamp scale to valid range\r\ns = clamp(scale, 0.01, 1.0);\r\n\r\n// Calculate pixel size for quantization\r\npixel_size = 1.0 / s;\r\n\r\n// Determine sampling coordinate based on mode\r\nif (pixelate > 0.5) {\r\n    // Pixelate mode: quantize to lower resolution grid\r\n    // Floor to pixel boundaries, then add half pixel offset for center\r\n    coord_x = (floor(norm.x * dim.x / pixel_size) * pixel_size + pixel_size * 0.5) / dim.x;\r\n    coord_y = (floor(norm.y * dim.y / pixel_size) * pixel_size + pixel_size * 0.5) / dim.y;\r\n    coord = vec(coord_x, coord_y);\r\n} else {\r\n    // Downscale mode: scale coordinates directly\r\n    coord = norm * s;\r\n}\r\n\r\n// Clamp coordinates to valid range\r\ncoord = clamp(coord, vec(0, 0), vec(1, 1));\r\n\r\n// Sample with selected method\r\n// Note: GenExpr sample() uses bilinear by default\r\n// For nearest neighbor, we floor to pixel center\r\nif (method < 0.5) {\r\n    // Nearest neighbor: floor to pixel center\r\n    px = floor(coord.x * dim.x) + 0.5;\r\n    py = floor(coord.y * dim.y) + 0.5;\r\n    out1 = sample(in1, vec(px / dim.x, py / dim.y));\r\n} else {\r\n    // Bilinear: use coordinate directly\r\n    out1 = sample(in1, coord);\r\n}",
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-5",
 					"maxclass": "codebox",
 					"numinlets": 1,
 					"numoutlets": 1,
@@ -85,7 +145,7 @@
 				"box": {
 					"fontname": "Arial",
 					"fontsize": 12.0,
-					"id": "obj-3",
+					"id": "obj-6",
 					"maxclass": "newobj",
 					"numinlets": 1,
 					"numoutlets": 0,
@@ -103,7 +163,7 @@
 			{
 				"patchline": {
 					"destination": [
-						"obj-2",
+						"obj-5",
 						0
 					],
 					"disabled": 0,
@@ -117,13 +177,13 @@
 			{
 				"patchline": {
 					"destination": [
-						"obj-3",
+						"obj-6",
 						0
 					],
 					"disabled": 0,
 					"hidden": 0,
 					"source": [
-						"obj-2",
+						"obj-5",
 						0
 					]
 				}

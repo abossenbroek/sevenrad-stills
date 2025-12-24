@@ -13,11 +13,11 @@
 			100.0,
 			100.0,
 			800.0,
-			600.0
+			650.0
 		],
-		"description": "Separable Gaussian blur using two-pass horizontal/vertical",
-		"digest": "GPU-accelerated Gaussian blur effect",
-		"tags": "jitter, GPU, blur, gaussian, effect",
+		"description": "Separable Gaussian blur with independent H/V control",
+		"digest": "GPU-accelerated anisotropic Gaussian blur effect",
+		"tags": "jitter, GPU, blur, gaussian, anisotropic, effect",
 		"boxes": [
 			{
 				"box": {
@@ -31,7 +31,7 @@
 						500.0,
 						20.0
 					],
-					"text": "sr.blur - Separable Gaussian Blur (Two-Pass)",
+					"text": "sr.blur - Separable Gaussian Blur (Two-Pass with Independent H/V Control)",
 					"fontsize": 14.0,
 					"fontface": 1
 				}
@@ -45,10 +45,10 @@
 					"patching_rect": [
 						30.0,
 						45.0,
-						600.0,
+						700.0,
 						40.0
 					],
-					"text": "Two-pass separable Gaussian blur for O(n) performance.\nFirst apply horizontal (sr.blur.h), then vertical (sr.blur.v).\nBoth passes must use the same sigma parameter."
+					"text": "Two-pass separable Gaussian blur with independent horizontal/vertical sigma control.\nUse same sigma for both to get standard circular blur, or different values for elliptical/anisotropic blur."
 				}
 			},
 			{
@@ -176,7 +176,7 @@
 			},
 			{
 				"box": {
-					"id": "obj-6",
+					"id": "obj-label-h",
 					"maxclass": "comment",
 					"numinlets": 1,
 					"numoutlets": 0,
@@ -186,12 +186,12 @@
 						200.0,
 						20.0
 					],
-					"text": "sigma: 0.0 - 50.0"
+					"text": "Horizontal Sigma: 0.0 - 50.0"
 				}
 			},
 			{
 				"box": {
-					"id": "obj-dial-sigma",
+					"id": "obj-dial-sigma-h",
 					"maxclass": "dial",
 					"numinlets": 1,
 					"numoutlets": 1,
@@ -211,7 +211,7 @@
 			},
 			{
 				"box": {
-					"id": "obj-7",
+					"id": "obj-flonum-h",
 					"maxclass": "flonum",
 					"numinlets": 1,
 					"numoutlets": 2,
@@ -231,7 +231,7 @@
 			},
 			{
 				"box": {
-					"id": "obj-8",
+					"id": "obj-msg-h",
 					"maxclass": "message",
 					"numinlets": 2,
 					"numoutlets": 1,
@@ -241,6 +241,79 @@
 					"patching_rect": [
 						600.0,
 						225.0,
+						80.0,
+						22.0
+					],
+					"text": "sigma $1"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-label-v",
+					"maxclass": "comment",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						550.0,
+						260.0,
+						200.0,
+						20.0
+					],
+					"text": "Vertical Sigma: 0.0 - 50.0"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-dial-sigma-v",
+					"maxclass": "dial",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"float"
+					],
+					"patching_rect": [
+						550.0,
+						285.0,
+						40.0,
+						40.0
+					],
+					"size": 51.0,
+					"min": 0.0,
+					"mult": 1.0
+				}
+			},
+			{
+				"box": {
+					"id": "obj-flonum-v",
+					"maxclass": "flonum",
+					"numinlets": 1,
+					"numoutlets": 2,
+					"outlettype": [
+						"",
+						"bang"
+					],
+					"patching_rect": [
+						600.0,
+						295.0,
+						60.0,
+						22.0
+					],
+					"minimum": 0.0,
+					"maximum": 50.0
+				}
+			},
+			{
+				"box": {
+					"id": "obj-msg-v",
+					"maxclass": "message",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						600.0,
+						325.0,
 						80.0,
 						22.0
 					],
@@ -341,11 +414,11 @@
 					"numoutlets": 0,
 					"patching_rect": [
 						450.0,
-						340.0,
+						400.0,
 						300.0,
-						100.0
+						120.0
 					],
-					"text": "Alternative blur modes:\n- sr.blur.circular: Circular disk blur (bokeh)\n- sr.motion: Directional motion blur\n\nCircular and motion blur are single-pass effects."
+					"text": "Anisotropic blur:\n- Same H/V sigma = circular Gaussian blur\n- Different H/V = elliptical/directional blur\n\nAlternative blur modes:\n- sr.blur.circular: Circular disk blur (bokeh)\n- sr.motion: Directional motion blur"
 				}
 			}
 		],
@@ -437,11 +510,11 @@
 			{
 				"patchline": {
 					"source": [
-						"obj-dial-sigma",
+						"obj-dial-sigma-h",
 						0
 					],
 					"destination": [
-						"obj-7",
+						"obj-flonum-h",
 						0
 					]
 				}
@@ -449,11 +522,11 @@
 			{
 				"patchline": {
 					"source": [
-						"obj-7",
+						"obj-flonum-h",
 						0
 					],
 					"destination": [
-						"obj-8",
+						"obj-msg-h",
 						0
 					]
 				}
@@ -461,7 +534,7 @@
 			{
 				"patchline": {
 					"source": [
-						"obj-8",
+						"obj-msg-h",
 						0
 					],
 					"destination": [
@@ -473,7 +546,31 @@
 			{
 				"patchline": {
 					"source": [
-						"obj-8",
+						"obj-dial-sigma-v",
+						0
+					],
+					"destination": [
+						"obj-flonum-v",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-flonum-v",
+						0
+					],
+					"destination": [
+						"obj-msg-v",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-msg-v",
 						0
 					],
 					"destination": [
