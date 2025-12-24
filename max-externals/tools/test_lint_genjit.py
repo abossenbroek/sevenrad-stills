@@ -332,6 +332,148 @@ void main() {
     if test_case("Patchline with invalid format", data, should_fail=True):
         tests_passed += 1
 
+    # ========================================
+    # NEW VALIDATOR TESTS
+    # ========================================
+
+    print("\n--- Testing new GenExpr validators ---\n")
+
+    # Test 21: GLSL reserved word 'half' as variable
+    tests_total += 1
+    data = create_valid_genjit()
+    for box in data["patcher"]["boxes"]:
+        if box["box"].get("maxclass") == "codebox":
+            box["box"]["code"] = """// Motion blur shader
+half = float(kernel_size - 1) / 2.0;
+t = float(i) - half;
+out1 = sample(in1, norm);
+"""
+    if test_case("GLSL reserved word 'half' as variable", data, should_fail=True):
+        tests_passed += 1
+
+    # Test 22: Valid variable names (not reserved)
+    tests_total += 1
+    data = create_valid_genjit()
+    for box in data["patcher"]["boxes"]:
+        if box["box"].get("maxclass") == "codebox":
+            box["box"]["code"] = """// Motion blur with valid names
+half_size = float(kernel_size - 1) / 2.0;
+t = float(i) - half_size;
+out1 = sample(in1, norm);
+"""
+    if test_case("Valid variable names (half_size)", data, should_fail=False):
+        tests_passed += 1
+
+    # Test 23: Function definition (unsupported)
+    tests_total += 1
+    data = create_valid_genjit()
+    for box in data["patcher"]["boxes"]:
+        if box["box"].get("maxclass") == "codebox":
+            box["box"]["code"] = """// PCG hash function
+pcg_hash(input_seed) {
+    state = int((uint(input_seed) * uint(747796405) + uint(2891336453)));
+    return float(state);
+}
+out1 = sample(in1, norm) * pcg_hash(42);
+"""
+    if test_case("Function definition (unsupported)", data, should_fail=True):
+        tests_passed += 1
+
+    # Test 24: Control flow (should NOT fail)
+    tests_total += 1
+    data = create_valid_genjit()
+    for box in data["patcher"]["boxes"]:
+        if box["box"].get("maxclass") == "codebox":
+            box["box"]["code"] = """// Control flow is allowed
+if (mode == 0) {
+    out1 = sample(in1, norm);
+} else {
+    for (i = 0; i < 10; i += 1) {
+        sum += sample(in1, norm + offset);
+    }
+    out1 = sum / 10.0;
+}
+"""
+    if test_case("Control flow (if/for allowed)", data, should_fail=False):
+        tests_passed += 1
+
+    # Test 25: Multiple function definitions
+    tests_total += 1
+    data = create_valid_genjit()
+    for box in data["patcher"]["boxes"]:
+        if box["box"].get("maxclass") == "codebox":
+            box["box"]["code"] = """// Multiple functions
+pcg_hash(seed) { return seed * 2; }
+rand_float(x, y, s) { return pcg_hash(x + y + s); }
+out1 = rand_float(1, 2, 3);
+"""
+    if test_case("Multiple function definitions", data, should_fail=True):
+        tests_passed += 1
+
+    # Test 26: Unmatched opening parenthesis
+    tests_total += 1
+    data = create_valid_genjit()
+    for box in data["patcher"]["boxes"]:
+        if box["box"].get("maxclass") == "codebox":
+            box["box"]["code"] = """// Missing closing paren
+out1 = sample(in1, norm;
+"""
+    if test_case("Unmatched opening parenthesis", data, should_fail=True):
+        tests_passed += 1
+
+    # Test 27: Unmatched closing parenthesis
+    tests_total += 1
+    data = create_valid_genjit()
+    for box in data["patcher"]["boxes"]:
+        if box["box"].get("maxclass") == "codebox":
+            box["box"]["code"] = """// Extra closing paren
+out1 = sample(in1, norm));
+"""
+    if test_case("Unmatched closing parenthesis", data, should_fail=True):
+        tests_passed += 1
+
+    # Test 28: Unmatched opening brace
+    tests_total += 1
+    data = create_valid_genjit()
+    for box in data["patcher"]["boxes"]:
+        if box["box"].get("maxclass") == "codebox":
+            box["box"]["code"] = """// Missing closing brace
+if (mode == 0) {
+    out1 = sample(in1, norm);
+"""
+    if test_case("Unmatched opening brace", data, should_fail=True):
+        tests_passed += 1
+
+    # Test 29: Balanced complex delimiters
+    tests_total += 1
+    data = create_valid_genjit()
+    for box in data["patcher"]["boxes"]:
+        if box["box"].get("maxclass") == "codebox":
+            box["box"]["code"] = """// Complex but balanced
+if (arr[0] > sample(in1, vec(norm.x, norm.y)).r) {
+    for (i = 0; i < 5; i += 1) {
+        sum += clamp(sample(in1, norm + offsets[i]), vec(0,0,0,0), vec(1,1,1,1));
+    }
+    out1 = sum / 5.0;
+} else {
+    out1 = in1;
+}
+"""
+    if test_case("Balanced complex delimiters", data, should_fail=False):
+        tests_passed += 1
+
+    # Test 30: GLSL reserved word 'precision' as variable
+    tests_total += 1
+    data = create_valid_genjit()
+    for box in data["patcher"]["boxes"]:
+        if box["box"].get("maxclass") == "codebox":
+            box["box"]["code"] = """// Another reserved word
+precision = 0.01;
+out1 = floor(in1.r / precision) * precision;
+"""
+    if test_case("GLSL reserved word 'precision' as variable", data, should_fail=True):
+        tests_passed += 1
+
     # Summary
     print(f"\n{'='*60}")
     print(f"Tests passed: {tests_passed}/{tests_total}")

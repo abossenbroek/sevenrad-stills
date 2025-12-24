@@ -140,9 +140,16 @@ function(add_jitter_external name)
         endif()
 
         # Find and link JitterAPI
-        find_library(JIT_API_LIB JitterAPI PATHS "${C74_JIT_API_DIR}")
+        # Note: We link weakly because Max provides JitterAPI.framework at runtime
+        # The framework is not bundled with the external
+        find_library(JIT_API_LIB JitterAPI PATHS "${C74_JIT_API_DIR}" NO_DEFAULT_PATH)
         if(JIT_API_LIB)
             target_link_libraries(${name} PRIVATE ${JIT_API_LIB})
+            # Set install name for JitterAPI to use @rpath so Max can provide it at runtime
+            set_target_properties(${name} PROPERTIES
+                INSTALL_RPATH "@executable_path/../Frameworks"
+                BUILD_WITH_INSTALL_RPATH TRUE
+            )
         endif()
 
     elseif(WIN32)

@@ -3,8 +3,15 @@
 Graph-based linter for .maxhelp files.
 
 Validates that help patchers have correct structure, initialization order,
-complete signal flow, and proper UI components for shader parameters using
-networkx graph analysis.
+complete signal flow, proper UI components for shader parameters, and proper
+UI layout using networkx graph analysis.
+
+Validation Features:
+    - Context naming conventions (underscores, not dots)
+    - OpenGL context initialization order
+    - Complete GPU texture signal flow
+    - Parameter UI controls and connections
+    - UI component overlap detection
 
 Usage:
     python lint_maxhelp.py help/*.maxhelp
@@ -535,9 +542,32 @@ class MaxhelpLinter:
         """
         Validate that UI components don't overlap each other.
 
-        Checks patching_rect of interactive elements to ensure sufficient spacing.
-        Comments are excluded as they often intentionally label other objects.
-        Connected boxes are allowed to overlap (common Max patching style).
+        This method detects overlapping UI elements to help identify layout issues
+        in Max help patchers. Overlaps are calculated using bounding box intersection
+        based on each object's patching_rect [x, y, width, height].
+
+        Overlap Detection Rules:
+            - Significant overlap (>25% of smaller box): ERROR
+            - Minor overlap (>100px² but <25%): WARNING
+            - Tiny overlap (≤100px²): Ignored
+            - Connected boxes: Allowed to overlap (common Max style)
+            - Comments: Excluded (often used as labels)
+
+        Interactive Object Types Checked:
+            - dial, slider, button, toggle
+            - number, flonum, message, newobj
+            - umenu, jit.pwindow
+
+        Bounding Box Calculation:
+            For most objects, patching_rect directly provides [x, y, w, h].
+            The width and height are used as-is from the Max patcher JSON.
+
+        Connected Box Exception:
+            Boxes that are directly connected by patchlines are allowed to overlap,
+            as this is a common Max patching style (e.g., dial connected to number).
+
+        Returns:
+            True if no significant overlaps found, False otherwise
         """
         valid = True
 
@@ -611,6 +641,51 @@ class MaxhelpLinter:
             return match.group(1)
         return None
 
+    def _strip_comments(self, code: str) -> str:
+        """
+        Strip C-style comments from code to avoid false positives in GLSL detection.
+
+        Removes:
+        - Single-line comments: // ...
+        - Block comments: /* ... */
+
+        Args:
+            code: Source code string
+
+        Returns:
+            Code with comments replaced by whitespace (preserves line numbers)
+        """
+        result = []
+        i = 0
+        in_block_comment = False
+
+        while i < len(code):
+            if in_block_comment:
+                # Look for end of block comment
+                if code[i : i + 2] == "*/":
+                    in_block_comment = False
+                    result.append("  ")  # Replace */ with spaces
+                    i += 2
+                else:
+                    # Preserve newlines for line number tracking
+                    result.append("\n" if code[i] == "\n" else " ")
+                    i += 1
+            elif code[i : i + 2] == "/*":
+                # Start of block comment
+                in_block_comment = True
+                result.append("  ")  # Replace /* with spaces
+                i += 2
+            elif code[i : i + 2] == "//":
+                # Single-line comment - skip to end of line
+                while i < len(code) and code[i] != "\n":
+                    result.append(" ")
+                    i += 1
+            else:
+                result.append(code[i])
+                i += 1
+
+        return "".join(result)
+
     def _find_genjit_file(self, shader_name: str) -> Path | None:
         """Find the .genjit file for a shader name."""
         if self.filepath is None:
@@ -654,6 +729,149 @@ class MaxhelpLinter:
                     )
 
         return params
+
+    def _validate_genjit_format(
+        self, genjit_path: Path, shader_name: str
+    ) -> tuple[bool, list[dict[str, Any]]]:
+        """
+        Validate that a .genjit file uses proper GenExpr format, not GLSL/XML.
+
+        Detects GLSL/XML markers that indicate wrong shader format:
+        - XML tags: <jit.gl.pix>, <param name=, <language name="glsl"
+        - GLSL keywords: #version, uniform, void main(), gl_FragColor, texture2DRect
+
+        Validates GenExpr requirements:
+        - Has proper 'param name default' objects (not XML <param>)
+        - Codebox uses GenExpr syntax (in1, out1, sample, norm, dim)
+        - No user-defined function syntax (name() { ... })
+
+        Args:
+            genjit_path: Path to the .genjit file
+            shader_name: Name of the shader for error messages
+
+        Returns:
+            Tuple of (is_valid, params_list)
+        """
+        valid = True
+        params: list[dict[str, Any]] = []
+
+        try:
+            content = genjit_path.read_text(encoding="utf-8")
+            data = json.loads(content)
+        except json.JSONDecodeError as e:
+            self.error(
+                "genjit-format",
+                f"Invalid JSON in {shader_name}.genjit: {e.msg}",
+            )
+            return False, params
+        except OSError as e:
+            self.error(
+                "genjit-format",
+                f"Cannot read {shader_name}.genjit: {e}",
+            )
+            return False, params
+
+        # Find codebox and param objects
+        codebox_content: str | None = None
+        has_param_objects = False
+
+        for box_wrapper in data.get("patcher", {}).get("boxes", []):
+            box = box_wrapper.get("box", {})
+            maxclass = box.get("maxclass", "")
+            text = box.get("text", "")
+
+            # Check for proper param objects
+            if maxclass == "newobj" and text.startswith("param "):
+                has_param_objects = True
+                parts = text.split()
+                if len(parts) >= 3:
+                    params.append({"name": parts[1], "default": parts[2]})
+
+            # Get codebox content
+            if maxclass == "codebox":
+                codebox_content = box.get("code", "")
+
+        if codebox_content is None:
+            self.error(
+                "genjit-format",
+                f"No codebox found in {shader_name}.genjit",
+            )
+            return False, params
+
+        # Strip comments before checking for GLSL markers to avoid false positives
+        # (e.g., "uniform weighting" in a comment should not trigger GLSL detection)
+        code_without_comments = self._strip_comments(codebox_content)
+
+        # GLSL/XML markers that indicate wrong format
+        glsl_xml_markers = [
+            ("<jit.gl.pix>", "XML wrapper <jit.gl.pix> (use GenExpr codebox instead)"),
+            ("</jit.gl.pix>", "XML closing tag </jit.gl.pix>"),
+            ('<param name="', "XML parameter declaration <param name="),
+            ('<language name="glsl"', "GLSL language declaration"),
+            ("#version", "GLSL #version directive"),
+            ("uniform ", "GLSL uniform declaration"),
+            ("void main()", "GLSL main function"),
+            ("gl_FragColor", "GLSL gl_FragColor output"),
+            ("texture2DRect", "GLSL texture2DRect function"),
+            ("varying ", "GLSL varying declaration"),
+            ("<![CDATA[", "XML CDATA section"),
+        ]
+
+        for marker, description in glsl_xml_markers:
+            if marker in code_without_comments:
+                self.error(
+                    "genjit-format",
+                    f"GLSL/XML format detected in {shader_name}.genjit: {description}. "
+                    f"Convert to GenExpr format with 'param name default' objects.",
+                )
+                valid = False
+
+        # Check for invalid function definition syntax (GenExpr doesn't support this)
+        # Pattern: identifier(params) { ... }
+        func_def_pattern = re.compile(r"\b\w+\s*\([^)]*\)\s*\{")
+        if func_def_pattern.search(code_without_comments):
+            # Make sure it's not a valid GenExpr construct like if() { or for() {
+            # by checking if it looks like a function definition
+            lines = code_without_comments.split("\n")
+            for line in lines:
+                line = line.strip()
+                # Skip control flow statements
+                if any(
+                    line.startswith(kw)
+                    for kw in ["if", "else", "for", "while", "switch"]
+                ):
+                    continue
+                # Check for function-like definition
+                if func_def_pattern.match(line):
+                    self.error(
+                        "genjit-format",
+                        f"Invalid function definition syntax in {shader_name}.genjit. "
+                        f"GenExpr doesn't support user-defined functions. Inline the code instead.",
+                    )
+                    valid = False
+                    break
+
+        # Check for GenExpr requirements (only if not already detected as GLSL)
+        if valid:
+            genexpr_markers = ["out1", "in1", "sample(", "norm", "dim"]
+            has_genexpr = any(marker in codebox_content for marker in genexpr_markers)
+
+            if not has_genexpr:
+                self.warning(
+                    "genjit-format",
+                    f"No GenExpr markers found in {shader_name}.genjit "
+                    f"(expected: out1, in1, sample, norm, dim)",
+                )
+
+            # Check for param objects if parameters are used
+            if not has_param_objects and params:
+                self.warning(
+                    "genjit-format",
+                    f"No 'param' objects found in {shader_name}.genjit. "
+                    f"Parameters should be declared as 'param name default' objects.",
+                )
+
+        return valid, params
 
     def _find_ui_controls(self) -> dict[str, list[str]]:
         """
@@ -808,7 +1026,13 @@ class MaxhelpLinter:
                 )
                 continue
 
-            params = self._parse_genjit_params(genjit_path)
+            # Validate genjit format and get parameters
+            format_valid, params = self._validate_genjit_format(
+                genjit_path, shader_name
+            )
+            if not format_valid:
+                valid = False  # Propagate genjit format errors
+
             if params:
                 all_params[shader_name] = params
 

@@ -22,6 +22,38 @@ import sys
 from pathlib import Path
 from typing import Any
 
+# GLSL reserved words that should not be used as GenExpr variable names
+# These cause shader compilation errors when Max tries to compile the GenExpr
+GLSL_RESERVED_WORDS = {
+    # Precision qualifiers (common cause of issues)
+    "half",
+    "fixed",
+    "lowp",
+    "mediump",
+    "highp",
+    "precision",
+    # Shader qualifiers
+    "attribute",
+    "varying",
+    "invariant",
+    "flat",
+    "smooth",
+    "noperspective",
+    # Sampler types
+    "sampler2D",
+    "sampler3D",
+    "samplerCube",
+    "sampler2DShadow",
+    # Other reserved
+    "discard",
+    "centroid",
+    "layout",
+    "inout",
+}
+
+# Control flow keywords that look like function calls but are valid
+CONTROL_FLOW_KEYWORDS = {"if", "else", "for", "while", "switch", "return"}
+
 
 class ValidationError:
     """Represents a validation error with severity and location."""
@@ -424,6 +456,11 @@ class GenjitLinter:
 
             self.info("Detected GenExpr shader format")
 
+            # Run GenExpr-specific validations
+            valid &= self._validate_glsl_reserved_words(code)
+            valid &= self._validate_no_function_definitions(code)
+            valid &= self._validate_delimiters(code)
+
         # Check inlet/outlet counts match code complexity
         if "numinlets" in codebox:
             if codebox["numinlets"] < 1:
@@ -435,6 +472,111 @@ class GenjitLinter:
                 self.warning(
                     f"Codebox has {codebox['numoutlets']} outlets, typically should be 1"
                 )
+
+        return valid
+
+    def _validate_glsl_reserved_words(self, code: str) -> bool:
+        """Detect GLSL reserved words used as GenExpr variable names.
+
+        These cause shader compilation errors like:
+        "half is a reserved word in GLSL"
+        """
+        valid = True
+        lines = code.split("\n")
+
+        for line_num, line in enumerate(lines, 1):
+            # Skip comments
+            stripped = line.strip()
+            if stripped.startswith("//") or stripped.startswith("/*"):
+                continue
+
+            for word in GLSL_RESERVED_WORDS:
+                # Pattern: word followed by assignment (variable declaration)
+                pattern = rf"\b{word}\s*="
+                if re.search(pattern, line):
+                    self.error(
+                        f"GLSL reserved word '{word}' used as variable name. "
+                        f"Rename to '{word}_value' or similar.",
+                        f"line ~{line_num}",
+                    )
+                    valid = False
+
+        return valid
+
+    def _validate_no_function_definitions(self, code: str) -> bool:
+        """Detect unsupported function definitions in GenExpr.
+
+        GenExpr does NOT support user-defined functions like:
+            my_func(x, y) { ... }
+
+        These cause "expression missing ')'" errors.
+        """
+        valid = True
+
+        # Pattern: identifier(args) followed by {
+        # This catches: pcg_hash(input_seed) { ... }
+        # But not: if (condition) { ... }
+        pattern = re.compile(r"\b(\w+)\s*\([^)]*\)\s*\{")
+
+        for match in pattern.finditer(code):
+            func_name = match.group(1)
+            if func_name not in CONTROL_FLOW_KEYWORDS:
+                # Find approximate line number
+                pos = match.start()
+                line_num = code[:pos].count("\n") + 1
+                self.error(
+                    f"Function definition '{func_name}()' not supported in GenExpr. "
+                    f"Inline the function body at each call site.",
+                    f"line ~{line_num}",
+                )
+                valid = False
+
+        return valid
+
+    def _validate_delimiters(self, code: str) -> bool:
+        """Validate matching delimiters in GenExpr code.
+
+        Unmatched parentheses, brackets, or braces cause cryptic errors.
+        """
+        valid = True
+
+        # Remove comments to avoid false positives
+        code_clean = re.sub(r"/\*.*?\*/", "", code, flags=re.DOTALL)
+        code_clean = re.sub(r"//.*?$", "", code_clean, flags=re.MULTILINE)
+
+        # Track delimiters with stack
+        stack: list[tuple[str, int]] = []
+        pairs = {"(": ")", "[": "]", "{": "}"}
+        line_num = 1
+
+        for i, char in enumerate(code_clean):
+            if char == "\n":
+                line_num += 1
+            elif char in "([{":
+                stack.append((char, line_num))
+            elif char in ")]}":
+                if not stack:
+                    self.error(
+                        f"Unmatched closing '{char}'",
+                        f"line ~{line_num}",
+                    )
+                    valid = False
+                else:
+                    open_char, open_line = stack.pop()
+                    if pairs[open_char] != char:
+                        self.error(
+                            f"Mismatched delimiters: '{open_char}' at line ~{open_line} "
+                            f"closed with '{char}' at line ~{line_num}",
+                        )
+                        valid = False
+
+        # Check for unclosed delimiters
+        for open_char, open_line in stack:
+            self.error(
+                f"Unclosed '{open_char}'",
+                f"line ~{open_line}",
+            )
+            valid = False
 
         return valid
 

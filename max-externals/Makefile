@@ -1,7 +1,7 @@
 # SevenRad Max Externals Makefile
 # Automates build, install, and testing
 
-.PHONY: all build clean install uninstall test test-syntax test-rng test-lint test-help-lint test-help-lint-lenient help find-max
+.PHONY: all build clean install uninstall test test-syntax test-rng test-lint test-help-lint test-help-lint-lenient test-lsp help find-max install-linter
 
 # Build directories
 BUILD_DIR := build
@@ -12,6 +12,9 @@ PACKAGE_NAME := sevenrad
 VENV := $(shell cd .. && pwd)/.venv
 PYTHON := $(VENV)/bin/python
 PYTEST := $(VENV)/bin/pytest
+
+# LSP linter directory
+LINTER_DIR := linter
 
 # Colors for output
 GREEN := \033[0;32m
@@ -115,7 +118,7 @@ uninstall: ## Remove package from Max Packages directory
 
 ## Test targets
 
-test: test-lint test-syntax test-rng ## Run all Python tests (no Max required)
+test: test-lint test-syntax test-rng test-help-lint-test ## Run all Python tests (no Max required)
 	@echo "$(GREEN)All Python tests passed$(NC)"
 
 test-lint: ## Validate .genjit file format
@@ -130,6 +133,25 @@ test-lint-test: ## Run linter test suite
 	@echo "$(GREEN)Running linter tests...$(NC)"
 	@$(PYTHON) tools/test_lint_genjit.py
 
+## LSP-based linter targets
+
+install-linter: ## Install LSP-based linter package
+	@echo "$(GREEN)Installing LSP linter package...$(NC)"
+	@cd $(LINTER_DIR) && uv sync
+	@echo "$(GREEN)LSP linter installed$(NC)"
+
+test-lsp: ## Validate shaders using LSP servers (clangd/glsl_analyzer)
+	@echo "$(GREEN)Running LSP validation...$(NC)"
+	@cd $(LINTER_DIR) && uv run max-lint --fallback ../code/*.genjit
+
+test-lsp-verbose: ## LSP validation with verbose output
+	@echo "$(GREEN)Running LSP validation (verbose)...$(NC)"
+	@cd $(LINTER_DIR) && uv run max-lint --fallback -v ../code/*.genjit
+
+test-lsp-check: ## Check if LSP servers are available
+	@echo "$(GREEN)Checking LSP server availability...$(NC)"
+	@cd $(LINTER_DIR) && uv run max-lint --check-lsp
+
 test-help-lint: ## Validate .maxhelp file structure and connections (strict mode)
 	@echo "$(GREEN)Linting .maxhelp files (strict)...$(NC)"
 	@$(PYTHON) tools/lint_maxhelp.py --strict help/*.maxhelp
@@ -141,6 +163,10 @@ test-help-lint-verbose: ## Lint help patchers with verbose output (strict mode)
 test-help-lint-lenient: ## Lint help patchers without strict mode (warnings only)
 	@echo "$(GREEN)Linting .maxhelp files (lenient)...$(NC)"
 	@$(PYTHON) tools/lint_maxhelp.py help/*.maxhelp
+
+test-help-lint-test: ## Run help linter test suite
+	@echo "$(GREEN)Running help linter tests...$(NC)"
+	@$(PYTEST) tools/test_lint_maxhelp.py -v --tb=short
 
 test-syntax: ## Validate GenExpr shader syntax
 	@echo "$(GREEN)Running GenExpr syntax tests...$(NC)"
