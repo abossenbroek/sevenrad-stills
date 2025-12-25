@@ -26,6 +26,19 @@ set(C74_MSP_API_DIR "${MAX_SDK_DIR}/source/max-sdk-base/c74support/msp-includes"
 set(C74_JIT_API_DIR "${MAX_SDK_DIR}/source/max-sdk-base/c74support/jit-includes")
 set(C74_MAX_API_LIB_DIR "${MAX_SDK_DIR}/source/max-sdk-base/c74support/max-includes/x64")
 
+# Read Max API linker flags (undefined symbols resolved at runtime by Max)
+# This allows externals to reference Max API functions without linking to a framework
+if(APPLE)
+    set(MAX_LINKER_FLAGS_FILE "${MAX_SDK_DIR}/source/max-sdk-base/script/max-linker-flags.txt")
+    if(EXISTS "${MAX_LINKER_FLAGS_FILE}")
+        file(STRINGS "${MAX_LINKER_FLAGS_FILE}" C74_SYM_MAX_LINKER_FLAGS)
+        set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${C74_SYM_MAX_LINKER_FLAGS}")
+        message(STATUS "Loaded Max linker flags from: ${MAX_LINKER_FLAGS_FILE}")
+    else()
+        message(WARNING "Max linker flags file not found: ${MAX_LINKER_FLAGS_FILE}")
+    endif()
+endif()
+
 # Platform-specific settings
 if(APPLE)
     set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64")
@@ -79,16 +92,11 @@ function(add_max_external name)
             MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/source/Info.plist.in"
         )
 
-        # Link against Max API framework
+        # Link against CoreFoundation framework
+        # Note: Max API symbols are resolved at runtime via linker flags (-Wl,-U,...)
         target_link_libraries(${name} PRIVATE
             "-framework CoreFoundation"
         )
-
-        # Find and link MaxAPI
-        find_library(MAX_API_LIB MaxAPI PATHS "${C74_MAX_API_DIR}")
-        if(MAX_API_LIB)
-            target_link_libraries(${name} PRIVATE ${MAX_API_LIB})
-        endif()
 
     elseif(WIN32)
         # Windows configuration
@@ -128,16 +136,11 @@ function(add_jitter_external name)
             MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/source/Info.plist.in"
         )
 
-        # Link against frameworks
+        # Link against CoreFoundation framework
+        # Note: Max API symbols are resolved at runtime via linker flags (-Wl,-U,...)
         target_link_libraries(${name} PRIVATE
             "-framework CoreFoundation"
         )
-
-        # Find and link MaxAPI
-        find_library(MAX_API_LIB MaxAPI PATHS "${C74_MAX_API_DIR}")
-        if(MAX_API_LIB)
-            target_link_libraries(${name} PRIVATE ${MAX_API_LIB})
-        endif()
 
         # Find and link JitterAPI
         # Note: We link weakly because Max provides JitterAPI.framework at runtime

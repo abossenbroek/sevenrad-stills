@@ -1,7 +1,7 @@
 # SevenRad Max Externals Makefile
 # Automates build, install, and testing
 
-.PHONY: all build clean install uninstall test test-syntax test-rng test-lint test-help-lint test-help-lint-lenient test-lsp help find-max install-linter
+.PHONY: all build clean install uninstall test test-syntax test-rng test-lint test-help-lint test-help-lint-lenient test-lsp help find-max install-linter fix-linking
 
 # Build directories
 BUILD_DIR := build
@@ -40,6 +40,7 @@ build: ## Build C externals using CMake
 	@echo "$(GREEN)Building externals...$(NC)"
 	@mkdir -p $(BUILD_DIR)
 	@cd $(BUILD_DIR) && cmake .. && cmake --build .
+	@$(MAKE) fix-linking
 	@echo "$(GREEN)Build complete. Externals in $(EXTERNALS_DIR)/$(NC)"
 
 clean: ## Clean build artifacts
@@ -49,6 +50,30 @@ clean: ## Clean build artifacts
 	@echo "$(GREEN)Clean complete$(NC)"
 
 rebuild: clean build ## Clean and rebuild
+
+## Max 9 compatibility fix for library linking
+## The Max SDK 8.2.0 links to MaxAPIImpl.framework which doesn't exist in Max 9
+## This target fixes the library references to match Max 9's built-in externals
+
+fix-linking: ## Fix library references for Max 9 compatibility
+	@echo "$(GREEN)Fixing library references for Max 9 compatibility...$(NC)"
+	@for mxo in $(EXTERNALS_DIR)/*.mxo; do \
+		if [ -d "$$mxo" ]; then \
+			binary="$$mxo/Contents/MacOS/$$(basename $$mxo .mxo)"; \
+			if [ -f "$$binary" ]; then \
+				echo "  Fixing: $${mxo##*/}"; \
+				install_name_tool -change \
+					"@executable_path/../Frameworks/JitterAPI.framework/Versions/A/JitterAPI" \
+					"@rpath/JitterAPI.framework/Versions/A/JitterAPI" \
+					"$$binary" 2>/dev/null || true; \
+				install_name_tool -change \
+					"@rpath/../Frameworks/MaxAPIImpl.framework/Versions/A/MaxAPIImpl" \
+					"@rpath/MaxAPIImpl.framework/Versions/A/MaxAPIImpl" \
+					"$$binary" 2>/dev/null || true; \
+			fi; \
+		fi; \
+	done
+	@echo "$(GREEN)Library references fixed$(NC)"
 
 ## Installation targets
 
@@ -79,6 +104,7 @@ install: build ## Install package to Max Packages directory
 			cp -r $(EXTERNALS_DIR)/*.mxo "$$dir/Packages/$(PACKAGE_NAME)/externals/" 2>/dev/null || true; \
 			echo "$(GREEN)Signing externals...$(NC)"; \
 			for mxo in "$$dir/Packages/$(PACKAGE_NAME)/externals/"*.mxo; do \
+				xattr -cr "$$mxo" && \
 				codesign --force --deep --sign - "$$mxo" && \
 				echo "  Signed: $${mxo##*/}"; \
 			done; \
