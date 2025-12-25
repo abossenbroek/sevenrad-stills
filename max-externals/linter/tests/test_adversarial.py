@@ -484,7 +484,7 @@ class TestAnalyzerAdversarial:
         out1_warnings = [
             d
             for d in diagnostics
-            if "out1" in d.message.lower() and "no assignment" in d.message.lower()
+            if "out1" in d.message.lower() and d.code == "no-output"
         ]
         assert len(out1_warnings) > 0
         print("✓ Analyzer warns when out1 is not assigned (but out2/out3 are)")
@@ -498,9 +498,7 @@ class TestAnalyzerAdversarial:
             d
             for d in diagnostics
             if "out1" in d.message.lower()
-            and (
-                "no assignment" in d.message.lower() or "undefined" in d.message.lower()
-            )
+            and (d.code == "no-output" or d.code == "undefined-variable")
         ]
         assert len(out1_warnings) > 0
         print("✓ Analyzer warns when out1 is used before assignment")

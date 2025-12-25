@@ -943,13 +943,16 @@ class MaxhelpLinter:
 
         return params
 
-    def _validate_genexpr_code(self, code: str, shader_name: str) -> bool:
+    def _validate_genexpr_code(
+        self, code: str, shader_name: str, declared_params: set[str] | None = None
+    ) -> bool:
         """
         Validate GenExpr shader code using the GenExprValidator.
 
         Args:
             code: GenExpr shader code to validate
             shader_name: Name of the shader for error messages
+            declared_params: Set of parameter names declared in the .genjit file
 
         Returns:
             True if valid, False if errors found
@@ -962,7 +965,7 @@ class MaxhelpLinter:
             return True
 
         valid = True
-        diagnostics = self.genexpr_validator.validate(code)
+        diagnostics = self.genexpr_validator.validate(code, declared_params)
 
         for diag in diagnostics:
             # Convert LSP diagnostic severity to our severity
@@ -1129,7 +1132,11 @@ class MaxhelpLinter:
                 )
 
             # Validate GenExpr code using GenExprValidator
-            genexpr_valid = self._validate_genexpr_code(codebox_content, shader_name)
+            # Pass param names to avoid false positives for declared params
+            param_names = {p["name"] for p in params}
+            genexpr_valid = self._validate_genexpr_code(
+                codebox_content, shader_name, param_names
+            )
             valid &= genexpr_valid
 
         return valid, params

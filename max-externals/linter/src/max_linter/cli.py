@@ -9,9 +9,34 @@ from pathlib import Path
 
 from max_linter.extractors.genjit import GenjitExtractor
 from max_linter.genexpr import GenExprValidator
-from max_linter.results import DiagnosticSeverity, LintResult
+from max_linter.results import (
+    Diagnostic,
+    DiagnosticSeverity,
+    LintResult,
+    Position,
+    Range,
+)
 from max_linter.validators.clangd import ClangdValidator
 from max_linter.validators.glsl import GLSLValidator
+
+
+def _make_param_diagnostic(param_name: str, error_msg: str) -> Diagnostic:
+    """Create a diagnostic for param range validation errors.
+
+    Args:
+        param_name: Name of the parameter with the error
+        error_msg: Description of the range error
+
+    Returns:
+        Diagnostic object
+    """
+    return Diagnostic(
+        range=Range(start=Position(0, 0), end=Position(0, 0)),
+        severity=DiagnosticSeverity.WARNING,
+        message=f"Parameter '{param_name}': {error_msg}",
+        source="genexpr-params",
+        code="param-range",
+    )
 
 
 def setup_logging(verbose: bool) -> None:
@@ -81,9 +106,19 @@ def lint_file(
                 )
                 all_diagnostics.extend(diagnostics)
         else:  # genexpr
-            # Use GenExprValidator for GenExpr shaders
-            diagnostics = genexpr_validator.validate(shader.code)
+            # Extract param names for semantic analysis
+            param_names = {p.name for p in shader.params}
+
+            # Use GenExprValidator for GenExpr shaders with param context
+            diagnostics = genexpr_validator.validate(
+                shader.code, declared_params=param_names
+            )
             all_diagnostics.extend(diagnostics)
+
+            # Validate param ranges
+            range_errors = extractor.validate_param_ranges(shader.params)
+            for param_name, error_msg in range_errors:
+                all_diagnostics.append(_make_param_diagnostic(param_name, error_msg))
 
     # Filter out "not available" warnings in fallback mode
     if fallback:

@@ -104,7 +104,7 @@ def test_semantic_error_detection() -> None:
 
     # Invalid argument count
     diagnostics = validator.validate("out1 = sample(in1);")  # sample requires 2-3 args
-    arg_errors = [d for d in diagnostics if "argument" in d.message.lower()]
+    arg_errors = [d for d in diagnostics if "args" in d.message.lower()]
     assert len(arg_errors) > 0
     assert arg_errors[0].severity == DiagnosticSeverity.ERROR
     print(f"✓ Invalid argument count detected: {arg_errors[0].message}")

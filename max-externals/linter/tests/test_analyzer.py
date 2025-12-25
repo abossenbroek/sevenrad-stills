@@ -60,7 +60,7 @@ def test_function_validation() -> None:
     # Test too few arguments
     tree = parser.parse("out1 = sample(in1);")  # sample requires 2-3 args
     diagnostics = analyzer.analyze(tree)
-    arg_errors = [d for d in diagnostics if "argument" in d.message.lower()]
+    arg_errors = [d for d in diagnostics if "args" in d.message.lower()]
     assert len(arg_errors) > 0, "Should detect insufficient arguments"
     assert arg_errors[0].severity == DiagnosticSeverity.ERROR
     print(f"✓ Detected insufficient arguments: {arg_errors[0].message}")
@@ -70,7 +70,7 @@ def test_function_validation() -> None:
         "out1 = sample(in1, norm, 0, 0, 0);"
     )  # sample accepts max 3 args
     diagnostics = analyzer.analyze(tree)
-    arg_errors = [d for d in diagnostics if "argument" in d.message.lower()]
+    arg_errors = [d for d in diagnostics if "args" in d.message.lower()]
     assert len(arg_errors) > 0, "Should detect excessive arguments"
     assert arg_errors[0].severity == DiagnosticSeverity.ERROR
     print(f"✓ Detected excessive arguments: {arg_errors[0].message}")
@@ -78,7 +78,7 @@ def test_function_validation() -> None:
     # Test valid function call
     tree = parser.parse("out1 = sample(in1, norm);")
     diagnostics = analyzer.analyze(tree)
-    arg_errors = [d for d in diagnostics if "argument" in d.message.lower()]
+    arg_errors = [d for d in diagnostics if "args" in d.message.lower()]
     assert len(arg_errors) == 0, "Valid function call should not produce errors"
     print("✓ Valid function call produces no errors")
 

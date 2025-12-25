@@ -4,10 +4,28 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ExtractedParam:
+    """Parameter extracted from a .genjit file.
+
+    Attributes:
+        name: Parameter name (e.g., "shift_x")
+        default: Default value
+        min_val: Minimum value (optional)
+        max_val: Maximum value (optional)
+    """
+
+    name: str
+    default: float
+    min_val: float | None = None
+    max_val: float | None = None
 
 
 @dataclass
@@ -18,6 +36,7 @@ class ExtractedShader:
     language: str  # "genexpr" or "glsl"
     source_file: Path
     box_id: str | None = None
+    params: list[ExtractedParam] = field(default_factory=list)
 
 
 class GenjitExtractor:
@@ -65,6 +84,9 @@ class GenjitExtractor:
             logger.error(f"Cannot read {filepath}: {e}")
             return []
 
+        # Extract params from the patcher (shared across all codeboxes)
+        params = self._extract_params(data)
+
         shaders: list[ExtractedShader] = []
 
         # Find codebox objects
@@ -86,10 +108,83 @@ class GenjitExtractor:
                         language=language,
                         source_file=filepath,
                         box_id=box.get("id"),
+                        params=params,
                     )
                 )
 
         return shaders
+
+    def _extract_params(self, data: dict[str, Any]) -> list[ExtractedParam]:
+        """Extract param declarations from .genjit patcher boxes.
+
+        Searches for newobj boxes with text starting with "param " and parses
+        the parameter name, default value, and optional min/max bounds.
+
+        Format: param name default [min max]
+        Examples:
+            - param shift_x 5.0
+            - param intensity 0.5 0.0 1.0
+
+        Args:
+            data: Parsed .genjit JSON data
+
+        Returns:
+            List of ExtractedParam objects
+        """
+        params: list[ExtractedParam] = []
+
+        for box_wrapper in data.get("patcher", {}).get("boxes", []):
+            box = box_wrapper.get("box", {})
+            if box.get("maxclass") != "newobj":
+                continue
+
+            text = box.get("text", "")
+            if not text.startswith("param "):
+                continue
+
+            parts = text.split()
+            if len(parts) < 3:
+                # Need at least: param name default
+                continue
+
+            try:
+                param = ExtractedParam(
+                    name=parts[1],
+                    default=float(parts[2]),
+                    min_val=float(parts[3]) if len(parts) > 3 else None,
+                    max_val=float(parts[4]) if len(parts) > 4 else None,
+                )
+                params.append(param)
+            except (ValueError, IndexError):
+                # Skip malformed param declarations
+                logger.warning(f"Malformed param declaration: {text}")
+
+        return params
+
+    def validate_param_ranges(
+        self, params: list[ExtractedParam]
+    ) -> list[tuple[str, str]]:
+        """Validate that param defaults are within their specified bounds.
+
+        Args:
+            params: List of extracted parameters
+
+        Returns:
+            List of (param_name, error_message) tuples for invalid params
+        """
+        errors: list[tuple[str, str]] = []
+
+        for p in params:
+            if p.min_val is not None and p.default < p.min_val:
+                errors.append(
+                    (p.name, f"default {p.default} is less than min {p.min_val}")
+                )
+            if p.max_val is not None and p.default > p.max_val:
+                errors.append(
+                    (p.name, f"default {p.default} is greater than max {p.max_val}")
+                )
+
+        return errors
 
     def _detect_language(self, code: str) -> str:
         """Detect if code is GLSL or GenExpr.

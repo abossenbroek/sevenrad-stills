@@ -31,18 +31,29 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
     - Checking swizzle operations for validity
     - Ensuring out1 is assigned
     - Preventing assignment to input variables (in1, in2)
+    - Detecting unused declared parameters
 
     Attributes:
         diagnostics: List of diagnostic messages found during analysis.
         defined_vars: Set of variable names that have been assigned.
+        declared_params: Set of parameter names declared in the .genjit file.
+        used_vars: Set of variable names that are used in the code.
         has_out1_assignment: Whether out1 has been assigned in the code.
     """
 
-    def __init__(self) -> None:
-        """Initialize the semantic analyzer."""
+    def __init__(self, declared_params: set[str] | None = None) -> None:
+        """Initialize the semantic analyzer.
+
+        Args:
+            declared_params: Optional set of parameter names declared in the
+                .genjit file. These will be treated as valid variables and
+                won't trigger "undefined variable" warnings.
+        """
         super().__init__()
         self.diagnostics: list[Diagnostic] = []
         self.defined_vars: set[str] = set()
+        self.declared_params: set[str] = declared_params or set()
+        self.used_vars: set[str] = set()
         self.has_out1_assignment: bool = False
 
     def analyze(self, tree: Tree) -> list[Diagnostic]:
@@ -56,6 +67,7 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
         """
         self.diagnostics = []
         self.defined_vars = set()
+        self.used_vars = set()
         self.has_out1_assignment = False
 
         # First pass: collect all defined variables
@@ -81,7 +93,24 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
                 )
             )
 
+        # Check for unused declared parameters
+        self._check_unused_params()
+
         return self.diagnostics
+
+    def _check_unused_params(self) -> None:
+        """Check for declared parameters that are never used in the code."""
+        unused = self.declared_params - self.used_vars
+        for param in sorted(unused):
+            self.diagnostics.append(
+                Diagnostic(
+                    range=Range(start=Position(0, 0), end=Position(0, 0)),
+                    severity=DiagnosticSeverity.WARNING,
+                    message=f"Parameter '{param}' is declared but never used",
+                    source="genexpr-analyzer",
+                    code="unused-param",
+                )
+            )
 
     def _collect_definitions(self, tree: Tree | Token) -> None:
         """First pass: collect all variable definitions.
@@ -290,11 +319,16 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
             if node.type == "NAME":
                 var_name = str(node.value)
 
-                # Skip if it's a builtin, common variable, or already defined
+                # Track variable usage for unused param detection
+                self.used_vars.add(var_name)
+
+                # Skip if it's a builtin, common variable, declared param,
+                # or already defined
                 if (
                     var_name in BUILTIN_VARIABLES
                     or var_name in BUILTIN_FUNCTIONS
                     or var_name in COMMON_VARIABLES
+                    or var_name in self.declared_params
                     or var_name in self.defined_vars
                 ):
                     return

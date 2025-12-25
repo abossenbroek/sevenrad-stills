@@ -50,7 +50,9 @@ class GenExprValidator:
         """Initialize the validator with cached parser instance."""
         self._parser = GenExprParser()
 
-    def validate(self, code: str) -> list[Diagnostic]:
+    def validate(
+        self, code: str, declared_params: set[str] | None = None
+    ) -> list[Diagnostic]:
         """Validate GenExpr code and return all diagnostics.
 
         This method performs both syntax parsing and semantic analysis,
@@ -60,6 +62,9 @@ class GenExprValidator:
 
         Args:
             code: GenExpr shader source code to validate.
+            declared_params: Optional set of parameter names declared in the
+                .genjit file. These will be treated as valid variables and
+                won't trigger "undefined variable" warnings.
 
         Returns:
             List of Diagnostic objects representing errors and warnings.
@@ -79,6 +84,12 @@ class GenExprValidator:
             >>> diagnostics = validator.validate("out1 = sample(in1, norm);")
             >>> len(diagnostics)
             0
+            >>> # With declared params
+            >>> diagnostics = validator.validate(
+            ...     "out1 = in1 * intensity;", declared_params={"intensity"}
+            ... )
+            >>> len(diagnostics)
+            0
         """
         # Step 1: Parse the code
         try:
@@ -87,8 +98,8 @@ class GenExprValidator:
             # Convert ParseError to Diagnostic format
             return [self._parse_error_to_diagnostic(e)]
 
-        # Step 2: Perform semantic analysis
-        analyzer = SemanticAnalyzer()
+        # Step 2: Perform semantic analysis with declared params context
+        analyzer = SemanticAnalyzer(declared_params=declared_params)
         diagnostics = analyzer.analyze(tree)
 
         return diagnostics
