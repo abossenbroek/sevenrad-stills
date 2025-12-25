@@ -79,7 +79,7 @@ install: build ## Install package to Max Packages directory
 			cp -r $(EXTERNALS_DIR)/*.mxo "$$dir/Packages/$(PACKAGE_NAME)/externals/" 2>/dev/null || true; \
 			echo "$(GREEN)Signing externals...$(NC)"; \
 			for mxo in "$$dir/Packages/$(PACKAGE_NAME)/externals/"*.mxo; do \
-				codesign --force --sign - "$$mxo" && \
+				codesign --force --deep --sign - "$$mxo" && \
 				echo "  Signed: $${mxo##*/}"; \
 			done; \
 			cp package-info.json "$$dir/Packages/$(PACKAGE_NAME)/"; \
