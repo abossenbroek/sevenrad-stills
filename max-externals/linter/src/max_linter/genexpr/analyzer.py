@@ -21,6 +21,10 @@ from max_linter.genexpr.builtins import (
 )
 from max_linter.results import Diagnostic, DiagnosticSeverity, Position, Range
 
+# Complexity thresholds - exceeding these may cause Max parser issues
+MAX_NESTING_DEPTH = 5
+MAX_LINE_LENGTH = 200
+
 
 class SemanticAnalyzer(Visitor):  # type: ignore[misc]
     """Analyzes GenExpr AST for semantic errors.
@@ -56,11 +60,12 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
         self.used_vars: set[str] = set()
         self.has_out1_assignment: bool = False
 
-    def analyze(self, tree: Tree) -> list[Diagnostic]:
+    def analyze(self, tree: Tree, source_code: str | None = None) -> list[Diagnostic]:
         """Analyze a GenExpr AST and return diagnostics.
 
         Args:
             tree: The parsed Lark tree to analyze.
+            source_code: Optional source code string for complexity analysis.
 
         Returns:
             List of diagnostic messages (errors and warnings).
@@ -96,6 +101,11 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
         # Check for unused declared parameters
         self._check_unused_params()
 
+        # Check code complexity if source provided
+        if source_code is not None:
+            self._check_line_lengths(source_code)
+            self._check_nesting_depth(source_code)
+
         return self.diagnostics
 
     def _check_unused_params(self) -> None:
@@ -111,6 +121,104 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
                     code="unused-param",
                 )
             )
+
+    def _check_line_lengths(self, source_code: str) -> None:
+        """Check for lines exceeding MAX_LINE_LENGTH.
+
+        Very long lines may cause Max parser issues.
+
+        Args:
+            source_code: The GenExpr source code.
+        """
+        lines = source_code.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+        for i, line in enumerate(lines):
+            if len(line) > MAX_LINE_LENGTH:
+                self.diagnostics.append(
+                    Diagnostic(
+                        range=Range(
+                            start=Position(i, 0),
+                            end=Position(i, len(line)),
+                        ),
+                        severity=DiagnosticSeverity.WARNING,
+                        message=(
+                            f"Line {i + 1} length ({len(line)}) exceeds "
+                            f"{MAX_LINE_LENGTH} characters - may cause parser issues"
+                        ),
+                        source="genexpr-analyzer",
+                        code="complexity-line-length",
+                    )
+                )
+
+    def _check_nesting_depth(self, source_code: str) -> None:
+        """Check for deeply nested parentheses.
+
+        Max's GenExpr parser may struggle with deeply nested expressions,
+        causing misleading "expression missing ')'" errors.
+
+        Args:
+            source_code: The GenExpr source code.
+        """
+        lines = source_code.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+        for line_num, line in enumerate(lines):
+            # Skip comment lines
+            stripped = line.strip()
+            if stripped.startswith("//") or stripped.startswith("/*"):
+                continue
+
+            # Track parenthesis nesting depth
+            depth = 0
+            max_depth = 0
+            max_depth_col = 0
+
+            in_string = False
+            in_comment = False
+
+            for col, char in enumerate(line):
+                # Skip strings
+                if char == '"' and not in_comment:
+                    in_string = not in_string
+                    continue
+                if in_string:
+                    continue
+
+                # Skip inline comments
+                if col < len(line) - 1 and line[col : col + 2] == "//":
+                    break  # Rest of line is comment
+                if col < len(line) - 1 and line[col : col + 2] == "/*":
+                    in_comment = True
+                    continue
+                if col > 0 and line[col - 1 : col + 1] == "*/":
+                    in_comment = False
+                    continue
+                if in_comment:
+                    continue
+
+                # Track parentheses
+                if char == "(":
+                    depth += 1
+                    if depth > max_depth:
+                        max_depth = depth
+                        max_depth_col = col
+                elif char == ")":
+                    depth = max(0, depth - 1)
+
+            # Warn if nesting exceeds threshold
+            if max_depth > MAX_NESTING_DEPTH:
+                self.diagnostics.append(
+                    Diagnostic(
+                        range=Range(
+                            start=Position(line_num, max_depth_col),
+                            end=Position(line_num, max_depth_col + 1),
+                        ),
+                        severity=DiagnosticSeverity.WARNING,
+                        message=(
+                            f"Expression nesting depth ({max_depth}) exceeds "
+                            f"{MAX_NESTING_DEPTH} - may cause parser issues in Max"
+                        ),
+                        source="genexpr-analyzer",
+                        code="complexity-nesting",
+                    )
+                )
 
     def _collect_definitions(self, tree: Tree | Token) -> None:
         """First pass: collect all variable definitions.

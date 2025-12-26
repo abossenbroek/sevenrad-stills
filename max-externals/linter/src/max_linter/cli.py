@@ -18,6 +18,7 @@ from max_linter.results import (
 )
 from max_linter.validators.clangd import ClangdValidator
 from max_linter.validators.glsl import GLSLValidator
+from max_linter.validators.maxhelp import MaxhelpValidator
 
 
 def _make_param_diagnostic(param_name: str, error_msg: str) -> Diagnostic:
@@ -135,6 +136,39 @@ def lint_file(
     )
 
 
+def lint_maxhelp_file(
+    filepath: Path,
+    maxhelp_validator: MaxhelpValidator,
+    strict: bool = False,
+) -> LintResult:
+    """Lint a single .maxhelp file.
+
+    Args:
+        filepath: Path to the file
+        maxhelp_validator: MaxhelpValidator instance
+        strict: If True, treat warnings as errors
+
+    Returns:
+        Lint result with diagnostics
+    """
+    diagnostics = maxhelp_validator.validate(filepath)
+
+    if strict:
+        # Treat warnings as errors in strict mode
+        has_errors = any(
+            d.severity in (DiagnosticSeverity.ERROR, DiagnosticSeverity.WARNING)
+            for d in diagnostics
+        )
+    else:
+        has_errors = any(d.severity == DiagnosticSeverity.ERROR for d in diagnostics)
+
+    return LintResult(
+        filepath=str(filepath),
+        diagnostics=diagnostics,
+        success=not has_errors,
+    )
+
+
 def main(args: list[str] | None = None) -> int:
     """Main entry point.
 
@@ -145,14 +179,16 @@ def main(args: list[str] | None = None) -> int:
         Exit code (0 for success, 1 for errors)
     """
     parser = argparse.ArgumentParser(
-        description="LSP-based linter for Max/MSP GenExpr and GLSL shaders",
+        description=(
+            "LSP-based linter for Max/MSP GenExpr, GLSL shaders, and help patchers"
+        ),
         prog="max-lint",
     )
     parser.add_argument(
         "files",
         nargs="*",
         type=Path,
-        help="Files or directories to lint",
+        help="Files or directories to lint (.genjit and/or .maxhelp)",
     )
     parser.add_argument(
         "--check-lsp",
@@ -168,6 +204,16 @@ def main(args: list[str] | None = None) -> int:
         "--clangd",
         action="store_true",
         help="Force clangd validation only",
+    )
+    parser.add_argument(
+        "--maxhelp",
+        action="store_true",
+        help="Lint only .maxhelp files (skip .genjit)",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Treat warnings as errors (for maxhelp validation)",
     )
     parser.add_argument(
         "--fallback",
@@ -197,28 +243,37 @@ def main(args: list[str] | None = None) -> int:
         parser.print_help()
         return 1
 
-    # Collect all .genjit files
-    files_to_lint: list[Path] = []
+    # Collect files to lint
+    genjit_files: list[Path] = []
+    maxhelp_files: list[Path] = []
+
     for path in parsed.files:
         if path.is_dir():
-            files_to_lint.extend(path.glob("*.genjit"))
-        elif path.suffix == ".genjit":
-            files_to_lint.append(path)
+            if not parsed.maxhelp:
+                genjit_files.extend(path.glob("*.genjit"))
+            maxhelp_files.extend(path.glob("*.maxhelp"))
+        elif path.suffix == ".genjit" and not parsed.maxhelp:
+            genjit_files.append(path)
+        elif path.suffix == ".maxhelp":
+            maxhelp_files.append(path)
         else:
-            print(f"Warning: Skipping non-.genjit file: {path}", file=sys.stderr)
+            print(f"Warning: Skipping unsupported file: {path}", file=sys.stderr)
 
-    if not files_to_lint:
-        print("No .genjit files found", file=sys.stderr)
+    if not genjit_files and not maxhelp_files:
+        print("No .genjit or .maxhelp files found", file=sys.stderr)
         return 1
 
     # Initialize validators
     glsl_validator = GLSLValidator()
     clangd_validator = ClangdValidator()
     genexpr_validator = GenExprValidator()
+    maxhelp_validator = MaxhelpValidator()
 
     # Lint files
     results: list[LintResult] = []
-    for filepath in sorted(files_to_lint):
+
+    # Lint .genjit files
+    for filepath in sorted(genjit_files):
         result = lint_file(
             filepath,
             glsl_validator,
@@ -236,12 +291,33 @@ def main(args: list[str] | None = None) -> int:
         elif parsed.verbose:
             print(f"{filepath}: OK")
 
+    # Lint .maxhelp files
+    for filepath in sorted(maxhelp_files):
+        result = lint_maxhelp_file(
+            filepath,
+            maxhelp_validator,
+            strict=parsed.strict,
+        )
+        results.append(result)
+
+        # Print results
+        if result.diagnostics:
+            print(f"\n{filepath}:")
+            for diagnostic in result.diagnostics:
+                print(f"  {diagnostic}")
+        elif parsed.verbose:
+            print(f"{filepath}: OK")
+
     # Summary
     total = len(results)
     failed = sum(1 for r in results if not r.success)
     warnings = sum(1 for r in results if r.has_warnings and not r.has_errors)
 
     print(f"\nValidated {total} file(s)")
+    if genjit_files:
+        print(f"  {len(genjit_files)} .genjit file(s)")
+    if maxhelp_files:
+        print(f"  {len(maxhelp_files)} .maxhelp file(s)")
     if failed:
         print(f"  {failed} with errors")
     if warnings:

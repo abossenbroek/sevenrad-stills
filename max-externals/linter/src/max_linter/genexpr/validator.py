@@ -99,8 +99,9 @@ class GenExprValidator:
             return [self._parse_error_to_diagnostic(e)]
 
         # Step 2: Perform semantic analysis with declared params context
+        # Pass source code for complexity analysis
         analyzer = SemanticAnalyzer(declared_params=declared_params)
-        diagnostics = analyzer.analyze(tree)
+        diagnostics = analyzer.analyze(tree, source_code=code)
 
         return diagnostics
 
