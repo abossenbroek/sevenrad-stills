@@ -78,7 +78,7 @@
 						100.0,
 						20.0
 					],
-					"text": "param pattern 0"
+					"text": "param pattern 0 0 3"
 				}
 			},
 			{
@@ -98,7 +98,7 @@
 						100.0,
 						20.0
 					],
-					"text": "param scale 1"
+					"text": "param scale 1 1 20"
 				}
 			},
 			{

@@ -78,7 +78,7 @@
 						100.0,
 						20.0
 					],
-					"text": "param sigma 1.0"
+					"text": "param sigma 1.0 0 50"
 				}
 			},
 			{

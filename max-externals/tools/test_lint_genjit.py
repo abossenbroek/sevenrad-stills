@@ -38,7 +38,7 @@ def create_valid_genjit() -> dict:
                         "numoutlets": 1,
                         "outlettype": [""],
                         "patching_rect": [290.0, 32.0, 99.0, 20.0],
-                        "text": "param factor 1.0",
+                        "text": "param factor 1.0 0.0 2.0",
                     }
                 },
                 {
@@ -566,6 +566,21 @@ mat4 = 1.0;
 out1 = in1 * mat4;
 """
     if run_test_case("GLSL reserved word 'mat4' as variable", data, should_fail=True):
+        tests_passed += 1
+
+    # ========================================
+    # PARAM BOUNDS VALIDATION
+    # ========================================
+
+    print("\n--- Testing param bounds validation ---\n")
+
+    # Test 39: Param missing min/max bounds (old format)
+    tests_total += 1
+    data = create_valid_genjit()
+    for box in data["patcher"]["boxes"]:
+        if box["box"].get("text", "").startswith("param"):
+            box["box"]["text"] = "param factor 1.0"  # Missing min/max
+    if run_test_case("Param missing min/max bounds", data, should_fail=True):
         tests_passed += 1
 
     # Summary

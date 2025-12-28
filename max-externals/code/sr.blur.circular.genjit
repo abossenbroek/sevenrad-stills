@@ -78,7 +78,7 @@
 						100.0,
 						20.0
 					],
-					"text": "param radius 5"
+					"text": "param radius 5 0 30"
 				}
 			},
 			{

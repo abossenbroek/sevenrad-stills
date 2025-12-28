@@ -98,7 +98,7 @@
 						100.0,
 						20.0
 					],
-					"text": "param perm_r 0"
+					"text": "param perm_r 0 0 2"
 				}
 			},
 			{
@@ -118,7 +118,7 @@
 						100.0,
 						20.0
 					],
-					"text": "param perm_g 1"
+					"text": "param perm_g 1 0 2"
 				}
 			},
 			{
@@ -138,7 +138,7 @@
 						100.0,
 						20.0
 					],
-					"text": "param perm_b 2"
+					"text": "param perm_b 2 0 2"
 				}
 			},
 			{

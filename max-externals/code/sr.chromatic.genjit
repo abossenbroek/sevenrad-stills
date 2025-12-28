@@ -78,7 +78,7 @@
 						100.0,
 						20.0
 					],
-					"text": "param shift_x 5.0"
+					"text": "param shift_x 5.0 -50 50"
 				}
 			},
 			{
@@ -98,7 +98,7 @@
 						100.0,
 						20.0
 					],
-					"text": "param shift_y 0.0"
+					"text": "param shift_y 0.0 -50 50"
 				}
 			},
 			{

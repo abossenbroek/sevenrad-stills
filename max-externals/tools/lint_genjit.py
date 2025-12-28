@@ -657,30 +657,36 @@ class GenjitLinter:
 
             param_name = match.group(1)
 
+            # Check if min/max bounds are present (REQUIRED)
+            if match.group(3) is None or match.group(4) is None:
+                self.error(
+                    f"genjit-param-bounds: param '{param_name}' missing min/max bounds. "
+                    f"Format: param name default min max"
+                )
+                valid = False
+                continue
+
             # Parse numeric values for range validation
             try:
                 default_val = float(match.group(2))
+                min_val = float(match.group(3))
+                max_val = float(match.group(4))
 
-                # If min and max are provided, validate ranges
-                if match.group(3) is not None and match.group(4) is not None:
-                    min_val = float(match.group(3))
-                    max_val = float(match.group(4))
+                # Check min < max
+                if min_val >= max_val:
+                    self.error(
+                        f"Param '{param_name}' has invalid range: "
+                        f"min ({min_val}) >= max ({max_val})"
+                    )
+                    valid = False
 
-                    # Check min < max
-                    if min_val >= max_val:
-                        self.error(
-                            f"Param '{param_name}' has invalid range: "
-                            f"min ({min_val}) >= max ({max_val})"
-                        )
-                        valid = False
-
-                    # Check default is within range
-                    if default_val < min_val or default_val > max_val:
-                        self.error(
-                            f"Param '{param_name}' default ({default_val}) "
-                            f"is outside range [{min_val}, {max_val}]"
-                        )
-                        valid = False
+                # Check default is within range
+                if default_val < min_val or default_val > max_val:
+                    self.error(
+                        f"Param '{param_name}' default ({default_val}) "
+                        f"is outside range [{min_val}, {max_val}]"
+                    )
+                    valid = False
 
             except ValueError as e:
                 self.error(f"Param '{param_name}' has non-numeric value: {e}")

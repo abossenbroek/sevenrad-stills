@@ -78,7 +78,7 @@
 						100.0,
 						20.0
 					],
-					"text": "param kernel_size 15"
+					"text": "param kernel_size 15 1 100"
 				}
 			},
 			{
@@ -98,7 +98,7 @@
 						100.0,
 						20.0
 					],
-					"text": "param angle 0"
+					"text": "param angle 0 0 360"
 				}
 			},
 			{
