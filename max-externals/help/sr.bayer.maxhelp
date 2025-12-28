@@ -418,7 +418,7 @@
 						180.0,
 						20.0
 					],
-					"text": "Scale (1=subtle, 32=extreme):"
+					"text": "Scale (1=subtle, 20=extreme):"
 				}
 			},
 			{
@@ -436,7 +436,7 @@
 						40.0,
 						40.0
 					],
-					"size": 32.0,
+					"size": 19.0,
 					"min": 1.0,
 					"mult": 1.0
 				}
@@ -458,7 +458,7 @@
 						22.0
 					],
 					"minimum": 1,
-					"maximum": 32
+					"maximum": 20
 				}
 			},
 			{

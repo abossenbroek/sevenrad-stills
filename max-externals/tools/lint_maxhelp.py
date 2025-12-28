@@ -46,8 +46,8 @@ try:
     GENEXPR_AVAILABLE = True
 except ImportError:
     GENEXPR_AVAILABLE = False
-    GenExprValidator = None  # type: ignore[misc, assignment]
-    LSPSeverity = None  # type: ignore[misc, assignment]
+    GenExprValidator = None
+    LSPSeverity = None
 
 
 class Severity(Enum):
@@ -350,6 +350,7 @@ class MaxhelpLinter:
         valid &= self._validate_connection_types()
         valid &= self._validate_metadata()
         valid &= self._validate_parameter_ui()
+        valid &= self._validate_dial_param_ranges()
         valid &= self._validate_no_overlaps()
 
         return valid
@@ -916,7 +917,7 @@ class MaxhelpLinter:
         """
         Parse parameters from a .genjit file.
 
-        Returns list of dicts with 'name' and 'default' keys.
+        Returns list of dicts with 'name', 'default', 'min', 'max' keys.
         """
         params: list[dict[str, Any]] = []
 
@@ -932,12 +933,24 @@ class MaxhelpLinter:
             text = box.get("text", "")
             if text.startswith("param "):
                 parts = text.split()
-                if len(parts) >= 3:
-                    # Format: "param name default" or "param name default min max"
+                if len(parts) >= 5:
+                    # Format: "param name default min max"
                     params.append(
                         {
                             "name": parts[1],
                             "default": parts[2],
+                            "min": float(parts[3]),
+                            "max": float(parts[4]),
+                        }
+                    )
+                elif len(parts) >= 3:
+                    # Legacy format without bounds - still accept but warn
+                    params.append(
+                        {
+                            "name": parts[1],
+                            "default": parts[2],
+                            "min": None,
+                            "max": None,
                         }
                     )
 
@@ -1002,7 +1015,6 @@ class MaxhelpLinter:
         Validates GenExpr requirements:
         - Has proper 'param name default' objects (not XML <param>)
         - Codebox uses GenExpr syntax (in1, out1, sample, norm, dim)
-        - No user-defined function syntax (name() { ... })
         - Uses GenExprValidator for syntax and semantic validation
 
         Args:
@@ -1085,31 +1097,6 @@ class MaxhelpLinter:
                     f"Convert to GenExpr format with 'param name default' objects.",
                 )
                 valid = False
-
-        # Check for invalid function definition syntax (GenExpr doesn't support this)
-        # Pattern: identifier(params) { ... }
-        func_def_pattern = re.compile(r"\b\w+\s*\([^)]*\)\s*\{")
-        if func_def_pattern.search(code_without_comments):
-            # Make sure it's not a valid GenExpr construct like if() { or for() {
-            # by checking if it looks like a function definition
-            lines = code_without_comments.split("\n")
-            for line in lines:
-                line = line.strip()
-                # Skip control flow statements
-                if any(
-                    line.startswith(kw)
-                    for kw in ["if", "else", "for", "while", "switch"]
-                ):
-                    continue
-                # Check for function-like definition
-                if func_def_pattern.match(line):
-                    self.error(
-                        "genjit-format",
-                        f"Invalid function definition syntax in {shader_name}.genjit. "
-                        f"GenExpr doesn't support user-defined functions. Inline the code instead.",
-                    )
-                    valid = False
-                    break
 
         # Check for GenExpr requirements (only if not already detected as GLSL)
         if valid:
@@ -1258,6 +1245,142 @@ class MaxhelpLinter:
                     pass
 
         return False
+
+    def _calculate_dial_range(self, dial_box: dict[str, Any]) -> tuple[float, float]:
+        """Calculate output range from dial size/min/mult attributes.
+
+        Returns:
+            Tuple of (min_output, max_output)
+        """
+        size = dial_box.get("size", 100.0)
+        min_val = dial_box.get("min", 0.0)
+        mult = dial_box.get("mult", 1.0)  # Default is 1.0, NOT 0.01
+
+        output_min = min_val * mult
+        output_max = (min_val + size) * mult
+
+        return (output_min, output_max)
+
+    def _find_upstream_dial(self, message_id: str) -> tuple[str, dict[str, Any]] | None:
+        """Trace upstream from message to find dial control.
+
+        Follows patchlines backwards from the message box to find a dial.
+
+        Returns:
+            Tuple of (dial_id, dial_box) or None if no dial found
+        """
+        # Use BFS to find upstream dial
+        visited = set()
+        queue = [message_id]
+
+        while queue:
+            current_id = queue.pop(0)
+            if current_id in visited:
+                continue
+            visited.add(current_id)
+
+            current_box = self.boxes.get(current_id, {})
+            if current_box.get("maxclass") == "dial":
+                return (current_id, current_box)
+
+            # Find boxes that connect TO this box
+            for line in self.data.get("patcher", {}).get("lines", []):
+                patchline = line.get("patchline", {})
+                dst = patchline.get("destination", [])
+                if len(dst) >= 2 and dst[0] == current_id:
+                    src = patchline.get("source", [])
+                    if len(src) >= 2:
+                        queue.append(src[0])
+
+        return None
+
+    def _validate_dial_param_ranges(self) -> bool:
+        """Effect-centric validation: for each jit.gl.pix param, validate upstream dial.
+
+        For each jit.gl.pix with @gen shader:
+        1. Load shader .genjit to get param bounds
+        2. Find param messages connected to jit.gl.pix
+        3. For each message, find upstream dial
+        4. Validate dial output range matches param bounds
+        """
+        valid = True
+
+        jit_gl_pixs = self._find_boxes_by_type("jit.gl.pix")
+        if not jit_gl_pixs:
+            return valid
+
+        for pix_id in jit_gl_pixs:
+            text = self._get_box_text(pix_id)
+            shader_name = self._extract_gen_shader(text)
+            if not shader_name:
+                continue
+
+            genjit_path = self._find_genjit_file(shader_name)
+            if not genjit_path:
+                continue
+
+            # Parse shader params WITH bounds
+            params = self._parse_genjit_params(genjit_path)
+            if not params:
+                continue
+
+            # Find param messages
+            param_messages = self._find_param_messages()
+
+            for param in params:
+                param_name = param["name"]
+                param_min = param.get("min")
+                param_max = param.get("max")
+
+                # Skip if param has no bounds (legacy format)
+                if param_min is None or param_max is None:
+                    self.warning(
+                        "dial-range",
+                        f"Param '{param_name}' missing bounds in shader - cannot validate dial",
+                    )
+                    continue
+
+                # Find messages for this param
+                if param_name not in param_messages:
+                    continue  # Already warned in _validate_parameter_ui
+
+                for msg_id in param_messages[param_name]:
+                    # Check if message is connected to this jit.gl.pix
+                    try:
+                        if not nx.has_path(
+                            self.graph, (msg_id, "box"), (pix_id, "box")
+                        ):
+                            continue
+                    except nx.NetworkXError:
+                        continue
+
+                    # Find upstream dial
+                    dial_result = self._find_upstream_dial(msg_id)
+                    if dial_result is None:
+                        # No dial - might be flonum/number only, which is OK
+                        continue
+
+                    dial_id, dial_box = dial_result
+
+                    # Calculate dial output range
+                    dial_min, dial_max = self._calculate_dial_range(dial_box)
+
+                    # Compare to param bounds (with small tolerance for float comparison)
+                    tolerance = 0.001
+                    if (
+                        abs(dial_min - param_min) > tolerance
+                        or abs(dial_max - param_max) > tolerance
+                    ):
+                        self.error(
+                            "dial-range",
+                            f"Dial output range [{dial_min:.2f}, {dial_max:.2f}] "
+                            f"doesn't match param '{param_name}' bounds "
+                            f"[{param_min}, {param_max}] from {shader_name}.genjit",
+                            dial_id,
+                        )
+                        valid = False
+
+        return valid
 
     def _validate_parameter_ui(self) -> bool:
         """
