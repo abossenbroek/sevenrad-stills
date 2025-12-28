@@ -19,30 +19,39 @@ def test_calculate_dial_range() -> None:
 
     # Standard 0-1 range: size=100, min=0, mult=0.01
     dial_box = {"size": 100.0, "min": 0.0, "mult": 0.01}
-    min_out, max_out = linter._calculate_dial_range(dial_box)
+    dial_range = linter._calculate_dial_range(dial_box)
+    assert dial_range is not None, "Expected valid range"
+    min_out, max_out = dial_range
     assert abs(min_out - 0.0) < 0.001, f"Expected min 0.0, got {min_out}"
     assert abs(max_out - 1.0) < 0.001, f"Expected max 1.0, got {max_out}"
     print("PASS: test_calculate_dial_range - standard 0-1")
 
     # Seed 0-1000 range: size=1000, min=0, mult=1.0
     dial_box = {"size": 1000.0, "min": 0.0, "mult": 1.0}
-    min_out, max_out = linter._calculate_dial_range(dial_box)
+    dial_range = linter._calculate_dial_range(dial_box)
+    assert dial_range is not None, "Expected valid range"
+    min_out, max_out = dial_range
     assert abs(min_out - 0.0) < 0.001, f"Expected min 0.0, got {min_out}"
     assert abs(max_out - 1000.0) < 0.001, f"Expected max 1000.0, got {max_out}"
     print("PASS: test_calculate_dial_range - seed 0-1000")
 
     # Scale 0.01-1 range: size=99, min=1, mult=0.01
     dial_box = {"size": 99.0, "min": 1.0, "mult": 0.01}
-    min_out, max_out = linter._calculate_dial_range(dial_box)
+    dial_range = linter._calculate_dial_range(dial_box)
+    assert dial_range is not None, "Expected valid range"
+    min_out, max_out = dial_range
     assert abs(min_out - 0.01) < 0.001, f"Expected min 0.01, got {min_out}"
     assert abs(max_out - 1.0) < 0.001, f"Expected max 1.0, got {max_out}"
     print("PASS: test_calculate_dial_range - scale 0.01-1")
 
-    # Default values (should use size=100, min=0, mult=1.0)
+    # Default values (should use size=100, min=0, mult=0.01)
+    # FIXED: Default mult is 0.01 (not 1.0), so output range is [0, 1]
     dial_box = {}
-    min_out, max_out = linter._calculate_dial_range(dial_box)
+    dial_range = linter._calculate_dial_range(dial_box)
+    assert dial_range is not None, "Expected valid range, got None"
+    min_out, max_out = dial_range
     assert abs(min_out - 0.0) < 0.001, f"Expected min 0.0, got {min_out}"
-    assert abs(max_out - 100.0) < 0.001, f"Expected max 100.0, got {max_out}"
+    assert abs(max_out - 1.0) < 0.001, f"Expected max 1.0, got {max_out}"
     print("PASS: test_calculate_dial_range - defaults")
 
 
@@ -105,22 +114,18 @@ def test_real_file_validation() -> None:
     else:
         print("SKIP: sr.corruption.maxhelp not found")
 
-    # Test sr.bandswap.maxhelp (should fail - known mismatch)
+    # Test sr.bandswap.maxhelp (should pass - dials were fixed)
     bandswap_path = Path("help/sr.bandswap.maxhelp")
     if bandswap_path.exists():
         linter = MaxhelpLinter()
         linter.validate_file(bandswap_path)
 
-        # Should have dial-range errors for perm_r, perm_g, perm_b
+        # Should have no dial-range errors (dials were fixed to match params)
         dial_range_errors = [e for e in linter.errors if e.rule == "dial-range"]
         assert (
-            len(dial_range_errors) == 3
-        ), f"sr.bandswap should have 3 dial-range errors, got: {len(dial_range_errors)}"
+            len(dial_range_errors) == 0
+        ), f"sr.bandswap should have 0 dial-range errors (fixed), got: {len(dial_range_errors)}"
 
-        # Check error messages contain expected info
-        for error in dial_range_errors:
-            assert "[0.00, 3.00]" in error.message, "Expected dial range [0.00, 3.00]"
-            assert "[0.0, 2.0]" in error.message, "Expected param bounds [0.0, 2.0]"
         print("PASS: test_real_file_validation - sr.bandswap.maxhelp")
     else:
         print("SKIP: sr.bandswap.maxhelp not found")

@@ -900,17 +900,60 @@ class MaxhelpLinter:
 
         return "".join(result)
 
-    def _find_genjit_file(self, shader_name: str) -> Path | None:
-        """Find the .genjit file for a shader name."""
+    def _find_genjit_file(  # noqa: PLR0911
+        self, shader_name: str
+    ) -> Path | None:
+        """Find the .genjit file for a shader name.
+
+        Security: Validates shader_name to prevent path traversal attacks.
+        """
         if self.filepath is None:
             return None
+
+        # Validate shader_name
+        if not shader_name or not shader_name.strip():
+            return None
+
+        shader_name = shader_name.strip()
+
+        # Check for path traversal attempts
+        if "/" in shader_name or "\\" in shader_name or ".." in shader_name:
+            self.error(
+                "security",
+                f"Shader name '{shader_name}' contains path separators - "
+                f"possible path traversal attack",
+            )
+            return None
+
+        # Check for unreasonably long names
+        if len(shader_name) > 255:
+            self.error("security", "Shader name exceeds 255 characters")
+            return None
+
+        # Only allow alphanumeric, dots, underscores, hyphens
+        if not re.match(r"^[a-zA-Z0-9._-]+$", shader_name):
+            self.warning(
+                "shader-name",
+                f"Shader name '{shader_name}' contains unusual characters",
+            )
 
         # Look in code/ directory relative to help/
         code_dir = self.filepath.parent.parent / "code"
         genjit_file = code_dir / f"{shader_name}.genjit"
 
-        if genjit_file.exists():
-            return genjit_file
+        # Verify the resolved path is still within code_dir
+        try:
+            genjit_file_resolved = genjit_file.resolve(strict=False)
+            code_dir_resolved = code_dir.resolve(strict=True)
+
+            if not genjit_file_resolved.is_relative_to(code_dir_resolved):
+                self.error("security", "Shader path escapes code directory")
+                return None
+        except (ValueError, OSError):
+            return None
+
+        if genjit_file_resolved.exists():
+            return genjit_file_resolved
         return None
 
     def _parse_genjit_params(self, genjit_path: Path) -> list[dict[str, Any]]:
@@ -1246,42 +1289,101 @@ class MaxhelpLinter:
 
         return False
 
-    def _calculate_dial_range(self, dial_box: dict[str, Any]) -> tuple[float, float]:
+    def _calculate_dial_range(
+        self, dial_box: dict[str, Any]
+    ) -> tuple[float, float] | None:
         """Calculate output range from dial size/min/mult attributes.
 
+        Max/MSP Dial Behavior:
+            - User rotates dial: position ∈ [0, size]
+            - Output value = (min + position) * mult
+            - When mult < 0, output range is reversed
+            - Default values: size=100, min=0, mult=0.01
+
         Returns:
-            Tuple of (min_output, max_output)
+            Tuple of (min_output, max_output) in sorted order, or None if invalid
         """
-        size = dial_box.get("size", 100.0)
-        min_val = dial_box.get("min", 0.0)
-        mult = dial_box.get("mult", 1.0)  # Default is 1.0, NOT 0.01
+        dial_id = dial_box.get("id", "unknown")
 
-        output_min = min_val * mult
-        output_max = (min_val + size) * mult
+        # Validate and extract attributes
+        try:
+            size = float(dial_box.get("size", 100.0))
+            min_val = float(dial_box.get("min", 0.0))
+            mult = float(dial_box.get("mult", 0.01))  # FIXED: Default is 0.01
+        except (ValueError, TypeError) as e:
+            self.error(
+                "dial-range", f"Dial has invalid numeric attributes: {e}", dial_id
+            )
+            return None
 
-        return (output_min, output_max)
+        # Handle negative size
+        if size < 0:
+            self.warning(
+                "dial-range",
+                f"Dial has negative size {size}, using absolute value",
+                dial_id,
+            )
+            size = abs(size)
 
-    def _find_upstream_dial(self, message_id: str) -> tuple[str, dict[str, Any]] | None:
+        # Handle zero multiplier
+        if mult == 0.0:
+            self.warning(
+                "dial-range",
+                f"Dial has mult=0, will output constant value {min_val}",
+                dial_id,
+            )
+            return (min_val, min_val)
+
+        # Calculate outputs at both ends
+        output_at_0 = min_val * mult
+        output_at_size = (min_val + size) * mult
+
+        # Return in sorted order (handles negative mult)
+        return (min(output_at_0, output_at_size), max(output_at_0, output_at_size))
+
+    def _find_upstream_dial(
+        self, message_id: str, max_depth: int = 100
+    ) -> tuple[str, dict[str, Any], list[str]] | None:
         """Trace upstream from message to find dial control.
 
         Follows patchlines backwards from the message box to find a dial.
+        Uses BFS with depth limit to prevent infinite loops on deep graphs.
+
+        Args:
+            message_id: Starting message box ID
+            max_depth: Maximum search depth (default: 100)
 
         Returns:
-            Tuple of (dial_id, dial_box) or None if no dial found
+            Tuple of (dial_id, dial_box, intermediate_path) or None if not found
+            intermediate_path: List of box IDs between message and dial
         """
         # Use BFS to find upstream dial
-        visited = set()
-        queue = [message_id]
+        visited: set[str] = set()
+        queue: list[tuple[str, int, list[str]]] = [(message_id, 0, [])]
 
         while queue:
-            current_id = queue.pop(0)
+            current_id, depth, path = queue.pop(0)
+
+            # Check depth limit
+            if depth > max_depth:
+                self.warning(
+                    "dial-range",
+                    f"Search for upstream dial exceeded max depth {max_depth}. "
+                    f"Patcher may have very deep signal chain or cycles.",
+                    current_id,
+                )
+                return None
+
             if current_id in visited:
                 continue
             visited.add(current_id)
 
             current_box = self.boxes.get(current_id, {})
             if current_box.get("maxclass") == "dial":
-                return (current_id, current_box)
+                return (current_id, current_box, path)
+
+            # Build path of intermediate objects
+            new_path = [*path, current_id]
 
             # Find boxes that connect TO this box
             for line in self.data.get("patcher", {}).get("lines", []):
@@ -1290,7 +1392,7 @@ class MaxhelpLinter:
                 if len(dst) >= 2 and dst[0] == current_id:
                     src = patchline.get("source", [])
                     if len(src) >= 2:
-                        queue.append(src[0])
+                        queue.append((src[0], depth + 1, new_path))
 
         return None
 
@@ -1354,31 +1456,85 @@ class MaxhelpLinter:
                     except nx.NetworkXError:
                         continue
 
-                    # Find upstream dial
+                    # Find upstream dial with path tracking
                     dial_result = self._find_upstream_dial(msg_id)
                     if dial_result is None:
                         # No dial - might be flonum/number only, which is OK
                         continue
 
-                    dial_id, dial_box = dial_result
+                    dial_id, dial_box, intermediate_path = dial_result
+
+                    # Warn if intermediate value-modifying objects exist
+                    if len(intermediate_path) > 1:
+                        value_modifiers = {
+                            "expr",
+                            "scale",
+                            "*",
+                            "/",
+                            "+",
+                            "-",
+                            "!/",
+                            "!-",
+                            "pow",
+                            "abs",
+                        }
+                        intermediate_objects = [
+                            self.boxes.get(box_id, {}).get("text", "")
+                            for box_id in intermediate_path[1:]
+                        ]
+                        has_modifier = any(
+                            any(mod in text for mod in value_modifiers)
+                            for text in intermediate_objects
+                        )
+
+                        if has_modifier:
+                            self.warning(
+                                "dial-range",
+                                f"Dial for param '{param_name}' has intermediate "
+                                f"value-modifying objects. Validation may be inaccurate.",
+                                dial_id,
+                            )
 
                     # Calculate dial output range
-                    dial_min, dial_max = self._calculate_dial_range(dial_box)
+                    dial_range = self._calculate_dial_range(dial_box)
+                    if dial_range is None:
+                        # Error already logged in _calculate_dial_range
+                        valid = False
+                        continue
 
-                    # Compare to param bounds (with small tolerance for float comparison)
+                    dial_min, dial_max = dial_range
+
+                    # Compare to param bounds with improved tolerance logic
                     tolerance = 0.001
-                    if (
-                        abs(dial_min - param_min) > tolerance
-                        or abs(dial_max - param_max) > tolerance
-                    ):
+
+                    # Check if dial EXCEEDS parameter bounds (ERROR)
+                    dial_exceeds_min = dial_min < param_min - tolerance
+                    dial_exceeds_max = dial_max > param_max + tolerance
+
+                    # Check if dial CAN'T REACH parameter bounds (WARNING)
+                    dial_cant_reach_min = dial_min > param_min + tolerance
+                    dial_cant_reach_max = dial_max < param_max - tolerance
+
+                    if dial_exceeds_min or dial_exceeds_max:
+                        # ERROR: Dial can produce values outside param range
                         self.error(
                             "dial-range",
-                            f"Dial output range [{dial_min:.2f}, {dial_max:.2f}] "
-                            f"doesn't match param '{param_name}' bounds "
-                            f"[{param_min}, {param_max}] from {shader_name}.genjit",
+                            f"Dial output range [{dial_min:.3f}, {dial_max:.3f}] "
+                            f"EXCEEDS param '{param_name}' bounds "
+                            f"[{param_min}, {param_max}] from {shader_name}.genjit. "
+                            f"This will cause clamping or undefined behavior.",
                             dial_id,
                         )
                         valid = False
+                    elif dial_cant_reach_min or dial_cant_reach_max:
+                        # WARNING: Dial can't reach full param range
+                        self.warning(
+                            "dial-range",
+                            f"Dial output range [{dial_min:.3f}, {dial_max:.3f}] "
+                            f"cannot reach full param '{param_name}' range "
+                            f"[{param_min}, {param_max}]. May be intentional.",
+                            dial_id,
+                        )
 
         return valid
 
