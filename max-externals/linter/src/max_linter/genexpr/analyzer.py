@@ -120,6 +120,9 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
         if source_code is not None:
             self.diagnostics.extend(self._check_large_constants(tree, source_code))
 
+        # Sixth pass: check for uint->int semantic issues
+        self.diagnostics.extend(self._check_uint_to_int_arithmetic(tree))
+
         return self.diagnostics
 
     def _check_unused_params(self) -> None:
@@ -654,6 +657,65 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
                             ),
                             source="genexpr-analyzer",
                             code="type-cast-nesting",
+                        )
+                    )
+
+        return diagnostics
+
+    def _check_uint_to_int_arithmetic(self, tree: Tree) -> list[Diagnostic]:
+        """Detect uint->int casts that break unsigned arithmetic semantics.
+
+        PCG and other hash algorithms rely on unsigned 32-bit modular arithmetic.
+        Casting uint() expressions to int() breaks this, causing incorrect results.
+
+        Problematic patterns:
+        - state = int((uint(x) * uint(MULT) + uint(INC)));
+        - int((...) * uint(...))
+        - int((... >> ...) ^ ...) when operands involve uint()
+
+        Args:
+            tree: Root AST node to scan.
+
+        Returns:
+            List of diagnostics for uint->int semantic issues.
+        """
+        diagnostics = []
+
+        # Find all function calls to int()
+        for func_call in tree.find_data("function_call"):
+            func_name = self._get_function_name(func_call)
+            if func_name != "int":
+                continue
+
+            # Check if the argument contains uint() calls
+            # These indicate unsigned arithmetic that will be broken by int()
+            nested_calls = list(func_call.find_data("function_call"))
+            uint_calls = [
+                n for n in nested_calls if self._get_function_name(n) == "uint"
+            ]
+
+            if len(uint_calls) >= 1:
+                # Check for arithmetic operators (multiplication, addition, shifts)
+                has_arithmetic = (
+                    len(list(func_call.find_data("multiplication"))) > 0
+                    or len(list(func_call.find_data("addition"))) > 0
+                    or len(list(func_call.find_data("shift"))) > 0
+                )
+
+                if has_arithmetic:
+                    diagnostics.append(
+                        Diagnostic(
+                            range=Range(
+                                start=Position(self._get_line(func_call), 0),
+                                end=Position(self._get_line(func_call), 1),
+                            ),
+                            severity=DiagnosticSeverity.WARNING,
+                            message=(
+                                "int() wrapping uint() arithmetic may overflow. "
+                                "Rewrite to avoid mixing signed/unsigned types."
+                            ),
+                            source="genexpr-analyzer",
+                            code="uint-int-arithmetic",
                         )
                     )
 
