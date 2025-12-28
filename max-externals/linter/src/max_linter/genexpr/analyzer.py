@@ -25,6 +25,11 @@ from max_linter.results import Diagnostic, DiagnosticSeverity, Position, Range
 MAX_NESTING_DEPTH = 5
 MAX_LINE_LENGTH = 200
 
+# Overflow detection threshold
+# Multiplications involving constants larger than this may cause overflow
+# GenExpr uses 32-bit floats; values >10M in multiplication risk precision loss
+MAX_SAFE_LITERAL = 10_000_000
+
 
 class SemanticAnalyzer(Visitor):  # type: ignore[misc]
     """Analyzes GenExpr AST for semantic errors.
@@ -59,6 +64,7 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
         self.declared_params: set[str] = declared_params or set()
         self.used_vars: set[str] = set()
         self.has_out1_assignment: bool = False
+        self.user_functions: set[str] = set()  # Track user-defined functions
 
     def analyze(self, tree: Tree, source_code: str | None = None) -> list[Diagnostic]:
         """Analyze a GenExpr AST and return diagnostics.
@@ -74,8 +80,9 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
         self.defined_vars = set()
         self.used_vars = set()
         self.has_out1_assignment = False
+        self.user_functions = set()
 
-        # First pass: collect all defined variables
+        # First pass: collect all defined variables and functions
         # This prevents false positives for variables defined later but used earlier
         self._collect_definitions(tree)
 
@@ -85,6 +92,9 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
         # Third pass: check for undefined variables by walking the tree manually
         # This is needed because Visitor.__default__() doesn't receive Token nodes
         self._check_undefined_variables(tree)
+
+        # Fourth pass: check for type cast nesting issues
+        self.diagnostics.extend(self._check_type_cast_nesting(tree))
 
         # Check if out1 was assigned
         if not self.has_out1_assignment:
@@ -105,6 +115,10 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
         if source_code is not None:
             self._check_line_lengths(source_code)
             self._check_nesting_depth(source_code)
+
+        # Fifth pass: check for large constants in multiplications (overflow risk)
+        if source_code is not None:
+            self.diagnostics.extend(self._check_large_constants(tree, source_code))
 
         return self.diagnostics
 
@@ -221,7 +235,7 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
                 )
 
     def _collect_definitions(self, tree: Tree | Token) -> None:
-        """First pass: collect all variable definitions.
+        """First pass: collect all variable and function definitions.
 
         This prevents false positives when variables are used before they are
         textually defined in the source (e.g., in expressions that get evaluated
@@ -234,8 +248,27 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
             return
 
         if isinstance(tree, Tree):
+            # Check for function definitions
+            if tree.data == "function_def":
+                # function_def: NAME "(" parameters? ")" "{" statements "}"
+                if tree.children and isinstance(tree.children[0], Token):
+                    func_name = str(tree.children[0].value)
+                    self.user_functions.add(func_name)
+
+                    # Extract function parameters and add to defined_vars
+                    # Parameters are valid within the function scope
+                    if len(tree.children) > 1:
+                        params_node = tree.children[1]
+                        if (
+                            isinstance(params_node, Tree)
+                            and params_node.data == "parameters"
+                        ):
+                            for param in params_node.children:
+                                if isinstance(param, Token):
+                                    self.defined_vars.add(str(param.value))
+
             # Check for assignment nodes
-            if tree.data in {
+            elif tree.data in {
                 "assignment",
                 "compound_assignment",
                 "simple_assignment",
@@ -305,12 +338,35 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
                     )
                 )
 
+    def function_def(self, tree: Tree) -> None:
+        """Handle function definitions.
+
+        Tracks user-defined functions and their parameters.
+
+        Args:
+            tree: Function definition AST node.
+        """
+        # function_def: NAME "(" parameters? ")" "{" statements "}"
+        # Function name and parameters already collected in _collect_definitions
+        # This method is here for potential future validation
+        pass
+
+    def return_statement(self, tree: Tree) -> None:
+        """Handle return statements.
+
+        Args:
+            tree: Return statement AST node.
+        """
+        # return_statement: "return" expression ";"
+        # Basic validation - return statements are valid in GenExpr functions
+        pass
+
     def function_call(self, tree: Tree) -> None:
         """Validate function calls.
 
         Checks:
-        - Function exists in BUILTIN_FUNCTIONS
-        - Argument count is within allowed range
+        - Function exists in BUILTIN_FUNCTIONS or user_functions
+        - Argument count is within allowed range (for builtins)
 
         Args:
             tree: Function call AST node.
@@ -326,8 +382,8 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
         if func_name is None:
             return
 
-        # Check if function exists
-        if func_name not in BUILTIN_FUNCTIONS:
+        # Check if function exists (builtin or user-defined)
+        if func_name not in BUILTIN_FUNCTIONS and func_name not in self.user_functions:
             self.diagnostics.append(
                 self._make_diagnostic(
                     postfix if isinstance(postfix, Token) else tree,
@@ -338,26 +394,28 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
             )
             return
 
-        # Validate argument count
-        min_args, max_args, _ = BUILTIN_FUNCTIONS[func_name]
-        arg_count = self._count_arguments(
-            tree.children[1] if len(tree.children) > 1 else None
-        )
+        # Validate argument count only for builtin functions
+        # (we don't track user function signatures yet)
+        if func_name in BUILTIN_FUNCTIONS:
+            min_args, max_args, _ = BUILTIN_FUNCTIONS[func_name]
+            arg_count = self._count_arguments(
+                tree.children[1] if len(tree.children) > 1 else None
+            )
 
-        if arg_count < min_args:
-            msg = f"'{func_name}' requires {min_args}+ args, got {arg_count}"
-            self.diagnostics.append(
-                self._make_diagnostic(
-                    tree, DiagnosticSeverity.ERROR, msg, "argument-count"
+            if arg_count < min_args:
+                msg = f"'{func_name}' requires {min_args}+ args, got {arg_count}"
+                self.diagnostics.append(
+                    self._make_diagnostic(
+                        tree, DiagnosticSeverity.ERROR, msg, "argument-count"
+                    )
                 )
-            )
-        elif arg_count > max_args:
-            msg = f"'{func_name}' accepts max {max_args} args, got {arg_count}"
-            self.diagnostics.append(
-                self._make_diagnostic(
-                    tree, DiagnosticSeverity.ERROR, msg, "argument-count"
+            elif arg_count > max_args:
+                msg = f"'{func_name}' accepts max {max_args} args, got {arg_count}"
+                self.diagnostics.append(
+                    self._make_diagnostic(
+                        tree, DiagnosticSeverity.ERROR, msg, "argument-count"
+                    )
                 )
-            )
 
     def member_access(self, tree: Tree) -> None:
         """Validate swizzle operations.
@@ -431,12 +489,13 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
                 self.used_vars.add(var_name)
 
                 # Skip if it's a builtin, common variable, declared param,
-                # or already defined
+                # user-defined function, or already defined
                 if (
                     var_name in BUILTIN_VARIABLES
                     or var_name in BUILTIN_FUNCTIONS
                     or var_name in COMMON_VARIABLES
                     or var_name in self.declared_params
+                    or var_name in self.user_functions
                     or var_name in self.defined_vars
                 ):
                     return
@@ -513,6 +572,202 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
         # Due to grammar's use of ?, expression nodes may be collapsed to tokens
         # Commas are discarded by parser, so just count all children
         return len(args_node.children)
+
+    def _get_function_name(self, func_call_node: Tree) -> str | None:
+        """Extract function name from a function_call node.
+
+        Args:
+            func_call_node: A function_call Tree node.
+
+        Returns:
+            Function name as string, or None if not found.
+        """
+        if (
+            not isinstance(func_call_node, Tree)
+            or func_call_node.data != "function_call"
+        ):
+            return None
+
+        if not func_call_node.children:
+            return None
+
+        # function_call: postfix "(" arguments ")"
+        postfix = func_call_node.children[0]
+        return self._extract_identifier(postfix)
+
+    def _get_line(self, node: Tree | Token) -> int:
+        """Get line number from a node (0-indexed).
+
+        Args:
+            node: AST node or token.
+
+        Returns:
+            Line number (0-indexed).
+        """
+        if isinstance(node, Token):
+            return getattr(node, "line", 1) - 1
+        elif isinstance(node, Tree):
+            meta = getattr(node, "meta", None)
+            if meta:
+                return getattr(meta, "line", 1) - 1
+        return 0
+
+    def _check_type_cast_nesting(self, node: Tree) -> list[Diagnostic]:
+        """Detect nested int()/uint() casts that confuse the parser.
+
+        Problematic patterns:
+        - int((uint(...) * uint(...)))
+        - int(((expr >> ((expr >> N) + M)) ^ expr) * uint(...))
+        - Deeply nested type casts with bitwise operators
+
+        Args:
+            node: Root AST node to scan.
+
+        Returns:
+            List of diagnostics for nested type cast issues.
+        """
+        diagnostics = []
+
+        # Find function calls to int() or uint()
+        for func_call in node.find_data("function_call"):
+            func_name = self._get_function_name(func_call)
+            if func_name in ("int", "uint"):
+                # Check if argument contains nested int()/uint() calls
+                nested_casts = list(func_call.find_data("function_call"))
+                type_casts = [
+                    n
+                    for n in nested_casts
+                    if self._get_function_name(n) in ("int", "uint")
+                ]
+
+                if len(type_casts) > 1:  # Nested type casting
+                    diagnostics.append(
+                        Diagnostic(
+                            range=Range(
+                                start=Position(self._get_line(func_call), 0),
+                                end=Position(self._get_line(func_call), 1),
+                            ),
+                            severity=DiagnosticSeverity.WARNING,
+                            message=(
+                                "Nested int()/uint() casts may cause parser errors. "
+                                "Use intermediate variables or a pcg_rand() function."
+                            ),
+                            source="genexpr-analyzer",
+                            code="type-cast-nesting",
+                        )
+                    )
+
+        return diagnostics
+
+    def _find_number_tokens(self, node: Tree | Token) -> list[Token]:
+        """Recursively find all NUMBER tokens in a node.
+
+        Args:
+            node: AST node or token to search.
+
+        Returns:
+            List of NUMBER tokens found.
+        """
+        results: list[Token] = []
+        if isinstance(node, Token):
+            if node.type == "NUMBER":
+                results.append(node)
+        elif isinstance(node, Tree):
+            for child in node.children:
+                results.extend(self._find_number_tokens(child))
+        return results
+
+    def _extract_operator_from_source(self, node: Tree, source_code: str) -> str | None:
+        """Extract binary operator from source for multiplication node.
+
+        The grammar discards operator tokens, so we need to examine the source
+        code to determine which operator (*, /, %) was used.
+
+        Args:
+            node: A multiplication Tree node.
+            source_code: The full GenExpr source code.
+
+        Returns:
+            The operator string ('*', '/', or '%'), or None if not found.
+        """
+        meta = getattr(node, "meta", None)
+        if not meta:
+            return None
+
+        # Handle multi-line expressions (unlikely but be safe)
+        if getattr(meta, "line", 1) != getattr(meta, "end_line", 1):
+            return None
+
+        lines = source_code.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+        line_idx = getattr(meta, "line", 1) - 1
+        if line_idx < 0 or line_idx >= len(lines):
+            return None
+
+        line = lines[line_idx]
+        start_col = getattr(meta, "column", 1) - 1
+        end_col = getattr(meta, "end_column", len(line) + 1) - 1
+
+        if start_col < 0 or end_col > len(line):
+            return None
+
+        span = line[start_col:end_col]
+
+        # Search for the operator in the span
+        for op in ("*", "/", "%"):
+            if op in span:
+                return op
+
+        return None
+
+    def _check_large_constants(
+        self, tree: Tree, source_code: str | None
+    ) -> list[Diagnostic]:
+        """Detect large constants in multiplication that may cause overflow.
+
+        GenExpr uses 32-bit float arithmetic. Multiplications involving
+        constants larger than MAX_SAFE_LITERAL (10,000,000) may overflow.
+
+        This check intentionally excludes division expressions, as dividing
+        by large constants (e.g., / 4294967296.0 for normalization) is safe.
+
+        Args:
+            tree: Root AST node to scan.
+            source_code: Source code for operator extraction. If None,
+                assumes all multiplication nodes use '*'.
+
+        Returns:
+            List of diagnostics for overflow risk.
+        """
+        diagnostics: list[Diagnostic] = []
+
+        for mult_node in tree.find_data("multiplication"):
+            # Check if this is division or modulo - skip if so (safe operations)
+            if source_code is not None:
+                operator = self._extract_operator_from_source(mult_node, source_code)
+                if operator in ("/", "%"):
+                    continue
+
+            # Find NUMBER tokens in this multiplication
+            number_tokens = self._find_number_tokens(mult_node)
+
+            for token in number_tokens:
+                try:
+                    value = abs(float(token.value))
+                except ValueError:
+                    continue
+
+                if value > MAX_SAFE_LITERAL:
+                    diagnostics.append(
+                        self._make_diagnostic(
+                            token,
+                            DiagnosticSeverity.WARNING,
+                            f"Large constant {token.value} in multiplication "
+                            f"may overflow (>{MAX_SAFE_LITERAL:,}). Use GPU-safe hash.",
+                            "overflow-risk",
+                        )
+                    )
+
+        return diagnostics
 
     def _make_diagnostic(
         self,
