@@ -199,6 +199,34 @@ test-help-lint-test: ## Run help linter test suite
 	@echo "$(GREEN)Running help linter tests...$(NC)"
 	@$(PYTEST) tools/test_lint_maxhelp.py -v --tb=short
 
+## C external linting (regex-based fallback)
+
+test-c-lint: ## Validate C external source files (regex-based)
+	@echo "$(GREEN)Linting C externals (regex)...$(NC)"
+	@$(PYTHON) tools/lint_c_external.py source/**/*.c
+
+test-c-lint-strict: ## Lint C externals with warnings as errors (regex-based)
+	@echo "$(GREEN)Linting C externals (strict, regex)...$(NC)"
+	@$(PYTHON) tools/lint_c_external.py --strict source/**/*.c
+
+test-c-lint-verbose: ## Lint C externals with verbose output (regex-based)
+	@echo "$(GREEN)Linting C externals (verbose, regex)...$(NC)"
+	@$(PYTHON) tools/lint_c_external.py -v source/**/*.c
+
+## C external linting (AST-based with tree-sitter)
+
+test-c-ast: ## Validate C externals with AST-based analysis (requires c-lint extras)
+	@echo "$(GREEN)Linting C externals (AST)...$(NC)"
+	@cd $(LINTER_DIR) && uv run max-lint --c-external ../source/
+
+test-c-ast-strict: ## AST-based C linting with warnings as errors
+	@echo "$(GREEN)Linting C externals (AST, strict)...$(NC)"
+	@cd $(LINTER_DIR) && uv run max-lint --c-external --strict ../source/
+
+test-c-ast-verbose: ## AST-based C linting with verbose output
+	@echo "$(GREEN)Linting C externals (AST, verbose)...$(NC)"
+	@cd $(LINTER_DIR) && uv run max-lint --c-external -v ../source/
+
 test-syntax: ## Validate GenExpr shader syntax
 	@echo "$(GREEN)Running GenExpr syntax tests...$(NC)"
 	@$(PYTEST) tests/test_genexpr_syntax.py -v --tb=short

@@ -16,6 +16,7 @@ from max_linter.results import (
     Position,
     Range,
 )
+from max_linter.validators.c_semantic import CSemanticValidator
 from max_linter.validators.clangd import ClangdValidator
 from max_linter.validators.glsl import GLSLValidator
 from max_linter.validators.maxhelp import MaxhelpValidator
@@ -169,6 +170,39 @@ def lint_maxhelp_file(
     )
 
 
+def lint_c_file(
+    filepath: Path,
+    c_validator: CSemanticValidator,
+    strict: bool = False,
+) -> LintResult:
+    """Lint a single C source file for Max/MSP external patterns.
+
+    Args:
+        filepath: Path to the C file
+        c_validator: CSemanticValidator instance
+        strict: If True, treat warnings as errors
+
+    Returns:
+        Lint result with diagnostics
+    """
+    diagnostics = c_validator.validate_file(filepath)
+
+    if strict:
+        # Treat warnings as errors in strict mode
+        has_errors = any(
+            d.severity in (DiagnosticSeverity.ERROR, DiagnosticSeverity.WARNING)
+            for d in diagnostics
+        )
+    else:
+        has_errors = any(d.severity == DiagnosticSeverity.ERROR for d in diagnostics)
+
+    return LintResult(
+        filepath=str(filepath),
+        diagnostics=diagnostics,
+        success=not has_errors,
+    )
+
+
 def main(args: list[str] | None = None) -> int:
     """Main entry point.
 
@@ -211,9 +245,14 @@ def main(args: list[str] | None = None) -> int:
         help="Lint only .maxhelp files (skip .genjit)",
     )
     parser.add_argument(
+        "--c-external",
+        action="store_true",
+        help="Lint C external source files (.c) for Max/MSP patterns",
+    )
+    parser.add_argument(
         "--strict",
         action="store_true",
-        help="Treat warnings as errors (for maxhelp validation)",
+        help="Treat warnings as errors",
     )
     parser.add_argument(
         "--fallback",
@@ -246,27 +285,34 @@ def main(args: list[str] | None = None) -> int:
     # Collect files to lint
     genjit_files: list[Path] = []
     maxhelp_files: list[Path] = []
+    c_files: list[Path] = []
 
     for path in parsed.files:
         if path.is_dir():
-            if not parsed.maxhelp:
+            if not parsed.maxhelp and not parsed.c_external:
                 genjit_files.extend(path.glob("*.genjit"))
-            maxhelp_files.extend(path.glob("*.maxhelp"))
-        elif path.suffix == ".genjit" and not parsed.maxhelp:
+            if not parsed.c_external:
+                maxhelp_files.extend(path.glob("*.maxhelp"))
+            if parsed.c_external:
+                c_files.extend(path.rglob("*.c"))
+        elif path.suffix == ".genjit" and not parsed.maxhelp and not parsed.c_external:
             genjit_files.append(path)
-        elif path.suffix == ".maxhelp":
+        elif path.suffix == ".maxhelp" and not parsed.c_external:
             maxhelp_files.append(path)
+        elif path.suffix == ".c" and parsed.c_external:
+            c_files.append(path)
         else:
             print(f"Warning: Skipping unsupported file: {path}", file=sys.stderr)
 
-    if not genjit_files and not maxhelp_files:
-        print("No .genjit or .maxhelp files found", file=sys.stderr)
+    if not genjit_files and not maxhelp_files and not c_files:
+        print("No .genjit, .maxhelp, or .c files found", file=sys.stderr)
         return 1
 
     # Initialize validators
     glsl_validator = GLSLValidator()
     clangd_validator = ClangdValidator()
     genexpr_validator = GenExprValidator()
+    c_validator = CSemanticValidator()
 
     # Determine code directory for shader reference validation
     # Typically ../code/ relative to help files
@@ -317,6 +363,23 @@ def main(args: list[str] | None = None) -> int:
         elif parsed.verbose:
             print(f"{filepath}: OK")
 
+    # Lint C external source files
+    for filepath in sorted(c_files):
+        result = lint_c_file(
+            filepath,
+            c_validator,
+            strict=parsed.strict,
+        )
+        results.append(result)
+
+        # Print results
+        if result.diagnostics:
+            print(f"\n{filepath}:")
+            for diagnostic in result.diagnostics:
+                print(f"  {diagnostic}")
+        elif parsed.verbose:
+            print(f"{filepath}: OK")
+
     # Summary
     total = len(results)
     failed = sum(1 for r in results if not r.success)
@@ -327,6 +390,8 @@ def main(args: list[str] | None = None) -> int:
         print(f"  {len(genjit_files)} .genjit file(s)")
     if maxhelp_files:
         print(f"  {len(maxhelp_files)} .maxhelp file(s)")
+    if c_files:
+        print(f"  {len(c_files)} .c file(s)")
     if failed:
         print(f"  {failed} with errors")
     if warnings:

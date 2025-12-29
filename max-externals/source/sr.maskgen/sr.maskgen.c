@@ -122,7 +122,7 @@ void ext_main(void *r) {
  */
 void *sr_maskgen_new(t_symbol *s, long argc, t_atom *argv) {
     t_sr_maskgen *x = NULL;
-    t_symbol *matrix_name = gensym("sr_mask");
+    t_jit_matrix_info minfo;
 
     x = (t_sr_maskgen *)object_alloc(s_sr_maskgen_class);
     if (x) {
@@ -136,19 +136,22 @@ void *sr_maskgen_new(t_symbol *s, long argc, t_atom *argv) {
         x->width = 512;
         x->height = 512;
 
-        /* Create jit.matrix */
-        x->matrix = jit_object_new(gensym("jit_matrix"), matrix_name);
+        /* Create jit.matrix - passing NULL lets Jitter auto-generate a unique name */
+        x->matrix = jit_object_new(gensym("jit_matrix"));
         if (!x->matrix) {
             object_error((t_object *)x, "Failed to create jit.matrix");
             object_free((t_object *)x);
             return NULL;
         }
 
-        /* Configure matrix: 1-plane float32 */
-        jit_attr_setlong(x->matrix, gensym("planecount"), 1);
-        jit_attr_setsym(x->matrix, gensym("type"), gensym("float32"));
-        jit_attr_setlong_array(x->matrix, gensym("dim"), 2,
-                               (t_atom_long[]){x->width, x->height});
+        /* Configure matrix properties via setinfo */
+        jit_matrix_info_default(&minfo);
+        minfo.type = gensym("float32");
+        minfo.planecount = 1;
+        minfo.dimcount = 2;
+        minfo.dim[0] = x->width;
+        minfo.dim[1] = x->height;
+        jit_object_method(x->matrix, gensym("setinfo"), &minfo);
 
         /* Process attributes */
         attr_args_process(x, argc, argv);
@@ -185,12 +188,13 @@ void sr_maskgen_bang(t_sr_maskgen *x) {
         return;
     }
 
-    /* Update matrix dimensions */
-    jit_attr_setlong_array(x->matrix, gensym("dim"), 2,
-                           (t_atom_long[]){x->width, x->height});
-
-    /* Get matrix data pointer */
+    /* Update matrix dimensions using setinfo for proper reallocation */
     jit_object_method(x->matrix, gensym("getinfo"), &minfo);
+    minfo.dim[0] = x->width;
+    minfo.dim[1] = x->height;
+    jit_object_method(x->matrix, gensym("setinfo"), &minfo);
+
+    /* Get matrix data pointer (must re-get after dimension change) */
     jit_object_method(x->matrix, gensym("getdata"), &matrix_data);
 
     if (!matrix_data) {
@@ -272,8 +276,9 @@ void sr_maskgen_bang(t_sr_maskgen *x) {
     }
 
     /* Output the matrix */
-    outlet_anything(x->outlet, gensym("jit_matrix"),
-                    1, (t_atom *)jit_object_method(x->matrix, gensym("getname")));
+    t_atom a;
+    atom_setsym(&a, jit_attr_getsym(x->matrix, gensym("name")));
+    outlet_anything(x->outlet, gensym("jit_matrix"), 1, &a);
 }
 
 /**

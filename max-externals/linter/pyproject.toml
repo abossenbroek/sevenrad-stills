@@ -18,6 +18,9 @@ dev = [
     "ruff>=0.4",
     "mypy>=1.11",
 ]
+c-lint = [
+    "libclang>=18.1.0",
+]
 
 [project.scripts]
 max-lint = "max_linter.cli:main"
