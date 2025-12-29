@@ -206,7 +206,8 @@
 					],
 					"size": 100.0,
 					"min": 0.0,
-					"mult": 0.01
+					"mult": 0.01,
+					"floatoutput": 1
 				}
 			},
 			{
@@ -226,7 +227,8 @@
 						22.0
 					],
 					"minimum": 0.0,
-					"maximum": 1.0
+					"maximum": 1.0,
+					"numdecimalplaces": 3
 				}
 			},
 			{
@@ -279,7 +281,8 @@
 					],
 					"size": 100.0,
 					"min": 0.0,
-					"mult": 0.01
+					"mult": 0.01,
+					"floatoutput": 1
 				}
 			},
 			{
@@ -299,7 +302,8 @@
 						22.0
 					],
 					"minimum": 0.0,
-					"maximum": 1.0
+					"maximum": 1.0,
+					"numdecimalplaces": 3
 				}
 			},
 			{
@@ -371,7 +375,8 @@
 						60.0,
 						22.0
 					],
-					"minimum": 0
+					"minimum": 0,
+					"maximum": 1000
 				}
 			},
 			{
@@ -390,6 +395,51 @@
 						22.0
 					],
 					"text": "seed $1"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-print-amount",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						490.0,
+						300.0,
+						100.0,
+						22.0
+					],
+					"text": "print amount_msg"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-print-salt",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						610.0,
+						300.0,
+						110.0,
+						22.0
+					],
+					"text": "print salt_ratio_msg"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-print-seed",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						560.0,
+						380.0,
+						80.0,
+						22.0
+					],
+					"text": "print seed_msg"
 				}
 			},
 			{
@@ -631,6 +681,42 @@
 					],
 					"destination": [
 						"obj-13",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-8",
+						0
+					],
+					"destination": [
+						"obj-print-amount",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-11",
+						0
+					],
+					"destination": [
+						"obj-print-salt",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-seed-msg",
+						0
+					],
+					"destination": [
+						"obj-print-seed",
 						0
 					]
 				}

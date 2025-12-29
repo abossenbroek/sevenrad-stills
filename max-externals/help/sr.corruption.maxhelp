@@ -498,7 +498,8 @@
 					],
 					"size": 100.0,
 					"min": 0.0,
-					"mult": 0.01
+					"mult": 0.01,
+					"floatoutput": 1
 				}
 			},
 			{
@@ -518,7 +519,8 @@
 						22.0
 					],
 					"minimum": 0.0,
-					"maximum": 1.0
+					"maximum": 1.0,
+					"numdecimalplaces": 3
 				}
 			},
 			{
@@ -590,7 +592,8 @@
 						50.0,
 						22.0
 					],
-					"minimum": 0
+					"minimum": 0,
+					"maximum": 1000
 				}
 			},
 			{
