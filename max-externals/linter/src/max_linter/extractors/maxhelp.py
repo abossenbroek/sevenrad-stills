@@ -82,6 +82,34 @@ class MaxConnection:
 
 
 @dataclass
+class ShaderReference:
+    """Reference to a .genjit shader from a jit.gl.pix object.
+
+    Attributes:
+        shader_name: Name from @gen attribute (e.g., "sr.noise")
+        object_id: ID of the jit.gl.pix object
+        params: Dict of param_name -> param_value from @param_name attributes
+    """
+
+    shader_name: str
+    object_id: str
+    params: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
+class CodeboxContent:
+    """Inline GenExpr code found in a help file codebox.
+
+    Attributes:
+        code: The GenExpr source code
+        object_id: ID of the codebox object
+    """
+
+    code: str
+    object_id: str
+
+
+@dataclass
 class MaxPatcher:
     """Parsed .maxhelp patcher structure.
 
@@ -91,6 +119,8 @@ class MaxPatcher:
         connections: List of connections
         description: Patcher description
         tags: Patcher tags (comma-separated)
+        shader_refs: List of shader references from jit.gl.pix @gen
+        codeboxes: List of inline GenExpr code from codebox objects
     """
 
     filepath: Path
@@ -98,6 +128,8 @@ class MaxPatcher:
     connections: list[MaxConnection] = field(default_factory=list)
     description: str = ""
     tags: str = ""
+    shader_refs: list[ShaderReference] = field(default_factory=list)
+    codeboxes: list[CodeboxContent] = field(default_factory=list)
 
     def find_objects_by_class(self, class_name: str) -> list[MaxObject]:
         """Find all objects with a given class name.
@@ -181,6 +213,10 @@ class MaxhelpExtractor:
             if conn:
                 patcher.connections.append(conn)
 
+        # Extract shader references and codeboxes
+        patcher.shader_refs = self._extract_shader_references(patcher)
+        patcher.codeboxes = self._extract_codebox_content(data)
+
         return patcher
 
     def _parse_box(self, box: dict[str, Any]) -> MaxObject | None:
@@ -229,6 +265,89 @@ class MaxhelpExtractor:
             attributes[name] = value
 
         return attributes
+
+    def _extract_shader_references(self, patcher: MaxPatcher) -> list[ShaderReference]:
+        """Extract shader references from jit.gl.pix objects.
+
+        Looks for objects with text like:
+        "jit.gl.pix context_name @gen sr.noise @mode 0 @amount 0.5"
+
+        Args:
+            patcher: Parsed MaxPatcher
+
+        Returns:
+            List of ShaderReference objects
+        """
+        refs = []
+        # Known jit.gl.pix attributes to exclude from shader params
+        jit_attrs = {
+            "gen",
+            "dimscale",
+            "rect",
+            "name",
+            "drawto",
+            "texture",
+            "out_name",
+            "adapt",
+            "dim",
+            "type",
+            "automatic",
+            "enable",
+        }
+
+        for obj in patcher.objects.values():
+            if obj.class_name != "jit.gl.pix":
+                continue
+
+            if not obj.text:
+                continue
+
+            # Parse @gen attribute for shader name
+            gen_match = re.search(r"@gen\s+(\S+)", obj.text)
+            if not gen_match:
+                continue
+
+            shader_name = gen_match.group(1)
+
+            # Extract shader params (excluding known jit.gl.pix attributes)
+            params = {k: v for k, v in obj.attributes.items() if k not in jit_attrs}
+
+            refs.append(
+                ShaderReference(
+                    shader_name=shader_name,
+                    object_id=obj.id,
+                    params=params,
+                )
+            )
+
+        return refs
+
+    def _extract_codebox_content(self, data: dict[str, Any]) -> list[CodeboxContent]:
+        """Extract GenExpr code from codebox objects in help patchers.
+
+        Args:
+            data: Raw JSON patcher data
+
+        Returns:
+            List of CodeboxContent objects
+        """
+        codeboxes = []
+
+        for box_wrapper in data.get("patcher", {}).get("boxes", []):
+            box = box_wrapper.get("box", {})
+            if box.get("maxclass") != "codebox":
+                continue
+
+            code = box.get("code", "")
+            if code.strip():
+                codeboxes.append(
+                    CodeboxContent(
+                        code=code,
+                        object_id=box.get("id", "unknown"),
+                    )
+                )
+
+        return codeboxes
 
     def _parse_connection(self, patchline: dict[str, Any]) -> MaxConnection | None:
         """Parse a patchline dictionary into a MaxConnection.

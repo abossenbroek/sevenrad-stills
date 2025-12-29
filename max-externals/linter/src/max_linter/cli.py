@@ -267,7 +267,16 @@ def main(args: list[str] | None = None) -> int:
     glsl_validator = GLSLValidator()
     clangd_validator = ClangdValidator()
     genexpr_validator = GenExprValidator()
-    maxhelp_validator = MaxhelpValidator()
+
+    # Determine code directory for shader reference validation
+    # Typically ../code/ relative to help files
+    code_dir = None
+    if maxhelp_files:
+        code_dir = maxhelp_files[0].parent.parent / "code"
+        if not code_dir.exists():
+            code_dir = None
+
+    maxhelp_validator = MaxhelpValidator(code_dir=code_dir)
 
     # Lint files
     results: list[LintResult] = []

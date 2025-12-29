@@ -12,6 +12,8 @@
           | while_loop
           | break_statement
           | continue_statement
+          | function_def
+          | return_statement
 
 // Assignment: identifier = expression;
 assignment: NAME "=" expression ";"
@@ -40,6 +42,13 @@ while_loop: WHILE "(" expression ")" block
 // Control flow
 break_statement: BREAK ";"
 continue_statement: CONTINUE ";"
+
+// Function definition: name(args) { body }
+function_def: NAME "(" parameters ")" block
+parameters: (NAME ("," NAME)*)?
+
+// Return statement: return expr;
+return_statement: RETURN expression ";"
 
 // Block of code
 block: "{" statement* "}"
@@ -132,9 +141,10 @@ FOR: "for"
 WHILE: "while"
 BREAK: "break"
 CONTINUE: "continue"
+RETURN: "return"
 
 // NAME - excludes keywords using negative lookahead
-NAME: /(?!(if|else|for|while|break|continue)\b)[a-zA-Z_][a-zA-Z0-9_]*/
+NAME: /(?!(if|else|for|while|break|continue|return)\b)[a-zA-Z_][a-zA-Z0-9_]*/
 
 // Comments (ignored like whitespace)
 COMMENT: /\/\/[^\n]*/

@@ -624,3 +624,388 @@ class TestRealHelpPatchers:
 
         # Check it parses and runs validation
         assert diagnostics is not None
+
+
+class TestShaderReferenceExtraction:
+    """Tests for shader reference extraction from jit.gl.pix objects."""
+
+    def test_extract_shader_reference(self, tmp_path: Path) -> None:
+        """Should extract shader name and params from jit.gl.pix."""
+        patcher_json = {
+            "patcher": {
+                "boxes": [
+                    {
+                        "box": {
+                            "id": "obj-pix",
+                            "maxclass": "newobj",
+                            "text": "jit.gl.pix ctx @gen sr.noise @mode 0 @amount 0.5",
+                        }
+                    }
+                ],
+                "lines": [],
+            }
+        }
+
+        filepath = tmp_path / "test.maxhelp"
+        filepath.write_text(json.dumps(patcher_json))
+
+        extractor = MaxhelpExtractor()
+        patcher = extractor.extract(filepath)
+
+        assert patcher is not None
+        assert len(patcher.shader_refs) == 1
+        assert patcher.shader_refs[0].shader_name == "sr.noise"
+        assert patcher.shader_refs[0].params == {"mode": "0", "amount": "0.5"}
+
+    def test_extract_multiple_shaders(self, tmp_path: Path) -> None:
+        """Should extract multiple shader references."""
+        patcher_json = {
+            "patcher": {
+                "boxes": [
+                    {
+                        "box": {
+                            "id": "obj-pix1",
+                            "maxclass": "newobj",
+                            "text": "jit.gl.pix ctx @gen sr.blur.h @sigma 5.0",
+                        }
+                    },
+                    {
+                        "box": {
+                            "id": "obj-pix2",
+                            "maxclass": "newobj",
+                            "text": "jit.gl.pix ctx @gen sr.blur.v @sigma 5.0",
+                        }
+                    },
+                ],
+                "lines": [],
+            }
+        }
+
+        filepath = tmp_path / "test.maxhelp"
+        filepath.write_text(json.dumps(patcher_json))
+
+        extractor = MaxhelpExtractor()
+        patcher = extractor.extract(filepath)
+
+        assert patcher is not None
+        assert len(patcher.shader_refs) == 2
+        shader_names = {ref.shader_name for ref in patcher.shader_refs}
+        assert shader_names == {"sr.blur.h", "sr.blur.v"}
+
+
+class TestShaderReferenceValidation:
+    """Tests for shader reference validation."""
+
+    def test_shader_reference_missing(self, tmp_path: Path) -> None:
+        """Missing shader file should produce error."""
+        # Create code directory (empty)
+        code_dir = tmp_path / "code"
+        code_dir.mkdir()
+
+        help_dir = tmp_path / "help"
+        help_dir.mkdir()
+
+        patcher_json = {
+            "patcher": {
+                "boxes": [
+                    {
+                        "box": {
+                            "id": "obj-pix",
+                            "maxclass": "newobj",
+                            "text": "jit.gl.pix ctx @gen sr.nonexistent",
+                        }
+                    }
+                ],
+                "lines": [],
+            }
+        }
+
+        filepath = help_dir / "test.maxhelp"
+        filepath.write_text(json.dumps(patcher_json))
+
+        validator = MaxhelpValidator(code_dir=code_dir)
+        diagnostics = validator.validate(filepath)
+
+        shader_errors = [d for d in diagnostics if d.code == "shader-not-found"]
+        assert len(shader_errors) == 1
+        assert shader_errors[0].severity == DiagnosticSeverity.ERROR
+        assert "sr.nonexistent" in shader_errors[0].message
+
+    def test_shader_reference_exists(self, tmp_path: Path) -> None:
+        """Existing shader file should not produce error."""
+        # Create code directory with shader
+        code_dir = tmp_path / "code"
+        code_dir.mkdir()
+
+        shader_json = {
+            "patcher": {
+                "boxes": [
+                    {
+                        "box": {
+                            "id": "obj-1",
+                            "maxclass": "codebox",
+                            "code": "out1 = in1;",
+                        }
+                    }
+                ],
+                "lines": [],
+            }
+        }
+        (code_dir / "sr.test.genjit").write_text(json.dumps(shader_json))
+
+        help_dir = tmp_path / "help"
+        help_dir.mkdir()
+
+        patcher_json = {
+            "patcher": {
+                "boxes": [
+                    {
+                        "box": {
+                            "id": "obj-pix",
+                            "maxclass": "newobj",
+                            "text": "jit.gl.pix ctx @gen sr.test",
+                        }
+                    }
+                ],
+                "lines": [],
+            }
+        }
+
+        filepath = help_dir / "test.maxhelp"
+        filepath.write_text(json.dumps(patcher_json))
+
+        validator = MaxhelpValidator(code_dir=code_dir)
+        diagnostics = validator.validate(filepath)
+
+        shader_errors = [d for d in diagnostics if d.code == "shader-not-found"]
+        assert len(shader_errors) == 0
+
+
+class TestParameterRangeValidation:
+    """Tests for parameter range validation."""
+
+    def test_param_below_min(self, tmp_path: Path) -> None:
+        """Parameter below minimum should warn."""
+        code_dir = tmp_path / "code"
+        code_dir.mkdir()
+
+        shader_json = {
+            "patcher": {
+                "boxes": [
+                    {
+                        "box": {
+                            "id": "obj-1",
+                            "maxclass": "newobj",
+                            "text": "param amount 0.5 0.0 1.0",
+                        }
+                    },
+                    {
+                        "box": {
+                            "id": "obj-2",
+                            "maxclass": "codebox",
+                            "code": "out1 = in1;",
+                        }
+                    },
+                ],
+                "lines": [],
+            }
+        }
+        (code_dir / "sr.test.genjit").write_text(json.dumps(shader_json))
+
+        help_dir = tmp_path / "help"
+        help_dir.mkdir()
+
+        patcher_json = {
+            "patcher": {
+                "boxes": [
+                    {
+                        "box": {
+                            "id": "obj-pix",
+                            "maxclass": "newobj",
+                            "text": "jit.gl.pix ctx @gen sr.test @amount -0.5",
+                        }
+                    }
+                ],
+                "lines": [],
+            }
+        }
+
+        filepath = help_dir / "test.maxhelp"
+        filepath.write_text(json.dumps(patcher_json))
+
+        validator = MaxhelpValidator(code_dir=code_dir)
+        diagnostics = validator.validate(filepath)
+
+        below_min = [d for d in diagnostics if d.code == "param-below-min"]
+        assert len(below_min) == 1
+        assert below_min[0].severity == DiagnosticSeverity.WARNING
+
+    def test_param_above_max(self, tmp_path: Path) -> None:
+        """Parameter above maximum should warn."""
+        code_dir = tmp_path / "code"
+        code_dir.mkdir()
+
+        shader_json = {
+            "patcher": {
+                "boxes": [
+                    {
+                        "box": {
+                            "id": "obj-1",
+                            "maxclass": "newobj",
+                            "text": "param amount 0.5 0.0 1.0",
+                        }
+                    },
+                    {
+                        "box": {
+                            "id": "obj-2",
+                            "maxclass": "codebox",
+                            "code": "out1 = in1;",
+                        }
+                    },
+                ],
+                "lines": [],
+            }
+        }
+        (code_dir / "sr.test.genjit").write_text(json.dumps(shader_json))
+
+        help_dir = tmp_path / "help"
+        help_dir.mkdir()
+
+        patcher_json = {
+            "patcher": {
+                "boxes": [
+                    {
+                        "box": {
+                            "id": "obj-pix",
+                            "maxclass": "newobj",
+                            "text": "jit.gl.pix ctx @gen sr.test @amount 1.5",
+                        }
+                    }
+                ],
+                "lines": [],
+            }
+        }
+
+        filepath = help_dir / "test.maxhelp"
+        filepath.write_text(json.dumps(patcher_json))
+
+        validator = MaxhelpValidator(code_dir=code_dir)
+        diagnostics = validator.validate(filepath)
+
+        above_max = [d for d in diagnostics if d.code == "param-above-max"]
+        assert len(above_max) == 1
+        assert above_max[0].severity == DiagnosticSeverity.WARNING
+
+    def test_unknown_param(self, tmp_path: Path) -> None:
+        """Unknown parameter should warn."""
+        code_dir = tmp_path / "code"
+        code_dir.mkdir()
+
+        shader_json = {
+            "patcher": {
+                "boxes": [
+                    {
+                        "box": {
+                            "id": "obj-1",
+                            "maxclass": "newobj",
+                            "text": "param amount 0.5",
+                        }
+                    },
+                    {
+                        "box": {
+                            "id": "obj-2",
+                            "maxclass": "codebox",
+                            "code": "out1 = in1;",
+                        }
+                    },
+                ],
+                "lines": [],
+            }
+        }
+        (code_dir / "sr.test.genjit").write_text(json.dumps(shader_json))
+
+        help_dir = tmp_path / "help"
+        help_dir.mkdir()
+
+        patcher_json = {
+            "patcher": {
+                "boxes": [
+                    {
+                        "box": {
+                            "id": "obj-pix",
+                            "maxclass": "newobj",
+                            "text": "jit.gl.pix ctx @gen sr.test @bogus 42",
+                        }
+                    }
+                ],
+                "lines": [],
+            }
+        }
+
+        filepath = help_dir / "test.maxhelp"
+        filepath.write_text(json.dumps(patcher_json))
+
+        validator = MaxhelpValidator(code_dir=code_dir)
+        diagnostics = validator.validate(filepath)
+
+        unknown = [d for d in diagnostics if d.code == "unknown-param"]
+        assert len(unknown) == 1
+        assert "bogus" in unknown[0].message
+
+
+class TestCodeboxExtraction:
+    """Tests for inline codebox GenExpr extraction."""
+
+    def test_extract_codebox(self, tmp_path: Path) -> None:
+        """Should extract code from codebox objects."""
+        patcher_json = {
+            "patcher": {
+                "boxes": [
+                    {
+                        "box": {
+                            "id": "obj-codebox",
+                            "maxclass": "codebox",
+                            "code": "out1 = in1 * 0.5;",
+                        }
+                    }
+                ],
+                "lines": [],
+            }
+        }
+
+        filepath = tmp_path / "test.maxhelp"
+        filepath.write_text(json.dumps(patcher_json))
+
+        extractor = MaxhelpExtractor()
+        patcher = extractor.extract(filepath)
+
+        assert patcher is not None
+        assert len(patcher.codeboxes) == 1
+        assert patcher.codeboxes[0].code == "out1 = in1 * 0.5;"
+        assert patcher.codeboxes[0].object_id == "obj-codebox"
+
+
+@pytest.mark.skipif(not HELP_DIR.exists(), reason="Help directory not found")
+class TestShaderValidationIntegration:
+    """Integration tests for shader validation with real files."""
+
+    def test_all_help_files_reference_existing_shaders(self) -> None:
+        """All help files should reference existing shaders."""
+        code_dir = HELP_DIR.parent / "code"
+
+        if not code_dir.exists():
+            pytest.skip("code directory not found")
+
+        validator = MaxhelpValidator(code_dir=code_dir)
+
+        all_shader_errors = []
+        for help_file in HELP_DIR.glob("*.maxhelp"):
+            diagnostics = validator.validate(help_file)
+            shader_errors = [
+                (help_file.name, d.message)
+                for d in diagnostics
+                if d.code == "shader-not-found"
+            ]
+            all_shader_errors.extend(shader_errors)
+
+        assert len(all_shader_errors) == 0, f"Missing shaders: {all_shader_errors}"

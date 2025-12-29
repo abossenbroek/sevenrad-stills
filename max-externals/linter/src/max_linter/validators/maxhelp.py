@@ -10,11 +10,16 @@ Validates help patcher structure including:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import networkx as nx
 
 from max_linter.extractors.maxhelp import MaxhelpExtractor, MaxPatcher
 from max_linter.results import Diagnostic, DiagnosticSeverity, Position, Range
+
+if TYPE_CHECKING:
+    from max_linter.extractors.genjit import GenjitExtractor
+    from max_linter.genexpr import GenExprValidator
 
 # GPU classes that need video source and display
 GPU_EFFECTS = {"jit.gl.pix"}
@@ -47,6 +52,9 @@ class MaxhelpValidator:
     - Context names containing dots (should use underscores)
     - CPU externals without proper initialization
     - Missing loadbang to jit.world
+    - Shader references pointing to non-existent .genjit files
+    - Parameter values outside declared ranges
+    - Inline GenExpr code with syntax/semantic errors
 
     Example:
         >>> validator = MaxhelpValidator()
@@ -55,9 +63,17 @@ class MaxhelpValidator:
         ...     print(d)
     """
 
-    def __init__(self) -> None:
-        """Initialize validator."""
+    def __init__(self, code_dir: Path | None = None) -> None:
+        """Initialize validator.
+
+        Args:
+            code_dir: Path to the code/ directory containing .genjit files.
+                If None, will attempt to find it relative to help file.
+        """
         self._extractor = MaxhelpExtractor()
+        self._code_dir = code_dir
+        self._genexpr_validator: GenExprValidator | None = None
+        self._genjit_extractor: GenjitExtractor | None = None
 
     def validate(self, filepath: Path) -> list[Diagnostic]:
         """Validate a .maxhelp file and return diagnostics.
@@ -91,6 +107,11 @@ class MaxhelpValidator:
         diagnostics.extend(self._check_cpu_external_flow(patcher, graph))
         diagnostics.extend(self._check_initialization_order(patcher, graph))
         diagnostics.extend(self._check_utility_external(patcher, graph))
+
+        # Shader and GenExpr validation
+        diagnostics.extend(self._check_shader_references(patcher))
+        diagnostics.extend(self._check_parameter_ranges(patcher))
+        diagnostics.extend(self._check_inline_genexpr(patcher))
 
         return diagnostics
 
@@ -456,6 +477,196 @@ class MaxhelpValidator:
                         code="utility-unmarked",
                     )
                 )
+
+        return diagnostics
+
+    def _get_genexpr_validator(self) -> GenExprValidator:
+        """Lazy-load GenExpr validator."""
+        if self._genexpr_validator is None:
+            from max_linter.genexpr import GenExprValidator
+
+            self._genexpr_validator = GenExprValidator()
+        return self._genexpr_validator
+
+    def _get_genjit_extractor(self) -> GenjitExtractor:
+        """Lazy-load genjit extractor."""
+        if self._genjit_extractor is None:
+            from max_linter.extractors.genjit import GenjitExtractor
+
+            self._genjit_extractor = GenjitExtractor()
+        return self._genjit_extractor
+
+    def _check_shader_references(self, patcher: MaxPatcher) -> list[Diagnostic]:
+        """Validate that referenced .genjit shaders exist.
+
+        For each jit.gl.pix @gen sr.name reference:
+        - Check that sr.name.genjit exists in ../code/
+
+        Args:
+            patcher: Parsed MaxPatcher
+
+        Returns:
+            List of diagnostics for missing shaders
+        """
+        diagnostics = []
+
+        # Determine code directory
+        code_dir = self._code_dir
+        if code_dir is None:
+            # Try to find ../code/ relative to help file
+            code_dir = patcher.filepath.parent.parent / "code"
+
+        if not code_dir.exists():
+            # Can't validate without code directory
+            return []
+
+        for ref in patcher.shader_refs:
+            shader_path = code_dir / f"{ref.shader_name}.genjit"
+
+            if not shader_path.exists():
+                diagnostics.append(
+                    Diagnostic(
+                        range=Range(start=Position(0, 0), end=Position(0, 0)),
+                        severity=DiagnosticSeverity.ERROR,
+                        message=(
+                            f"Shader reference '@gen {ref.shader_name}' not found. "
+                            f"Expected file: {shader_path.name}"
+                        ),
+                        source="maxhelp-validator",
+                        code="shader-not-found",
+                    )
+                )
+
+        return diagnostics
+
+    def _check_parameter_ranges(self, patcher: MaxPatcher) -> list[Diagnostic]:
+        """Validate that parameter values are within declared ranges.
+
+        For each jit.gl.pix with @gen reference:
+        - Load the referenced .genjit file
+        - Extract parameter declarations (param name default min max)
+        - Check if help file param values are within bounds
+
+        Args:
+            patcher: Parsed MaxPatcher
+
+        Returns:
+            List of diagnostics for out-of-range parameters
+        """
+        diagnostics = []
+
+        code_dir = self._code_dir
+        if code_dir is None:
+            code_dir = patcher.filepath.parent.parent / "code"
+
+        if not code_dir.exists():
+            return []
+
+        extractor = self._get_genjit_extractor()
+
+        for ref in patcher.shader_refs:
+            shader_path = code_dir / f"{ref.shader_name}.genjit"
+
+            if not shader_path.exists():
+                continue  # Already reported in shader reference check
+
+            # Extract shader parameters
+            shaders = extractor.extract(shader_path)
+            if not shaders:
+                continue
+
+            shader = shaders[0]  # Usually just one shader per file
+
+            # Build param lookup: name -> (default, min, max)
+            param_bounds: dict[
+                str, tuple[float | None, float | None, float | None]
+            ] = {}
+            for p in shader.params:
+                param_bounds[p.name] = (p.default, p.min_val, p.max_val)
+
+            # Check each help file parameter value
+            for param_name, param_value in ref.params.items():
+                if param_name not in param_bounds:
+                    # Unknown parameter
+                    diagnostics.append(
+                        Diagnostic(
+                            range=Range(start=Position(0, 0), end=Position(0, 0)),
+                            severity=DiagnosticSeverity.WARNING,
+                            message=(
+                                f"Parameter '@{param_name}' not declared in "
+                                f"{ref.shader_name}.genjit"
+                            ),
+                            source="maxhelp-validator",
+                            code="unknown-param",
+                        )
+                    )
+                    continue
+
+                default, min_val, max_val = param_bounds[param_name]
+
+                try:
+                    value = float(param_value)
+                except ValueError:
+                    continue  # Non-numeric value, skip range check
+
+                if min_val is not None and value < min_val:
+                    diagnostics.append(
+                        Diagnostic(
+                            range=Range(start=Position(0, 0), end=Position(0, 0)),
+                            severity=DiagnosticSeverity.WARNING,
+                            message=(
+                                f"Parameter '@{param_name} {param_value}' is below "
+                                f"minimum {min_val} in {ref.shader_name}.genjit"
+                            ),
+                            source="maxhelp-validator",
+                            code="param-below-min",
+                        )
+                    )
+
+                if max_val is not None and value > max_val:
+                    diagnostics.append(
+                        Diagnostic(
+                            range=Range(start=Position(0, 0), end=Position(0, 0)),
+                            severity=DiagnosticSeverity.WARNING,
+                            message=(
+                                f"Parameter '@{param_name} {param_value}' exceeds "
+                                f"maximum {max_val} in {ref.shader_name}.genjit"
+                            ),
+                            source="maxhelp-validator",
+                            code="param-above-max",
+                        )
+                    )
+
+        return diagnostics
+
+    def _check_inline_genexpr(self, patcher: MaxPatcher) -> list[Diagnostic]:
+        """Validate GenExpr code in codebox objects.
+
+        Runs full GenExpr parsing and semantic analysis on any
+        codebox content found in the help patcher.
+
+        Args:
+            patcher: Parsed MaxPatcher
+
+        Returns:
+            List of diagnostics from GenExpr validation
+        """
+        diagnostics = []
+        validator = self._get_genexpr_validator()
+
+        for codebox in patcher.codeboxes:
+            genexpr_diagnostics = validator.validate(codebox.code)
+
+            # Prefix messages with codebox identifier
+            for d in genexpr_diagnostics:
+                prefixed = Diagnostic(
+                    range=d.range,
+                    severity=d.severity,
+                    message=f"[codebox {codebox.object_id}] {d.message}",
+                    source="maxhelp-genexpr",
+                    code=d.code,
+                )
+                diagnostics.append(prefixed)
 
         return diagnostics
 
