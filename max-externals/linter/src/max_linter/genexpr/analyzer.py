@@ -1,7 +1,7 @@
 """Semantic analyzer for GenExpr shader code.
 
 Performs semantic validation on parsed GenExpr AST including:
-- Undefined variable detection
+- Undefined variable detection with block scope tracking
 - Function call validation (existence and argument counts)
 - Swizzle validation
 - Output requirement checking
@@ -17,7 +17,6 @@ from lark import Token, Tree, Visitor
 from max_linter.genexpr.builtins import (
     BUILTIN_FUNCTIONS,
     BUILTIN_VARIABLES,
-    COMMON_VARIABLES,
 )
 from max_linter.results import Diagnostic, DiagnosticSeverity, Position, Range
 
@@ -31,11 +30,87 @@ MAX_LINE_LENGTH = 200
 MAX_SAFE_LITERAL = 10_000_000
 
 
+class ScopeTracker:
+    """Track variable declarations with strict block scoping.
+
+    GenExpr uses strict block scoping where:
+    - First assignment = declaration in current scope
+    - Variables in inner scopes are NOT visible to outer scopes
+    - Variables in one branch of if/else are NOT visible outside, even if
+      assigned in both branches
+
+    Example:
+        if (cond) { x = 1; } else { x = 2; }
+        y = x;  // ERROR: x not visible in outer scope
+
+    To fix:
+        x = 0;  // Declare in outer scope first
+        if (cond) { x = 1; } else { x = 2; }
+        y = x;  // OK: x visible from outer scope
+    """
+
+    def __init__(
+        self,
+        declared_params: set[str] | None = None,
+        builtins: set[str] | None = None,
+    ) -> None:
+        """Initialize scope tracker.
+
+        Args:
+            declared_params: Shader parameters declared in .genjit file.
+            builtins: Set of builtin variable and function names.
+        """
+        # Initialize global scope with params and builtins
+        global_scope: set[str] = set()
+        if declared_params:
+            global_scope.update(declared_params)
+        if builtins:
+            global_scope.update(builtins)
+        self.scope_stack: list[set[str]] = [global_scope]
+
+    def push_scope(self) -> None:
+        """Enter a new block scope (if/else/for/while/function body)."""
+        self.scope_stack.append(set())
+
+    def pop_scope(self) -> None:
+        """Exit current block scope."""
+        if len(self.scope_stack) > 1:
+            self.scope_stack.pop()
+
+    def declare(self, name: str) -> None:
+        """Declare a variable in current scope (first assignment).
+
+        If variable is already visible (from current or parent scope),
+        this is a reassignment, not a declaration.
+
+        Args:
+            name: Variable name to declare.
+        """
+        # Only declare if not already visible
+        if not self.is_visible(name):
+            self.scope_stack[-1].add(name)
+
+    def is_visible(self, name: str) -> bool:
+        """Check if variable is visible (declared in current or parent scope).
+
+        Args:
+            name: Variable name to check.
+
+        Returns:
+            True if variable is visible, False otherwise.
+        """
+        return any(name in scope for scope in reversed(self.scope_stack))
+
+    def current_depth(self) -> int:
+        """Return current scope depth (1 = global scope)."""
+        return len(self.scope_stack)
+
+
 class SemanticAnalyzer(Visitor):  # type: ignore[misc]
     """Analyzes GenExpr AST for semantic errors.
 
     This class walks the parsed AST and performs semantic validation including:
-    - Tracking variable definitions to detect undefined usage
+    - Tracking variable definitions with block scope tracking
     - Validating function calls (existence and argument counts)
     - Checking swizzle operations for validity
     - Ensuring out1 is assigned
@@ -44,7 +119,7 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
 
     Attributes:
         diagnostics: List of diagnostic messages found during analysis.
-        defined_vars: Set of variable names that have been assigned.
+        scope: ScopeTracker for block-scoped variable tracking.
         declared_params: Set of parameter names declared in the .genjit file.
         used_vars: Set of variable names that are used in the code.
         has_out1_assignment: Whether out1 has been assigned in the code.
@@ -60,11 +135,27 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
         """
         super().__init__()
         self.diagnostics: list[Diagnostic] = []
-        self.defined_vars: set[str] = set()
         self.declared_params: set[str] = declared_params or set()
         self.used_vars: set[str] = set()
         self.has_out1_assignment: bool = False
         self.user_functions: set[str] = set()  # Track user-defined functions
+
+        # Build set of all builtins for scope initialization
+        # Note: Don't include COMMON_VARIABLES (x, y, z, w, etc.) - these are
+        # swizzle component names, not pre-defined variables. Variables like
+        # 'x' must still be declared before use.
+        all_builtins: set[str] = set()
+        all_builtins.update(BUILTIN_VARIABLES)
+        all_builtins.update(BUILTIN_FUNCTIONS.keys())
+
+        # Initialize scope tracker with declared params and builtins
+        self.scope: ScopeTracker = ScopeTracker(
+            declared_params=self.declared_params,
+            builtins=all_builtins,
+        )
+
+        # Keep defined_vars for backward compat with _collect_definitions
+        self.defined_vars: set[str] = set()
 
     def analyze(self, tree: Tree, source_code: str | None = None) -> list[Diagnostic]:
         """Analyze a GenExpr AST and return diagnostics.
@@ -82,16 +173,25 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
         self.has_out1_assignment = False
         self.user_functions = set()
 
-        # First pass: collect all defined variables and functions
-        # This prevents false positives for variables defined later but used earlier
-        self._collect_definitions(tree)
+        # Reset scope tracker (don't include COMMON_VARIABLES - see __init__)
+        all_builtins: set[str] = set()
+        all_builtins.update(BUILTIN_VARIABLES)
+        all_builtins.update(BUILTIN_FUNCTIONS.keys())
+        self.scope = ScopeTracker(
+            declared_params=self.declared_params,
+            builtins=all_builtins,
+        )
+
+        # First pass: collect user-defined function names only
+        # This is needed so we can validate function calls
+        self._collect_user_functions(tree)
 
         # Second pass: walk the tree for semantic checks
         self.visit(tree)
 
-        # Third pass: check for undefined variables by walking the tree manually
-        # This is needed because Visitor.__default__() doesn't receive Token nodes
-        self._check_undefined_variables(tree)
+        # Third pass: scope-aware undefined variable check
+        # Walks tree in execution order with proper block scope tracking
+        self._check_undefined_variables_scoped(tree)
 
         # Fourth pass: check for type cast nesting issues
         self.diagnostics.extend(self._check_type_cast_nesting(tree))
@@ -237,64 +337,290 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
                     )
                 )
 
-    def _collect_definitions(self, tree: Tree | Token) -> None:
-        """First pass: collect all variable and function definitions.
+    def _collect_user_functions(self, tree: Tree | Token) -> None:
+        """First pass: collect user-defined function names.
 
-        This prevents false positives when variables are used before they are
-        textually defined in the source (e.g., in expressions that get evaluated
-        after the assignment).
+        This is needed so we can validate function calls before the function
+        definition is textually reached.
 
         Args:
-            tree: AST node to scan for definitions.
+            tree: AST node to scan for function definitions.
         """
         if isinstance(tree, Token):
             return
 
-        if isinstance(tree, Tree):
-            # Check for function definitions
-            if tree.data == "function_def":
-                # function_def: NAME "(" parameters? ")" "{" statements "}"
-                if tree.children and isinstance(tree.children[0], Token):
-                    func_name = str(tree.children[0].value)
-                    self.user_functions.add(func_name)
+        if not isinstance(tree, Tree):
+            return
 
-                    # Extract function parameters and add to defined_vars
-                    # Parameters are valid within the function scope
-                    if len(tree.children) > 1:
-                        params_node = tree.children[1]
-                        if (
-                            isinstance(params_node, Tree)
-                            and params_node.data == "parameters"
-                        ):
-                            for param in params_node.children:
-                                if isinstance(param, Token):
-                                    self.defined_vars.add(str(param.value))
+        # Check for function definitions
+        if (
+            tree.data == "function_def"
+            and tree.children
+            and isinstance(tree.children[0], Token)
+        ):
+            func_name = str(tree.children[0].value)
+            self.user_functions.add(func_name)
 
-            # Check for assignment nodes
-            elif tree.data in {
+        # Recursively process children
+        for child in tree.children:
+            self._collect_user_functions(child)
+
+    def _check_undefined_variables_scoped(self, node: Tree | Token) -> None:
+        """Check for undefined variables with proper block scope tracking.
+
+        This method walks the tree in execution order, tracking scopes as it
+        enters/exits blocks. Variables are declared on first assignment in
+        their current scope.
+
+        GenExpr uses strict block scoping:
+        - Variables assigned in if/else blocks are NOT visible outside
+        - Variables must be declared in outer scope before if/else to be
+          visible after
+
+        Args:
+            node: AST node to check.
+        """
+        if isinstance(node, Token):
+            return
+
+        if not isinstance(node, Tree):
+            return
+
+        # Handle different AST node types
+        if node.data == "if_statement":
+            self._check_if_statement_scoped(node)
+        elif node.data in ("for_loop", "while_loop"):
+            self._check_loop_scoped(node)
+        elif node.data == "function_def":
+            self._check_function_def_scoped(node)
+        elif node.data in {
+            "assignment",
+            "compound_assignment",
+            "simple_assignment",
+            "simple_compound_assignment",
+        }:
+            self._check_assignment_scoped(node)
+        elif node.data == "block":
+            # Block inside a control structure - scope already pushed
+            for child in node.children:
+                self._check_undefined_variables_scoped(child)
+        elif node.data in ("start", "statement"):
+            # Container nodes - just process children in order
+            for child in node.children:
+                self._check_undefined_variables_scoped(child)
+        elif node.data == "return_statement":
+            # Return statement - check the expression
+            for child in node.children:
+                self._check_expression_for_undefined(child)
+        else:
+            # For expression nodes, check for undefined variables
+            # This handles conditions, arithmetic, etc.
+            self._check_expression_for_undefined(node)
+
+    def _check_if_statement_scoped(self, node: Tree) -> None:
+        """Handle if statement with proper scoping.
+
+        Structure: if_statement: IF "(" expression ")" block
+                   (else_if_clause)* (else_clause)?
+
+        Args:
+            node: if_statement AST node.
+        """
+        # Process children in order
+        for child in node.children:
+            if isinstance(child, Token):
+                continue
+
+            if isinstance(child, Tree):
+                if child.data == "block":
+                    # if-block gets its own scope
+                    self.scope.push_scope()
+                    for block_child in child.children:
+                        self._check_undefined_variables_scoped(block_child)
+                    self.scope.pop_scope()
+                elif child.data == "else_if_clause":
+                    # else if: condition + block
+                    for else_if_child in child.children:
+                        if isinstance(else_if_child, Tree):
+                            if else_if_child.data == "block":
+                                self.scope.push_scope()
+                                for block_child in else_if_child.children:
+                                    self._check_undefined_variables_scoped(block_child)
+                                self.scope.pop_scope()
+                            else:
+                                # Condition expression
+                                self._check_expression_for_undefined(else_if_child)
+                elif child.data == "else_clause":
+                    # else: just a block
+                    for else_child in child.children:
+                        if isinstance(else_child, Tree) and else_child.data == "block":
+                            self.scope.push_scope()
+                            for block_child in else_child.children:
+                                self._check_undefined_variables_scoped(block_child)
+                            self.scope.pop_scope()
+                else:
+                    # Condition expression
+                    self._check_expression_for_undefined(child)
+
+    def _check_loop_scoped(self, node: Tree) -> None:
+        """Handle for/while loops with proper scoping.
+
+        Args:
+            node: for_loop or while_loop AST node.
+        """
+        if node.data == "for_loop":
+            # for_loop: FOR "(" for_init ";" expression ";" for_step ")" block
+            # for_init is in outer scope, loop body in inner scope
+            for child in node.children:
+                if isinstance(child, Tree):
+                    if child.data == "for_init":
+                        # Init is in outer scope
+                        self._check_assignment_scoped(child.children[0])
+                    elif child.data == "block":
+                        # Loop body in new scope
+                        self.scope.push_scope()
+                        for block_child in child.children:
+                            self._check_undefined_variables_scoped(block_child)
+                        self.scope.pop_scope()
+                    elif child.data == "for_step":
+                        # Step happens in outer scope
+                        if child.children:
+                            step_child = child.children[0]
+                            if isinstance(step_child, Tree):
+                                self._check_assignment_scoped(step_child)
+                            elif isinstance(step_child, Token):
+                                # i++ or i-- case
+                                var_name = str(step_child.value)
+                                if not self.scope.is_visible(var_name):
+                                    self._add_undefined_var_diagnostic(step_child)
+                    else:
+                        # Condition
+                        self._check_expression_for_undefined(child)
+        else:
+            # while_loop: WHILE "(" expression ")" block
+            for child in node.children:
+                if isinstance(child, Tree):
+                    if child.data == "block":
+                        self.scope.push_scope()
+                        for block_child in child.children:
+                            self._check_undefined_variables_scoped(block_child)
+                        self.scope.pop_scope()
+                    else:
+                        # Condition
+                        self._check_expression_for_undefined(child)
+
+    def _check_function_def_scoped(self, node: Tree) -> None:
+        """Handle function definition with proper scoping.
+
+        Args:
+            node: function_def AST node.
+        """
+        # function_def: NAME "(" parameters ")" block
+        # Function body gets new scope with parameters added
+        self.scope.push_scope()
+
+        # Add function parameters to scope
+        for child in node.children:
+            if isinstance(child, Tree) and child.data == "parameters":
+                for param in child.children:
+                    if isinstance(param, Token):
+                        self.scope.declare(str(param.value))
+
+        # Process function body
+        for child in node.children:
+            if isinstance(child, Tree) and child.data == "block":
+                for block_child in child.children:
+                    self._check_undefined_variables_scoped(block_child)
+
+        self.scope.pop_scope()
+
+    def _check_assignment_scoped(self, node: Tree) -> None:
+        """Handle assignment with scope tracking.
+
+        First checks RHS for undefined variables, then declares LHS.
+
+        Args:
+            node: assignment or compound_assignment AST node.
+        """
+        if not node.children:
+            return
+
+        var_token = node.children[0]
+        if not isinstance(var_token, Token):
+            return
+
+        var_name = str(var_token.value)
+
+        # For compound assignment, variable must already exist
+        if node.data in {
+            "compound_assignment",
+            "simple_compound_assignment",
+        } and not self.scope.is_visible(var_name):
+            self._add_undefined_var_diagnostic(var_token)
+
+        # Check RHS expression for undefined variables
+        for child in node.children[1:]:
+            self._check_expression_for_undefined(child)
+
+        # Declare variable in current scope (first assignment = declaration)
+        self.scope.declare(var_name)
+
+        # Track out1 assignment
+        if var_name == "out1":
+            self.has_out1_assignment = True
+
+    def _check_expression_for_undefined(self, node: Tree | Token) -> None:
+        """Check an expression for undefined variable uses.
+
+        Args:
+            node: Expression AST node or token.
+        """
+        if isinstance(node, Token):
+            if node.type == "NAME":
+                var_name = str(node.value)
+                self.used_vars.add(var_name)
+
+                # Skip if it's a function name or already visible
+                if var_name in self.user_functions:
+                    return
+                if not self.scope.is_visible(var_name):
+                    self._add_undefined_var_diagnostic(node)
+        elif isinstance(node, Tree):
+            # Skip function name in function calls
+            if node.data == "function_call":
+                # Only check arguments, not the function name
+                if len(node.children) > 1:
+                    self._check_expression_for_undefined(node.children[1])
+                return
+
+            # For assignment nodes, skip LHS (handled by _check_assignment_scoped)
+            if node.data in {
                 "assignment",
                 "compound_assignment",
                 "simple_assignment",
                 "simple_compound_assignment",
             }:
-                if tree.children and isinstance(tree.children[0], Token):
-                    var_name = str(tree.children[0].value)
-                    self.defined_vars.add(var_name)
-                    if var_name == "out1":
-                        self.has_out1_assignment = True
+                return
 
-            # Check for loop variables in for_step (i++, j--)
-            elif (
-                tree.data == "for_step"
-                and tree.children
-                and isinstance(tree.children[0], Token)
-            ):
-                var_name = str(tree.children[0].value)
-                self.defined_vars.add(var_name)
+            # Recursively check children
+            for child in node.children:
+                self._check_expression_for_undefined(child)
 
-            # Recursively process children
-            for child in tree.children:
-                self._collect_definitions(child)
+    def _add_undefined_var_diagnostic(self, token: Token) -> None:
+        """Add an undefined variable diagnostic.
+
+        Args:
+            token: The NAME token for the undefined variable.
+        """
+        var_name = str(token.value)
+        self.diagnostics.append(
+            self._make_diagnostic(
+                token,
+                DiagnosticSeverity.WARNING,
+                f"Variable '{var_name}' used before assignment",
+                "undefined-variable",
+            )
+        )
 
     def assignment(self, tree: Tree) -> None:
         """Handle assignment statements.
@@ -470,71 +796,6 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
                     swizzle_token, DiagnosticSeverity.ERROR, msg, "swizzle-chars"
                 )
             )
-
-    def _check_undefined_variables(self, node: Tree | Token) -> None:
-        """Check for undefined variables by walking the tree manually.
-
-        This method walks the tree to find all NAME tokens and check if they
-        are defined. We need to skip NAME tokens in certain contexts:
-        - Left side of assignments (handled by _collect_definitions)
-        - Function names (handled by function_call validation)
-        - Loop variable declarations
-
-        Args:
-            node: AST node to check.
-        """
-        if isinstance(node, Token):
-            # Check NAME tokens for undefined variables
-            if node.type == "NAME":
-                var_name = str(node.value)
-
-                # Track variable usage for unused param detection
-                self.used_vars.add(var_name)
-
-                # Skip if it's a builtin, common variable, declared param,
-                # user-defined function, or already defined
-                if (
-                    var_name in BUILTIN_VARIABLES
-                    or var_name in BUILTIN_FUNCTIONS
-                    or var_name in COMMON_VARIABLES
-                    or var_name in self.declared_params
-                    or var_name in self.user_functions
-                    or var_name in self.defined_vars
-                ):
-                    return
-
-                # Variable is used but not defined
-                self.diagnostics.append(
-                    self._make_diagnostic(
-                        node,
-                        DiagnosticSeverity.WARNING,
-                        f"Variable '{var_name}' used before assignment",
-                        "undefined-variable",
-                    )
-                )
-        elif isinstance(node, Tree):
-            # Skip checking children in assignment left-hand side
-            if node.data in {
-                "assignment",
-                "compound_assignment",
-                "simple_assignment",
-                "simple_compound_assignment",
-            }:
-                # Don't check the first child (variable name being assigned to)
-                # Only check the expression being assigned (right side)
-                for i, child in enumerate(node.children):
-                    if i == 0:
-                        continue  # Skip LHS variable name
-                    self._check_undefined_variables(child)
-            elif node.data == "function_call":
-                # Don't check the function name (first child)
-                # Only check the arguments (second child)
-                if len(node.children) > 1:
-                    self._check_undefined_variables(node.children[1])
-            else:
-                # For other nodes, recursively check all children
-                for child in node.children:
-                    self._check_undefined_variables(child)
 
     def _extract_identifier(self, node: Tree | Token | Any) -> str | None:
         """Extract an identifier name from a node.

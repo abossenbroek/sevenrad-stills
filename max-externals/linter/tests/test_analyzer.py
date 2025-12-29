@@ -32,7 +32,9 @@ def test_undefined_variable_detection() -> None:
     assert len(undefined_errors) == 0, "Builtins should not trigger undefined warnings"
     print("✓ Builtins (in1, norm) don't trigger undefined warnings")
 
-    # Test that common variables don't trigger warnings
+    # Test that common variable NAMES (i, j, x, y) DO trigger warnings when not declared
+    # These are just commonly used names, not pre-defined variables
+    # GenExpr requires all variables to be declared before use
     tree = parser.parse("out1 = vec4(i, j, x, y);")
     diagnostics = analyzer.analyze(tree)
     undefined_errors = [
@@ -40,8 +42,23 @@ def test_undefined_variable_detection() -> None:
         for d in diagnostics
         if "undefined" in d.message.lower() or "before assignment" in d.message.lower()
     ]
-    assert len(undefined_errors) == 0, "Common variables should not trigger warnings"
-    print("✓ Common variables (i, j, x, y) don't trigger warnings")
+    assert (
+        len(undefined_errors) == 4
+    ), "Undeclared common variables should trigger warnings"
+    print("✓ Undeclared common variables (i, j, x, y) correctly trigger warnings")
+
+    # Test that declared common variable names work
+    tree = parser.parse("i = 1; j = 2; x = 3; y = 4; out1 = vec4(i, j, x, y);")
+    diagnostics = analyzer.analyze(tree)
+    undefined_errors = [
+        d
+        for d in diagnostics
+        if "undefined" in d.message.lower() or "before assignment" in d.message.lower()
+    ]
+    assert (
+        len(undefined_errors) == 0
+    ), "Declared common variables should not trigger warnings"
+    print("✓ Declared common variables (i, j, x, y) don't trigger warnings")
 
 
 def test_function_validation() -> None:

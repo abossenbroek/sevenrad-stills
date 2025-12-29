@@ -37,6 +37,7 @@ class ExtractedShader:
     source_file: Path
     box_id: str | None = None
     params: list[ExtractedParam] = field(default_factory=list)
+    had_crlf: bool = False  # True if original code had Windows line endings
 
 
 class GenjitExtractor:
@@ -99,6 +100,15 @@ class GenjitExtractor:
                 if not code.strip():
                     continue
 
+                # Detect and normalize line endings (CRLF -> LF)
+                had_crlf = "\r\n" in code
+                if had_crlf:
+                    code = code.replace("\r\n", "\n")
+                    logger.warning(
+                        f"{filepath}: Codebox '{box.get('id', 'unknown')}' "
+                        "has Windows line endings (\\r\\n) - normalizing to LF"
+                    )
+
                 # Detect language
                 language = self._detect_language(code)
 
@@ -109,6 +119,7 @@ class GenjitExtractor:
                         source_file=filepath,
                         box_id=box.get("id"),
                         params=params,
+                        had_crlf=had_crlf,
                     )
                 )
 
