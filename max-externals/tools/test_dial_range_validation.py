@@ -35,14 +35,24 @@ def test_calculate_dial_range() -> None:
     assert abs(max_out - 1000.0) < 0.001, f"Expected max 1000.0, got {max_out}"
     print("PASS: test_calculate_dial_range - seed 0-1000")
 
-    # Scale 0.01-1 range: size=99, min=1, mult=0.01
+    # Test with min=1: demonstrates wrong dial config produces [1.0, 1.99]
+    # (min=1 should be min=0.01 for a 0.01-1.0 range)
     dial_box = {"size": 99.0, "min": 1.0, "mult": 0.01}
+    dial_range = linter._calculate_dial_range(dial_box)
+    assert dial_range is not None, "Expected valid range"
+    min_out, max_out = dial_range
+    assert abs(min_out - 1.0) < 0.001, f"Expected min 1.0, got {min_out}"
+    assert abs(max_out - 1.99) < 0.001, f"Expected max 1.99, got {max_out}"
+    print("PASS: test_calculate_dial_range - min=1 produces [1.0, 1.99]")
+
+    # Correct 0.01-1 range: size=99, min=0.01, mult=0.01
+    dial_box = {"size": 99.0, "min": 0.01, "mult": 0.01}
     dial_range = linter._calculate_dial_range(dial_box)
     assert dial_range is not None, "Expected valid range"
     min_out, max_out = dial_range
     assert abs(min_out - 0.01) < 0.001, f"Expected min 0.01, got {min_out}"
     assert abs(max_out - 1.0) < 0.001, f"Expected max 1.0, got {max_out}"
-    print("PASS: test_calculate_dial_range - scale 0.01-1")
+    print("PASS: test_calculate_dial_range - correct 0.01-1 range")
 
     # Default values (should use size=100, min=0, mult=0.01)
     # FIXED: Default mult is 0.01 (not 1.0), so output range is [0, 1]

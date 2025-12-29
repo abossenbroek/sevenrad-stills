@@ -48,7 +48,7 @@
 						600.0,
 						40.0
 					],
-					"text": "Reduces effective resolution to create pixelated/retro look.\nscale 0.5 = half resolution, scale 0.1 = heavy pixelation"
+					"text": "Reduces effective resolution to create pixelated/retro look.\nscale 0 = no effect, scale 0.5 = 16px blocks, scale 1 = 256px blocks"
 				}
 			},
 			{
@@ -186,7 +186,7 @@
 						150.0,
 						20.0
 					],
-					"text": "Scale: 0.01 - 1.0"
+					"text": "Scale: 0=none, 1=max (256px)"
 				}
 			},
 			{
@@ -204,9 +204,10 @@
 						40.0,
 						40.0
 					],
-					"size": 99.0,
-					"min": 1.0,
-					"mult": 0.01
+					"size": 100.0,
+					"min": 0.0,
+					"mult": 0.01,
+					"floatoutput": 1
 				}
 			},
 			{
@@ -225,7 +226,7 @@
 						60.0,
 						22.0
 					],
-					"minimum": 0.01,
+					"minimum": 0.0,
 					"maximum": 1.0
 				}
 			},
@@ -259,7 +260,7 @@
 						200.0,
 						20.0
 					],
-					"text": "Pixelate Mode: 0=off, 1=on"
+					"text": "Pixelate: 0=pass-through, 1=pixelate"
 				}
 			},
 			{
@@ -363,7 +364,7 @@
 						480.0,
 						22.0
 					],
-					"text": "jit.gl.pix sr_downscale_ctx @gen sr.downscale @scale 0.25 @pixelate 1 @method 0"
+					"text": "jit.gl.pix sr_downscale_ctx @gen sr.downscale @scale 0.5 @pixelate 1 @method 0"
 				}
 			},
 			{
@@ -396,7 +397,7 @@
 						200.0,
 						60.0
 					],
-					"text": "Pixelate: creates blocky pixels\nDownscale: shrinks image\nNearest: sharp edges\nBilinear: smooth interpolation"
+					"text": "Pixelate ON: creates blocky pixels\nPixelate OFF: pass-through (no effect)\nNearest: sharp edges\nBilinear: smooth interpolation"
 				}
 			}
 		],

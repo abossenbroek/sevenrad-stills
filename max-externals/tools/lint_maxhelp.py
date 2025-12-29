@@ -1296,7 +1296,7 @@ class MaxhelpLinter:
 
         Max/MSP Dial Behavior:
             - User rotates dial: position ∈ [0, size]
-            - Output value = (min + position) * mult
+            - Output value = (position * mult) + min
             - When mult < 0, output range is reversed
             - Default values: size=100, min=0, mult=0.01
 
@@ -1335,8 +1335,9 @@ class MaxhelpLinter:
             return (min_val, min_val)
 
         # Calculate outputs at both ends
-        output_at_0 = min_val * mult
-        output_at_size = (min_val + size) * mult
+        # Max dial formula: output = (position * mult) + min
+        output_at_0 = 0 * mult + min_val  # = min_val
+        output_at_size = size * mult + min_val
 
         # Return in sorted order (handles negative mult)
         return (min(output_at_0, output_at_size), max(output_at_0, output_at_size))
