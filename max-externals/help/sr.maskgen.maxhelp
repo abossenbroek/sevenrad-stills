@@ -588,12 +588,30 @@
 			},
 			{
 				"box": {
+					"id": "obj-gap-init",
+					"maxclass": "message",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						700.0,
+						260.0,
+						50.0,
+						22.0
+					],
+					"text": "0.22"
+				}
+			},
+			{
+				"box": {
 					"id": "obj-maskgen",
 					"maxclass": "newobj",
 					"numinlets": 1,
 					"numoutlets": 1,
 					"outlettype": [
-						""
+						"jit_matrix"
 					],
 					"patching_rect": [
 						30.0,
@@ -1010,6 +1028,30 @@
 					],
 					"destination": [
 						"obj-height-num",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-loadbang",
+						0
+					],
+					"destination": [
+						"obj-gap-init",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-gap-init",
+						0
+					],
+					"destination": [
+						"obj-gap-num",
 						0
 					]
 				}

@@ -48,6 +48,7 @@ typedef struct _sr_maskgen {
 
     /* Jitter matrix */
     void *matrix;             /* Output matrix */
+    t_symbol *matrixname;     /* Registered matrix name for lookup */
 } t_sr_maskgen;
 
 /* Global class pointer */
@@ -136,22 +137,27 @@ void *sr_maskgen_new(t_symbol *s, long argc, t_atom *argv) {
         x->width = 512;
         x->height = 512;
 
-        /* Create jit.matrix - passing NULL lets Jitter auto-generate a unique name */
-        x->matrix = jit_object_new(gensym("jit_matrix"));
-        if (!x->matrix) {
-            object_error((t_object *)x, "Failed to create jit.matrix");
-            object_free((t_object *)x);
-            return NULL;
-        }
+        /* Generate unique name for matrix registration */
+        x->matrixname = jit_symbol_unique();
 
-        /* Configure matrix properties via setinfo */
+        /* Configure matrix properties */
         jit_matrix_info_default(&minfo);
         minfo.type = gensym("float32");
         minfo.planecount = 1;
         minfo.dimcount = 2;
         minfo.dim[0] = x->width;
         minfo.dim[1] = x->height;
-        jit_object_method(x->matrix, gensym("setinfo"), &minfo);
+
+        /* Create jit.matrix with info struct */
+        x->matrix = jit_object_new(gensym("jit_matrix"), &minfo);
+        if (!x->matrix) {
+            object_error((t_object *)x, "Failed to create jit.matrix");
+            object_free((t_object *)x);
+            return NULL;
+        }
+
+        /* CRITICAL: Register matrix with Jitter's object registry for name lookup */
+        x->matrix = jit_object_register(x->matrix, x->matrixname);
 
         /* Process attributes */
         attr_args_process(x, argc, argv);
@@ -165,6 +171,7 @@ void *sr_maskgen_new(t_symbol *s, long argc, t_atom *argv) {
  */
 void sr_maskgen_free(t_sr_maskgen *x) {
     if (x->matrix) {
+        jit_object_unregister(x->matrix);  /* Unregister from Jitter's registry */
         jit_object_free(x->matrix);
     }
 }
@@ -178,8 +185,9 @@ void sr_maskgen_free(t_sr_maskgen *x) {
 void sr_maskgen_bang(t_sr_maskgen *x) {
     void *matrix_data = NULL;
     t_jit_matrix_info minfo;
-    float *fp = NULL;
+    char *bp = NULL;  /* byte pointer for stride-based access */
     long y, offset_row;
+    long rowstride;   /* row stride in bytes */
 
     /* Validate parameters */
     if (x->width <= 0 || x->height <= 0) {
@@ -194,6 +202,10 @@ void sr_maskgen_bang(t_sr_maskgen *x) {
     minfo.dim[1] = x->height;
     jit_object_method(x->matrix, gensym("setinfo"), &minfo);
 
+    /* CRITICAL: Re-fetch info after setinfo to get actual stride values */
+    jit_object_method(x->matrix, gensym("getinfo"), &minfo);
+    rowstride = minfo.dimstride[1];
+
     /* Get matrix data pointer (must re-get after dimension change) */
     jit_object_method(x->matrix, gensym("getdata"), &matrix_data);
 
@@ -202,11 +214,14 @@ void sr_maskgen_bang(t_sr_maskgen *x) {
         return;
     }
 
-    fp = (float *)matrix_data;
+    bp = (char *)matrix_data;
 
-    /* Initialize mask to 1.0 (valid data) */
-    for (long idx = 0; idx < x->width * x->height; idx++) {
-        fp[idx] = 1.0f;
+    /* Initialize mask to 1.0 (valid data) using proper stride */
+    for (long row = 0; row < x->height; row++) {
+        float *row_ptr = (float *)(bp + row * rowstride);
+        for (long col = 0; col < x->width; col++) {
+            row_ptr[col] = 1.0f;
+        }
     }
 
     /* Calculate center row */
@@ -263,9 +278,10 @@ void sr_maskgen_bang(t_sr_maskgen *x) {
                         if (gap_start < 0) gap_start = 0;
                         if (gap_end > x->width) gap_end = x->width;
 
-                        /* Fill gap pixels (0.0 = gap) */
+                        /* Fill gap pixels (0.0 = gap) using stride-based access */
+                        float *gap_row = (float *)(bp + actual_y * rowstride);
                         for (long gap_x = gap_start; gap_x < gap_end; gap_x++) {
-                            fp[actual_y * x->width + gap_x] = 0.0f;
+                            gap_row[gap_x] = 0.0f;
                         }
                     }
                 }
@@ -275,9 +291,9 @@ void sr_maskgen_bang(t_sr_maskgen *x) {
         }
     }
 
-    /* Output the matrix */
+    /* Output the matrix using the registered name */
     t_atom a;
-    atom_setsym(&a, jit_attr_getsym(x->matrix, gensym("name")));
+    atom_setsym(&a, x->matrixname);
     outlet_anything(x->outlet, gensym("jit_matrix"), 1, &a);
 }
 

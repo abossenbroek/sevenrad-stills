@@ -49,6 +49,9 @@ except ImportError:
     GenExprValidator = None
     LSPSeverity = None
 
+# Jitter objects that display/render images (inlet 0 expects matrix or texture)
+JITTER_DISPLAY_SINKS = {"jit.pwindow", "jit.window"}
+
 
 class Severity(Enum):
     """Validation message severity levels."""
@@ -269,11 +272,11 @@ class MaxhelpLinter:
             return "matrix"
         return None
 
-    def _get_expected_inlet_type(self, box: dict[str, Any], _inlet_idx: int) -> str:
+    def _get_expected_inlet_type(self, box: dict[str, Any], inlet_idx: int) -> str:
         """
         Determine the expected type of data for an inlet.
 
-        Returns one of: 'texture', 'matrix', 'any', 'unknown'
+        Returns one of: 'texture', 'matrix', 'matrix_or_texture', 'any', 'unknown'
         """
         text = box.get("text", "")
         maxclass = box.get("maxclass", "")
@@ -282,9 +285,14 @@ class MaxhelpLinter:
         if "jit.gl.pix" in text:
             return "texture"
 
-        # jit.pwindow can accept either texture or matrix
-        if maxclass == "jit.pwindow":
-            return "any"
+        # Jitter display sinks expect matrix or texture on inlet 0
+        is_display_sink = maxclass in JITTER_DISPLAY_SINKS or any(
+            sink in text for sink in JITTER_DISPLAY_SINKS
+        )
+        if is_display_sink:
+            if inlet_idx == 0:
+                return "matrix_or_texture"
+            return "any"  # Other inlets can receive messages
 
         # jit.matrix objects expect matrix
         if "jit.matrix" in text and "@output_texture" not in text:
@@ -348,10 +356,12 @@ class MaxhelpLinter:
         valid &= self._validate_signal_flow()
         valid &= self._validate_inlet_connections()
         valid &= self._validate_connection_types()
+        valid &= self._validate_display_sink_sources()
         valid &= self._validate_metadata()
         valid &= self._validate_parameter_ui()
         valid &= self._validate_dial_param_ranges()
         valid &= self._validate_no_overlaps()
+        valid &= self._validate_param_initialization()
 
         return valid
 
@@ -719,6 +729,84 @@ class MaxhelpLinter:
                     "Info outlets typically output metadata, not image data.",
                     f"{src_box_id} → {dst_box_id}",
                 )
+
+            # matrix_or_texture expects either matrix or texture
+            if inlet_type == "matrix_or_texture":
+                if outlet_type in ("texture", "matrix"):
+                    continue  # Valid
+                # Invalid - warn with actionable message
+                self.warning(
+                    "connection-type",
+                    f"'{src_text}' outlet {src[2]} has type '{outlet_type}' "
+                    f"but '{dst_text}' expects matrix or texture. "
+                    f"May cause runtime error.",
+                    f"{src_box_id} → {dst_box_id}",
+                )
+
+        return valid
+
+    def _validate_display_sink_sources(self) -> bool:
+        """
+        Validate sources feeding Jitter display sinks have valid image types.
+
+        Jitter display sinks (jit.pwindow, jit.window) expect matrix or texture
+        data on inlet 0. This validation warns when sources have ambiguous
+        outlet types that may cause 'object is not a valid matrix' runtime errors.
+        """
+        valid = True
+
+        for box_id, box in self.boxes.items():
+            maxclass = box.get("maxclass", "")
+            text = box.get("text", "")
+
+            # Check if this is a Jitter display sink
+            is_display_sink = maxclass in JITTER_DISPLAY_SINKS or any(
+                sink in text for sink in JITTER_DISPLAY_SINKS
+            )
+
+            if not is_display_sink:
+                continue
+
+            # Find all sources connected to inlet 0
+            inlet_node = (box_id, "in", 0)
+            if inlet_node not in self.graph:
+                continue
+
+            for pred in self.graph.predecessors(inlet_node):
+                # Only check outlet connections (skip box-level edges)
+                if len(pred) < 3 or pred[1] != "out":
+                    continue
+
+                src_box_id = pred[0]
+                src_outlet = pred[2]
+                src_box = self.boxes.get(src_box_id, {})
+
+                outlet_type = self._get_outlet_type(src_box, src_outlet)
+                src_text = src_box.get("text", src_box.get("maxclass", ""))
+
+                # Valid: texture or matrix
+                if outlet_type in ("texture", "matrix"):
+                    continue
+
+                # Invalid: bang_or_message, info, unknown
+                if outlet_type == "bang_or_message":
+                    self.warning(
+                        "display-sink-type",
+                        f"Object '{src_text}' has outlet type '{outlet_type}' "
+                        f"but connects to {maxclass} which expects matrix/texture. "
+                        f"This may cause 'object is not a valid matrix' error. "
+                        f"If this object outputs a matrix, set outlettype to "
+                        f"['jit_matrix'].",
+                        f"{src_box_id} → {box_id}",
+                    )
+                elif outlet_type in ("info", "unknown"):
+                    self.warning(
+                        "display-sink-type",
+                        f"Object '{src_text}' has ambiguous outlet type "
+                        f"'{outlet_type}' connecting to {maxclass}. "
+                        f"Verify this produces valid image data.",
+                        f"{src_box_id} → {box_id}",
+                    )
 
         return valid
 
@@ -1536,6 +1624,74 @@ class MaxhelpLinter:
                             f"[{param_min}, {param_max}]. May be intentional.",
                             dial_id,
                         )
+
+        return valid
+
+    def _validate_param_initialization(self) -> bool:
+        """
+        Validate that parameter controls are initialized from loadbang.
+
+        Finds flonum/number boxes that feed parameter messages and checks if they
+        have an initialization path from loadbang. Without initialization, controls
+        default to 0 which may override object attributes and cause unexpected behavior.
+
+        Returns:
+            True if all param controls are properly initialized, False otherwise
+        """
+        valid = True
+
+        # Find loadbang objects
+        loadbangs = [
+            b
+            for b in self._find_boxes_by_maxclass("newobj")
+            if "loadbang" in self._get_box_text(b)
+        ]
+
+        if not loadbangs:
+            # No loadbang - can't validate initialization
+            return valid
+
+        # Find parameter messages (those with "$1" or fixed values)
+        param_messages = self._find_param_messages()
+        if not param_messages:
+            return valid
+
+        # For each parameter message, find connected flonum/number boxes
+        for param_name, msg_ids in param_messages.items():
+            for msg_id in msg_ids:
+                # Find flonum/number boxes that connect to this message
+                for line in self.data.get("patcher", {}).get("lines", []):
+                    patchline = line.get("patchline", {})
+                    dst = patchline.get("destination", [])
+                    src = patchline.get("source", [])
+
+                    if len(dst) >= 2 and dst[0] == msg_id:
+                        src_box_id = src[0]
+                        src_box = self.boxes.get(src_box_id, {})
+                        src_maxclass = src_box.get("maxclass", "")
+
+                        # Check if source is flonum or number
+                        if src_maxclass in ("flonum", "number"):
+                            # Check if flonum/number has initialization from loadbang
+                            has_init = False
+                            for lb_id in loadbangs:
+                                try:
+                                    if nx.has_path(
+                                        self.graph, (lb_id, "box"), (src_box_id, "box")
+                                    ):
+                                        has_init = True
+                                        break
+                                except nx.NetworkXError:
+                                    pass
+
+                            if not has_init:
+                                self.warning(
+                                    "param-init",
+                                    f"Parameter '{param_name}' control ({src_maxclass}) "
+                                    f"not initialized from loadbang. "
+                                    f"Will default to 0, potentially overriding object attributes.",
+                                    src_box_id,
+                                )
 
         return valid
 
