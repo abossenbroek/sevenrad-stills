@@ -186,8 +186,12 @@ void sr_maskgen_bang(t_sr_maskgen *x) {
     void *matrix_data = NULL;
     t_jit_matrix_info minfo;
     char *bp = NULL;  /* byte pointer for stride-based access */
-    long y, offset_row;
+    long y;
     long rowstride;   /* row stride in bytes */
+
+    /* Debug: show current parameters */
+    post("sr.maskgen: bang called - gap_width=%f, scan_period=%ld, width=%ld, height=%ld",
+         x->gap_width, x->scan_period, x->width, x->height);
 
     /* Validate parameters */
     if (x->width <= 0 || x->height <= 0) {
@@ -224,71 +228,72 @@ void sr_maskgen_bang(t_sr_maskgen *x) {
         }
     }
 
-    /* Calculate center row */
-    long center_y = x->height / 2;
-
-    /* Diagonal offset per row (simulates satellite forward motion) */
-    const float diagonal_offset_per_row = 0.3f;
+    /* Calculate center column (nadir position) */
+    long center_x = x->width / 2;
 
     /* Track scan line number for alternating direction */
     long scan_line_number = 0;
 
-    /* Generate SLC-off diagonal wedge pattern */
-    for (y = 0; y < x->height; y++) {
-        /* Check if this is a scan line start (every scan_period rows) */
-        long scan_line_index = y % x->scan_period;
+    /*
+     * Generate SLC-off diagonal wedge pattern (USGS-accurate)
+     *
+     * Real Landsat 7 SLC-off pattern characteristics:
+     * - Gap width: 1-2 pixels at nadir (center), 12-14 pixels at edges
+     * - Multiple parallel horizontal stripes at scan_period intervals
+     * - Each stripe is wedge-shaped: thick at edges, thin at center
+     *
+     * Reference: USGS Landsat 7 ETM+ SLC-off FAQ
+     */
+    for (y = 0; y < x->height; y += x->scan_period) {
+        /* Center of this scan period */
+        long scan_midpoint = y + x->scan_period / 2;
 
-        if (scan_line_index == 0) {
-            /* Calculate gap width at this distance from center */
-            float row_distance = fabsf((float)(y - center_y)) / ((float)x->height / 2.0f);
-            long current_gap_width = (long)(row_distance * x->gap_width * (float)x->width);
+        /* Alternating direction for zig-zag pattern */
+        long scan_direction = (scan_line_number % 2 == 0) ? 1 : -1;
 
-            if (current_gap_width > 0) {
-                /* Determine scan direction (alternating for zig-zag pattern) */
-                long scan_direction = (scan_line_number % 2 == 0) ? 1 : -1;
+        /* Process each column - gap height varies with X distance from nadir */
+        for (long col = 0; col < x->width; col++) {
+            /* Distance from nadir (center of image width) - normalized 0..1 */
+            float distance_from_nadir = fabsf((float)(col - center_x)) /
+                                        ((float)x->width / 2.0f);
 
-                /* Create diagonal gap across multiple rows */
-                long max_offset = (x->height - y < x->scan_period) ?
-                                  (x->height - y) : x->scan_period;
+            /*
+             * Gap height at this X position (in rows)
+             * At nadir (center): 0-1 rows (minimal gap)
+             * At edges: up to gap_width * scan_period rows
+             */
+            long gap_height = (long)(distance_from_nadir *
+                                     x->gap_width *
+                                     (float)x->scan_period);
 
-                for (offset_row = 0; offset_row < max_offset; offset_row++) {
-                    long actual_y = y + offset_row;
-                    if (actual_y >= x->height) {
-                        break;
-                    }
+            /* Skip if no gap at this X position (preserves valid data at nadir) */
+            if (gap_height < 1) continue;
 
-                    /* Calculate diagonal offset for this row */
-                    long diagonal_shift = (long)(diagonal_offset_per_row *
-                                                 (float)offset_row *
-                                                 (float)scan_direction);
+            /* Don't let gap exceed half the scan period */
+            if (gap_height > x->scan_period / 2) {
+                gap_height = x->scan_period / 2;
+            }
 
-                    /* Gap width at this distance from center */
-                    float actual_row_distance = fabsf((float)(actual_y - center_y)) /
-                                               ((float)x->height / 2.0f);
-                    long row_gap_width = (long)(actual_row_distance * x->gap_width *
-                                               (float)x->width);
+            /* Calculate gap bounds centered at scan midpoint */
+            long gap_start = scan_midpoint - gap_height / 2;
+            long gap_end = scan_midpoint + gap_height / 2;
 
-                    if (row_gap_width > 0) {
-                        /* Center gap position with diagonal shift */
-                        long gap_center = x->width / 2 + diagonal_shift;
-                        long gap_start = gap_center - row_gap_width / 2;
-                        long gap_end = gap_center + row_gap_width / 2;
+            /* Apply diagonal shift for zig-zag pattern */
+            long diagonal_shift = (long)(0.3f * distance_from_nadir *
+                                         (float)x->scan_period * scan_direction);
+            gap_start += diagonal_shift;
+            gap_end += diagonal_shift;
 
-                        /* Clamp to valid range */
-                        if (gap_start < 0) gap_start = 0;
-                        if (gap_end > x->width) gap_end = x->width;
-
-                        /* Fill gap pixels (0.0 = gap) using stride-based access */
-                        float *gap_row = (float *)(bp + actual_y * rowstride);
-                        for (long gap_x = gap_start; gap_x < gap_end; gap_x++) {
-                            gap_row[gap_x] = 0.0f;
-                        }
-                    }
+            /* Mark gap pixels (single contiguous region) */
+            for (long row = gap_start; row < gap_end && row < x->height; row++) {
+                if (row >= 0) {
+                    float *row_ptr = (float *)(bp + row * rowstride);
+                    row_ptr[col] = 0.0f;
                 }
-
-                scan_line_number++;
             }
         }
+
+        scan_line_number++;
     }
 
     /* Output the matrix using the registered name */
@@ -301,14 +306,18 @@ void sr_maskgen_bang(t_sr_maskgen *x) {
  * @brief Set gap width.
  */
 void sr_maskgen_gap_width(t_sr_maskgen *x, double f) {
+    post("sr.maskgen: gap_width called with %f", f);
     x->gap_width = (float)SR_CLAMP(f, 0.0, 0.5);
+    post("sr.maskgen: gap_width set to %f", x->gap_width);
 }
 
 /**
  * @brief Set scan period.
  */
 void sr_maskgen_scan_period(t_sr_maskgen *x, long n) {
+    post("sr.maskgen: scan_period called with %ld", n);
     x->scan_period = SR_CLAMP(n, 2, 100);
+    post("sr.maskgen: scan_period set to %ld", x->scan_period);
 }
 
 /**

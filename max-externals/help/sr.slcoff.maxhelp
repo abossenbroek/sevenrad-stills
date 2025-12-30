@@ -512,6 +512,42 @@
 			},
 			{
 				"box": {
+					"id": "obj-gap-init",
+					"maxclass": "message",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						450.0,
+						100.0,
+						40.0,
+						22.0
+					],
+					"text": "0.22"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-scan-init",
+					"maxclass": "message",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						760.0,
+						135.0,
+						30.0,
+						22.0
+					],
+					"text": "16"
+				}
+			},
+			{
+				"box": {
 					"id": "obj-15",
 					"maxclass": "number",
 					"numinlets": 1,
@@ -958,6 +994,54 @@
 					],
 					"destination": [
 						"obj-fill-name",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-20",
+						0
+					],
+					"destination": [
+						"obj-gap-init",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-gap-init",
+						0
+					],
+					"destination": [
+						"obj-7",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-20",
+						0
+					],
+					"destination": [
+						"obj-scan-init",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-scan-init",
+						0
+					],
+					"destination": [
+						"obj-10",
 						0
 					]
 				}

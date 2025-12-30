@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import sys
 from dataclasses import dataclass
@@ -360,8 +361,10 @@ class MaxhelpLinter:
         valid &= self._validate_metadata()
         valid &= self._validate_parameter_ui()
         valid &= self._validate_dial_param_ranges()
+        valid &= self._validate_dial_decimals()
         valid &= self._validate_no_overlaps()
         valid &= self._validate_param_initialization()
+        valid &= self._validate_dial_initialization()
 
         return valid
 
@@ -1627,6 +1630,62 @@ class MaxhelpLinter:
 
         return valid
 
+    def _validate_dial_decimals(self) -> bool:
+        """
+        Validate that dials outputting fractional values have proper decimal display.
+
+        For dials with mult < 1.0, the 'decimals' attribute should be set to
+        show appropriate precision. Required decimals = ceil(-log10(mult)).
+
+        Examples:
+            - mult=0.01 requires decimals >= 2
+            - mult=0.001 requires decimals >= 3
+            - mult=0.1 requires decimals >= 1
+
+        Returns:
+            True if validation passes (no errors), False otherwise
+        """
+        valid = True
+
+        # Find all dial boxes
+        dial_ids = self._find_boxes_by_maxclass("dial")
+
+        for dial_id in dial_ids:
+            dial_box = self.boxes.get(dial_id, {})
+
+            # Get mult attribute (default is 0.01 in Max)
+            mult = dial_box.get("mult", 0.01)
+
+            # Skip if mult >= 1.0 (integer output)
+            if mult >= 1.0:
+                continue
+
+            # Skip if mult is 0 (degenerate case, already warned elsewhere)
+            if mult == 0.0:
+                continue
+
+            # Calculate required decimals: ceil(-log10(mult))
+            # For mult=0.01: -log10(0.01) = 2, ceil(2) = 2
+            # For mult=0.001: -log10(0.001) = 3, ceil(3) = 3
+            try:
+                required_decimals = math.ceil(-math.log10(abs(mult)))
+            except (ValueError, ZeroDivisionError):
+                # Should not happen with mult > 0, but be safe
+                continue
+
+            # Get actual decimals attribute (default is 0 in Max if not specified)
+            actual_decimals = dial_box.get("decimals", 0)
+
+            if actual_decimals < required_decimals:
+                self.warning(
+                    "dial-decimals",
+                    f"Dial has mult={mult} (fractional output) but decimals={actual_decimals}. "
+                    f"Set decimals >= {required_decimals} for proper display precision.",
+                    dial_id,
+                )
+
+        return valid
+
     def _validate_param_initialization(self) -> bool:
         """
         Validate that parameter controls are initialized from loadbang.
@@ -1692,6 +1751,112 @@ class MaxhelpLinter:
                                     f"Will default to 0, potentially overriding object attributes.",
                                     src_box_id,
                                 )
+
+        return valid
+
+    def _validate_dial_initialization(self) -> bool:
+        """
+        Validate that dial objects feeding parameter chains are initialized.
+
+        When a dial feeds a flonum/number that feeds a parameter message, the dial
+        must receive a 'set' message from loadbang to synchronize with the flonum's
+        initial value. Without this, touching the dial will output 0 (its default)
+        before the user's intended value.
+
+        Returns:
+            True if all parameter-feeding dials are properly initialized
+        """
+        valid = True
+
+        # Find loadbang objects
+        loadbangs = [
+            b
+            for b in self._find_boxes_by_maxclass("newobj")
+            if "loadbang" in self._get_box_text(b)
+        ]
+
+        if not loadbangs:
+            return valid
+
+        # Find dial objects
+        dials = self._find_boxes_by_maxclass("dial")
+
+        if not dials:
+            return valid
+
+        # For each dial, check if it feeds a parameter chain
+        for dial_id in dials:
+            # Check if dial connects to flonum/number which connects to parameter msg
+            feeds_param = False
+            for line in self.data.get("patcher", {}).get("lines", []):
+                patchline = line.get("patchline", {})
+                src = patchline.get("source", [])
+                if len(src) >= 2 and src[0] == dial_id:
+                    dst = patchline.get("destination", [])
+                    if len(dst) >= 2:
+                        dst_box = self.boxes.get(dst[0], {})
+                        dst_maxclass = dst_box.get("maxclass", "")
+                        # Dial connects to flonum/number
+                        if dst_maxclass in ("flonum", "number"):
+                            # Check if this flonum/number feeds a param message
+                            flonum_id = dst[0]
+                            for line2 in self.data.get("patcher", {}).get("lines", []):
+                                pl2 = line2.get("patchline", {})
+                                src2 = pl2.get("source", [])
+                                if len(src2) >= 2 and src2[0] == flonum_id:
+                                    dst2 = pl2.get("destination", [])
+                                    if len(dst2) >= 2:
+                                        msg_box = self.boxes.get(dst2[0], {})
+                                        msg_text = msg_box.get("text", "")
+                                        # Check if message contains parameter format
+                                        if "$1" in msg_text or re.match(
+                                            r"\w+_?\w*\s+\$", msg_text
+                                        ):
+                                            feeds_param = True
+                                            break
+                            if feeds_param:
+                                break
+
+            if not feeds_param:
+                continue
+
+            # Dial feeds a parameter chain - check if it has initialization
+            has_set_init = False
+
+            # Look for 'set' messages that connect to this dial
+            for line in self.data.get("patcher", {}).get("lines", []):
+                patchline = line.get("patchline", {})
+                dst = patchline.get("destination", [])
+                if len(dst) >= 2 and dst[0] == dial_id:
+                    src = patchline.get("source", [])
+                    if len(src) >= 2:
+                        src_box = self.boxes.get(src[0], {})
+                        src_text = src_box.get("text", "")
+                        # Check if source is a 'set' message
+                        if src_text.startswith("set "):
+                            # Check if this set message is connected to loadbang
+                            set_msg_id = src[0]
+                            for lb_id in loadbangs:
+                                try:
+                                    if nx.has_path(
+                                        self.graph, (lb_id, "box"), (set_msg_id, "box")
+                                    ):
+                                        has_set_init = True
+                                        break
+                                except nx.NetworkXError:
+                                    pass
+                            if has_set_init:
+                                break
+
+            if not has_set_init:
+                self.warning(
+                    "dial-init",
+                    "Dial feeding parameter chain not initialized from loadbang. "
+                    "Add 'loadbang -> message \"set N\" -> dial' to sync dial with "
+                    "flonum initial value. Without this, touching dial outputs 0.",
+                    dial_id,
+                )
+                valid = False
 
         return valid
 

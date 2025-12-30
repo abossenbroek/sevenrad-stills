@@ -874,5 +874,124 @@ class TestDisplaySinkValidation:
         assert len(display_warnings) == 0
 
 
+class TestDialDecimals:
+    """Test dial-decimals validation for fractional output dials."""
+
+    def test_dial_without_decimals_warns(self, tmp_path: Path) -> None:
+        """Test that dial with fractional mult but no decimals triggers warning."""
+        boxes = [
+            {
+                "id": "obj-dial",
+                "maxclass": "dial",
+                "numinlets": 1,
+                "numoutlets": 1,
+                "outlettype": ["float"],
+                "patching_rect": [100.0, 100.0, 40.0, 40.0],
+                "size": 100.0,
+                "min": 0.0,
+                "mult": 0.01,  # Fractional output, needs decimals=2
+                # Missing "decimals" attribute
+            },
+        ]
+
+        patcher = create_test_patcher(boxes)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        # Should have warning about missing decimals
+        decimal_warnings = [w for w in linter.warnings if w.rule == "dial-decimals"]
+        assert len(decimal_warnings) >= 1
+        assert "decimals" in decimal_warnings[0].message
+        assert ">= 2" in decimal_warnings[0].message
+
+    def test_dial_with_sufficient_decimals_valid(self, tmp_path: Path) -> None:
+        """Test that dial with proper decimals passes validation."""
+        boxes = [
+            {
+                "id": "obj-dial",
+                "maxclass": "dial",
+                "numinlets": 1,
+                "numoutlets": 1,
+                "outlettype": ["float"],
+                "patching_rect": [100.0, 100.0, 40.0, 40.0],
+                "size": 100.0,
+                "min": 0.0,
+                "mult": 0.01,
+                "decimals": 2,  # Correct decimals
+            },
+        ]
+
+        patcher = create_test_patcher(boxes)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        # Should NOT have warning about decimals
+        decimal_warnings = [w for w in linter.warnings if w.rule == "dial-decimals"]
+        assert len(decimal_warnings) == 0
+
+    def test_dial_with_integer_mult_valid(self, tmp_path: Path) -> None:
+        """Test that dial with mult >= 1.0 doesn't need decimals."""
+        boxes = [
+            {
+                "id": "obj-dial",
+                "maxclass": "dial",
+                "numinlets": 1,
+                "numoutlets": 1,
+                "outlettype": ["float"],
+                "patching_rect": [100.0, 100.0, 40.0, 40.0],
+                "size": 100.0,
+                "min": 0.0,
+                "mult": 1.0,  # Integer output
+                # No "decimals" needed
+            },
+        ]
+
+        patcher = create_test_patcher(boxes)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        # Should NOT have warning about decimals for integer mult
+        decimal_warnings = [w for w in linter.warnings if w.rule == "dial-decimals"]
+        assert len(decimal_warnings) == 0
+
+    def test_dial_mult_0001_requires_3_decimals(self, tmp_path: Path) -> None:
+        """Test that mult=0.001 requires decimals >= 3."""
+        boxes = [
+            {
+                "id": "obj-dial",
+                "maxclass": "dial",
+                "numinlets": 1,
+                "numoutlets": 1,
+                "outlettype": ["float"],
+                "patching_rect": [100.0, 100.0, 40.0, 40.0],
+                "size": 1000.0,
+                "min": 0.0,
+                "mult": 0.001,
+                "decimals": 2,  # Insufficient - needs 3
+            },
+        ]
+
+        patcher = create_test_patcher(boxes)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        # Should warn about insufficient decimals
+        decimal_warnings = [w for w in linter.warnings if w.rule == "dial-decimals"]
+        assert len(decimal_warnings) >= 1
+        assert ">= 3" in decimal_warnings[0].message
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -12,8 +12,8 @@
 		"rect": [
 			100.0,
 			100.0,
-			850.0,
-			650.0
+			900.0,
+			900.0
 		],
 		"description": "SLC-off wedge mask generator for satellite artifact simulation",
 		"digest": "Generates Landsat 7 SLC-off style diagonal wedge masks",
@@ -115,7 +115,8 @@
 					],
 					"size": 50.0,
 					"min": 0.0,
-					"mult": 0.01
+					"mult": 0.01,
+					"decimals": 2
 				}
 			},
 			{
@@ -154,6 +155,25 @@
 						22.0
 					],
 					"text": "gap_width $1"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-gap-trigger",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 2,
+					"outlettype": [
+						"bang",
+						""
+					],
+					"patching_rect": [
+						450.0,
+						195.0,
+						32.0,
+						22.0
+					],
+					"text": "t b l"
 				}
 			},
 			{
@@ -245,6 +265,25 @@
 						22.0
 					],
 					"text": "scan_period $1"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-scan-trigger",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 2,
+					"outlettype": [
+						"bang",
+						""
+					],
+					"patching_rect": [
+						660.0,
+						195.0,
+						32.0,
+						22.0
+					],
+					"text": "t b l"
 				}
 			},
 			{
@@ -606,6 +645,78 @@
 			},
 			{
 				"box": {
+					"id": "obj-scan-init",
+					"maxclass": "message",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						760.0,
+						260.0,
+						30.0,
+						22.0
+					],
+					"text": "16"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-dial-gap-init",
+					"maxclass": "message",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						400.0,
+						180.0,
+						45.0,
+						22.0
+					],
+					"text": "set 22"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-dial-scan-init",
+					"maxclass": "message",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						540.0,
+						180.0,
+						45.0,
+						22.0
+					],
+					"text": "set 14"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-init-delay",
+					"maxclass": "newobj",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						"bang"
+					],
+					"patching_rect": [
+						800.0,
+						230.0,
+						63.0,
+						22.0
+					],
+					"text": "delay 50"
+				}
+			},
+			{
+				"box": {
 					"id": "obj-maskgen",
 					"maxclass": "newobj",
 					"numinlets": 1,
@@ -667,7 +778,282 @@
 						350.0,
 						60.0
 					],
-					"text": "SLC-off simulates Landsat 7's Scan Line Corrector failure.\nDiagonal wedge gaps widen from center toward edges.\nUse with jit.op to apply mask to video textures."
+					"text": "SLC-off simulates Landsat 7's Scan Line Corrector failure.\nDiagonal wedge gaps widen from center toward edges.\nUse with sr.slcoff shader to apply mask to video."
+				}
+			},
+			{
+				"box": {
+					"id": "obj-divider",
+					"maxclass": "comment",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						30.0,
+						610.0,
+						840.0,
+						20.0
+					],
+					"text": "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+					"fontsize": 10.0
+				}
+			},
+			{
+				"box": {
+					"id": "obj-video-title",
+					"maxclass": "comment",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						30.0,
+						630.0,
+						400.0,
+						20.0
+					],
+					"text": "Video Pipeline Integration (sr.maskgen + sr.slcoff GPU shader)",
+					"fontsize": 14.0,
+					"fontface": 1
+				}
+			},
+			{
+				"box": {
+					"id": "obj-video-world",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						550.0,
+						660.0,
+						200.0,
+						22.0
+					],
+					"text": "jit.world sr_maskgen_video_ctx @visible 0"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-video-loadbang",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"bang"
+					],
+					"patching_rect": [
+						400.0,
+						660.0,
+						58.0,
+						22.0
+					],
+					"text": "loadbang"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-video-delay",
+					"maxclass": "newobj",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						"bang"
+					],
+					"patching_rect": [
+						280.0,
+						690.0,
+						63.0,
+						22.0
+					],
+					"text": "delay 100"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-video-read",
+					"maxclass": "message",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						280.0,
+						720.0,
+						120.0,
+						22.0
+					],
+					"text": "read chickens.mp4"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-video-toggle",
+					"maxclass": "toggle",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"int"
+					],
+					"patching_rect": [
+						30.0,
+						660.0,
+						24.0,
+						24.0
+					]
+				}
+			},
+			{
+				"box": {
+					"id": "obj-video-qmetro",
+					"maxclass": "newobj",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						"bang"
+					],
+					"patching_rect": [
+						30.0,
+						690.0,
+						65.0,
+						22.0
+					],
+					"text": "qmetro 30"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-video-movie",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 2,
+					"outlettype": [
+						"jit_gl_texture",
+						""
+					],
+					"patching_rect": [
+						30.0,
+						720.0,
+						400.0,
+						22.0
+					],
+					"text": "jit.movie @autostart 1 @loop 1 @output_texture 1 @drawto sr_maskgen_video_ctx"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-video-maskgen",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						"jit_matrix"
+					],
+					"patching_rect": [
+						450.0,
+						720.0,
+						200.0,
+						22.0
+					],
+					"text": "sr.maskgen @gap_width 0.22 @scan_period 16"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-video-mask-label",
+					"maxclass": "comment",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						660.0,
+						722.0,
+						150.0,
+						20.0
+					],
+					"text": "CPU: Generate mask"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-video-matrix2tex",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 2,
+					"outlettype": [
+						"jit_gl_texture",
+						""
+					],
+					"patching_rect": [
+						450.0,
+						750.0,
+						200.0,
+						22.0
+					],
+					"text": "jit.gl.texture sr_maskgen_video_ctx"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-video-tex-label",
+					"maxclass": "comment",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						660.0,
+						752.0,
+						150.0,
+						20.0
+					],
+					"text": "Matrix \u2192 GPU texture"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-video-slcoff",
+					"maxclass": "newobj",
+					"numinlets": 2,
+					"numoutlets": 2,
+					"outlettype": [
+						"jit_gl_texture",
+						""
+					],
+					"patching_rect": [
+						30.0,
+						760.0,
+						440.0,
+						22.0
+					],
+					"text": "jit.gl.pix sr_maskgen_video_ctx @gen sr.slcoff @fill_mode 0"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-video-slcoff-label",
+					"maxclass": "comment",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						480.0,
+						762.0,
+						200.0,
+						20.0
+					],
+					"text": "GPU: Apply mask to video"
+				}
+			},
+			{
+				"box": {
+					"id": "obj-video-pwindow",
+					"maxclass": "jit.pwindow",
+					"numinlets": 1,
+					"numoutlets": 2,
+					"outlettype": [
+						"jit_matrix",
+						""
+					],
+					"patching_rect": [
+						30.0,
+						800.0,
+						320.0,
+						180.0
+					]
 				}
 			}
 		],
@@ -723,18 +1109,6 @@
 			{
 				"patchline": {
 					"source": [
-						"obj-gap-msg",
-						0
-					],
-					"destination": [
-						"obj-maskgen",
-						0
-					]
-				}
-			},
-			{
-				"patchline": {
-					"source": [
 						"obj-dial-scan",
 						0
 					],
@@ -764,18 +1138,6 @@
 					],
 					"destination": [
 						"obj-scan-msg",
-						0
-					]
-				}
-			},
-			{
-				"patchline": {
-					"source": [
-						"obj-scan-msg",
-						0
-					],
-					"destination": [
-						"obj-maskgen",
 						0
 					]
 				}
@@ -1052,6 +1414,390 @@
 					],
 					"destination": [
 						"obj-gap-num",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-loadbang",
+						0
+					],
+					"destination": [
+						"obj-scan-init",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-scan-init",
+						0
+					],
+					"destination": [
+						"obj-scan-num",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-loadbang",
+						0
+					],
+					"destination": [
+						"obj-init-delay",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-init-delay",
+						0
+					],
+					"destination": [
+						"obj-3",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-video-loadbang",
+						0
+					],
+					"destination": [
+						"obj-video-world",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-video-loadbang",
+						0
+					],
+					"destination": [
+						"obj-video-delay",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-video-delay",
+						0
+					],
+					"destination": [
+						"obj-video-read",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-video-read",
+						0
+					],
+					"destination": [
+						"obj-video-movie",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-video-toggle",
+						0
+					],
+					"destination": [
+						"obj-video-qmetro",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-video-qmetro",
+						0
+					],
+					"destination": [
+						"obj-video-movie",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-video-qmetro",
+						0
+					],
+					"destination": [
+						"obj-video-maskgen",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-video-movie",
+						0
+					],
+					"destination": [
+						"obj-video-slcoff",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-video-maskgen",
+						0
+					],
+					"destination": [
+						"obj-video-matrix2tex",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-video-matrix2tex",
+						0
+					],
+					"destination": [
+						"obj-video-slcoff",
+						1
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-video-slcoff",
+						0
+					],
+					"destination": [
+						"obj-video-pwindow",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-f0",
+						0
+					],
+					"destination": [
+						"obj-video-slcoff",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-f1",
+						0
+					],
+					"destination": [
+						"obj-video-slcoff",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-f2",
+						0
+					],
+					"destination": [
+						"obj-video-slcoff",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-gap-msg",
+						0
+					],
+					"destination": [
+						"obj-gap-trigger",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-gap-trigger",
+						1
+					],
+					"destination": [
+						"obj-maskgen",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-gap-trigger",
+						0
+					],
+					"destination": [
+						"obj-maskgen",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-gap-trigger",
+						1
+					],
+					"destination": [
+						"obj-video-maskgen",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-gap-trigger",
+						0
+					],
+					"destination": [
+						"obj-video-maskgen",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-scan-msg",
+						0
+					],
+					"destination": [
+						"obj-scan-trigger",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-scan-trigger",
+						1
+					],
+					"destination": [
+						"obj-maskgen",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-scan-trigger",
+						0
+					],
+					"destination": [
+						"obj-maskgen",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-scan-trigger",
+						1
+					],
+					"destination": [
+						"obj-video-maskgen",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-scan-trigger",
+						0
+					],
+					"destination": [
+						"obj-video-maskgen",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-loadbang",
+						0
+					],
+					"destination": [
+						"obj-dial-gap-init",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-dial-gap-init",
+						0
+					],
+					"destination": [
+						"obj-dial-gap",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-loadbang",
+						0
+					],
+					"destination": [
+						"obj-dial-scan-init",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"obj-dial-scan-init",
+						0
+					],
+					"destination": [
+						"obj-dial-scan",
 						0
 					]
 				}
