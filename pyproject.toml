@@ -70,8 +70,6 @@ select = [
 ignore = [
     "D203",   # one-blank-line-before-class (conflicts with D211)
     "D212",   # multi-line-summary-first-line (conflicts with D213)
-    "ANN101", # missing-type-self (self annotations are redundant)
-    "ANN102", # missing-type-cls (cls annotations are redundant)
 ]
 
 [tool.ruff.lint.per-file-ignores]
