@@ -223,6 +223,12 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
         # Sixth pass: check for uint->int semantic issues
         self.diagnostics.extend(self._check_uint_to_int_arithmetic(tree))
 
+        # Seventh pass: check for blend collapse patterns
+        self.diagnostics.extend(self._check_blend_collapse(tree))
+
+        # Eighth pass: check for identity permutations in switch logic
+        self.diagnostics.extend(self._check_identity_permutation(tree))
+
         return self.diagnostics
 
     def _check_unused_params(self) -> None:
@@ -1091,6 +1097,308 @@ class SemanticAnalyzer(Visitor):  # type: ignore[misc]
                     )
 
         return diagnostics
+
+    def _check_blend_collapse(self, tree: Tree) -> list[Diagnostic]:
+        """Detect linear blends that collapse to constant at midpoint.
+
+        Pattern: A * (1 - t) + (1 - A) * t = 0.5 when t = 0.5
+        This is mathematically inevitable: A*0.5 + (1-A)*0.5 = 0.5
+
+        Common problematic code:
+            r_out = r * (1.0 - intensity) + (1.0 - r) * intensity;
+            // At intensity=0.5: r*0.5 + (1-r)*0.5 = 0.5 for ALL values of r!
+
+        Returns:
+            List of diagnostics for blend collapse issues.
+        """
+        diagnostics: list[Diagnostic] = []
+
+        # Find all addition nodes (A + B pattern)
+        for add_node in tree.find_data("addition"):
+            if len(add_node.children) < 2:
+                continue
+
+            # Look for multiplication children on both sides
+            mult_nodes = [
+                c
+                for c in add_node.children
+                if isinstance(c, Tree) and c.data == "multiplication"
+            ]
+            if len(mult_nodes) < 2:
+                continue
+
+            # Check each pair of multiplications for complement pattern
+            result = self._detect_complement_blend(mult_nodes[0], mult_nodes[1])
+            if result:
+                var_name, blend_var = result
+                diagnostics.append(
+                    self._make_diagnostic(
+                        add_node,
+                        DiagnosticSeverity.WARNING,
+                        f"Linear blend of '{var_name}' and '1-{var_name}' collapses "
+                        f"to 0.5 when {blend_var}=0.5. "
+                        f"Fix: use squared blend (blend = {blend_var} * {blend_var})",
+                        "blend-collapse",
+                    )
+                )
+
+        return diagnostics
+
+    def _detect_complement_blend(
+        self, left: Tree, right: Tree
+    ) -> tuple[str, str] | None:
+        """Detect if two multiplication nodes form a complement blend.
+
+        Pattern: VAR * (1 - t) + (1 - VAR) * t
+        Returns: (VAR, t) if pattern found, None otherwise
+        """
+        # Extract all NAME tokens from each multiplication
+        left_names = self._extract_all_names(left)
+        right_names = self._extract_all_names(right)
+
+        # Look for subtraction patterns (1.0 - X) in each side
+        left_subtractions = list(left.find_data("addition"))
+        right_subtractions = list(right.find_data("addition"))
+
+        # Check for the pattern: one side has (1-X), other side has X
+        # And both share a common blend variable t
+        for sub in left_subtractions + right_subtractions:
+            complement_var = self._extract_subtraction_complement(sub)
+            if complement_var is None:
+                continue
+
+            # If complement_var appears as standalone in the other multiplication
+            if complement_var in left_names and complement_var in right_names:
+                # Find the blend variable (appears in both, not the complement)
+                common_vars = left_names & right_names
+                for blend_var in common_vars:
+                    if blend_var != complement_var:
+                        return (complement_var, blend_var)
+
+        return None
+
+    def _extract_subtraction_complement(self, node: Tree) -> str | None:
+        """Extract variable from (1.0 - VAR) subtraction pattern.
+
+        Returns the variable name if pattern matches, None otherwise.
+        """
+        if not isinstance(node, Tree) or node.data != "addition":
+            return None
+
+        # Look for pattern: NUMBER - NAME where NUMBER is 1 or 1.0
+        # addition can be: addition "-" multiplication
+        # We need to check children for this pattern
+        if len(node.children) < 2:
+            return None
+
+        # Check if this looks like 1.0 - something
+        first_child = node.children[0]
+        if isinstance(first_child, Token) and first_child.type == "NUMBER":
+            try:
+                val = float(first_child.value)
+                if abs(val - 1.0) < 0.001:
+                    # Found 1.0 - ..., extract the subtracted variable
+                    second_child = node.children[1]
+                    name = self._extract_single_name(second_child)
+                    if name:
+                        return name
+            except ValueError:
+                pass
+
+        return None
+
+    def _extract_all_names(self, node: Tree | Token) -> set[str]:
+        """Extract all NAME tokens from a node recursively."""
+        names: set[str] = set()
+        if isinstance(node, Token):
+            if node.type == "NAME":
+                names.add(str(node.value))
+        elif isinstance(node, Tree):
+            for child in node.children:
+                names.update(self._extract_all_names(child))
+        return names
+
+    def _extract_single_name(self, node: Tree | Token) -> str | None:
+        """Extract a single NAME if the node is just a variable reference."""
+        if isinstance(node, Token) and node.type == "NAME":
+            return str(node.value)
+        elif isinstance(node, Tree):
+            # Check if it's a simple expression containing just a NAME
+            names = self._extract_all_names(node)
+            if len(names) == 1:
+                return names.pop()
+        return None
+
+    def _check_identity_permutation(self, tree: Tree) -> list[Diagnostic]:
+        """Detect switch/if chains where one case outputs unchanged input.
+
+        Pattern: if (perm == 0) { out1 = vec(r, g, b, a); }
+        Where r, g, b are assigned from in1.r, in1.g, in1.b - this is identity.
+
+        Returns:
+            List of diagnostics for identity permutation issues.
+        """
+        diagnostics: list[Diagnostic] = []
+
+        for if_node in tree.find_data("if_statement"):
+            # Check all branches of this if statement
+            branches = self._get_if_branches(if_node)
+            for condition, block in branches:
+                # Find assignments to out1 in this block
+                for assign in block.find_data("assignment"):
+                    if not assign.children:
+                        continue
+
+                    # Check if assigning to out1
+                    var_token = assign.children[0]
+                    if not isinstance(var_token, Token):
+                        continue
+                    if str(var_token.value) != "out1":
+                        continue
+
+                    # Check if RHS is vec() call with identity args
+                    if len(assign.children) > 1:
+                        rhs = assign.children[1]
+                        if self._is_identity_vec_call(rhs):
+                            cond_str = self._expr_to_str(condition)
+                            diagnostics.append(
+                                self._make_diagnostic(
+                                    assign,
+                                    DiagnosticSeverity.WARNING,
+                                    f"Case '{cond_str}' outputs unchanged RGB "
+                                    f"(identity permutation - no visual effect)",
+                                    "identity-permutation",
+                                )
+                            )
+
+        return diagnostics
+
+    def _get_if_branches(self, if_node: Tree) -> list[tuple[Tree | Token, Tree]]:
+        """Extract all branches from an if statement.
+
+        Returns list of (condition, block) tuples for if, else-if, else clauses.
+        """
+        branches: list[tuple[Tree | Token, Tree]] = []
+
+        # Process children to find condition and blocks
+        condition: Tree | Token | None = None
+        for child in if_node.children:
+            if isinstance(child, Token):
+                continue
+
+            if isinstance(child, Tree):
+                if child.data == "block":
+                    # This is the if-block
+                    if condition is not None:
+                        branches.append((condition, child))
+                elif child.data == "else_if_clause":
+                    # else if: extract condition and block
+                    else_if_cond = None
+                    for ec in child.children:
+                        if isinstance(ec, Tree):
+                            if ec.data == "block":
+                                if else_if_cond is not None:
+                                    branches.append((else_if_cond, ec))
+                            else:
+                                else_if_cond = ec
+                elif child.data == "else_clause":
+                    # else: just a block, use a dummy condition
+                    for ec in child.children:
+                        if isinstance(ec, Tree) and ec.data == "block":
+                            # Use a placeholder for else condition
+                            branches.append((child, ec))
+                else:
+                    # This is likely the condition expression
+                    condition = child
+
+        return branches
+
+    def _is_identity_vec_call(self, node: Tree | Token) -> bool:
+        """Check if a vec() call outputs unchanged RGB order.
+
+        Identity patterns:
+            vec(r, g, b, ...)  - if r, g, b were read from in1.r, in1.g, in1.b
+            vec(in1.r, in1.g, in1.b, ...)
+
+        Non-identity (swapped):
+            vec(r, b, g, ...)  - channels reordered
+            vec(g, r, b, ...)  - channels swapped
+        """
+        if not isinstance(node, Tree):
+            return False
+
+        # Find function_call nodes
+        if node.data != "function_call":
+            # Search within the expression
+            func_calls = list(node.find_data("function_call"))
+            if not func_calls:
+                return False
+            node = func_calls[0]
+
+        # Check function name is "vec"
+        func_name = self._get_function_name(node)
+        if func_name != "vec":
+            return False
+
+        # Get arguments
+        args = self._get_vec_args(node)
+        if len(args) < 3:
+            return False
+
+        # Check if first 3 args are r, g, b in that order
+        expected = ["r", "g", "b"]
+        for i, exp in enumerate(expected):
+            arg_name = self._get_arg_channel_name(args[i])
+            if arg_name != exp:
+                return False
+
+        return True
+
+    def _get_vec_args(self, func_call: Tree) -> list[Tree | Token]:
+        """Extract arguments from a vec() function call."""
+        args: list[Tree | Token] = []
+        if len(func_call.children) > 1:
+            args_node = func_call.children[1]
+            if isinstance(args_node, Tree) and args_node.data == "arguments":
+                args = list(args_node.children)
+        return args
+
+    def _get_arg_channel_name(self, arg: Tree | Token) -> str | None:
+        """Extract channel name from a vec argument.
+
+        Handles:
+            - Simple name: r, g, b
+            - Member access: in1.r -> r
+        """
+        if isinstance(arg, Token) and arg.type == "NAME":
+            return str(arg.value)
+        elif isinstance(arg, Tree):
+            # Check for member_access (swizzle)
+            if arg.data == "member_access":
+                # Get the swizzle part
+                for child in arg.children:
+                    if (
+                        isinstance(child, Tree)
+                        and child.data == "swizzle"
+                        and child.children
+                    ):
+                        return str(child.children[0].value)
+            # Otherwise extract single name
+            name = self._extract_single_name(arg)
+            return name
+        return None
+
+    def _expr_to_str(self, node: Tree | Token) -> str:
+        """Convert an expression node to a string representation."""
+        if isinstance(node, Token):
+            return str(node.value)
+        elif isinstance(node, Tree):
+            # Simple reconstruction
+            parts = []
+            for child in node.children:
+                parts.append(self._expr_to_str(child))
+            return " ".join(parts)
+        return "?"
 
     def _make_diagnostic(
         self,
