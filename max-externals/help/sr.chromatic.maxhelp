@@ -206,7 +206,8 @@
 					],
 					"size": 100.0,
 					"min": -50.0,
-					"mult": 1.0
+					"mult": 1.0,
+					"floatoutput": 1
 				}
 			},
 			{
@@ -297,7 +298,8 @@
 					],
 					"size": 100.0,
 					"min": -50.0,
-					"mult": 1.0
+					"mult": 1.0,
+					"floatoutput": 1
 				}
 			},
 			{

@@ -90,6 +90,8 @@ class MaxhelpLinter:
         self.boxes: dict[str, dict[str, Any]] = {}
         # Initialize GenExprValidator if available
         self.genexpr_validator = GenExprValidator() if GENEXPR_AVAILABLE else None
+        # Load C external parameter bounds metadata
+        self.c_external_params = self._load_c_external_params()
 
     def error(self, rule: str, message: str, object_id: str | None = None) -> None:
         """Add an error."""
@@ -103,6 +105,28 @@ class MaxhelpLinter:
         """Add an info message (only shown in verbose mode)."""
         if self.verbose:
             self.warnings.append(LintError(Severity.INFO, rule, message, object_id))
+
+    def _load_c_external_params(self) -> dict[str, dict[str, Any]]:
+        """Load C external parameter bounds from metadata file.
+
+        The metadata file (c_external_params.json) provides parameter bounds
+        for C externals like sr.maskgen and sr.tilegen that don't have .genjit
+        files to parse.
+
+        Returns:
+            Dict mapping external name -> param name -> {min, max, default, type}
+            Returns empty dict if file not found or invalid.
+        """
+        metadata_path = Path(__file__).parent / "c_external_params.json"
+        if not metadata_path.exists():
+            return {}
+        try:
+            data: dict[str, dict[str, Any]] = json.loads(
+                metadata_path.read_text(encoding="utf-8")
+            )
+            return data
+        except (json.JSONDecodeError, OSError):
+            return {}
 
     def _build_graph(self) -> nx.DiGraph:
         """
@@ -361,7 +385,9 @@ class MaxhelpLinter:
         valid &= self._validate_metadata()
         valid &= self._validate_parameter_ui()
         valid &= self._validate_dial_param_ranges()
+        valid &= self._validate_c_external_dial_ranges()
         valid &= self._validate_dial_decimals()
+        valid &= self._validate_dial_float_output()
         valid &= self._validate_no_overlaps()
         valid &= self._validate_param_initialization()
         valid &= self._validate_dial_initialization()
@@ -1383,13 +1409,17 @@ class MaxhelpLinter:
     def _calculate_dial_range(
         self, dial_box: dict[str, Any]
     ) -> tuple[float, float] | None:
-        """Calculate output range from dial size/min/mult attributes.
+        """Calculate output range from dial size/mult/min/floatoutput attributes.
 
         Max/MSP Dial Behavior:
             - User rotates dial: position ∈ [0, size]
-            - Output value = (position * mult) + min
+            - With floatoutput=1: output = min + position * mult
+            - Without floatoutput: output = floor(position * mult) (integers only)
             - When mult < 0, output range is reversed
-            - Default values: size=100, min=0, mult=0.01
+            - Default values: size=100, mult=0.01
+
+        NOTE: The dial 'min' attribute IS respected when floatoutput=1.
+        Without floatoutput=1, dial outputs integers and min is ignored.
 
         Returns:
             Tuple of (min_output, max_output) in sorted order, or None if invalid
@@ -1399,8 +1429,9 @@ class MaxhelpLinter:
         # Validate and extract attributes
         try:
             size = float(dial_box.get("size", 100.0))
+            mult = float(dial_box.get("mult", 0.01))
             min_val = float(dial_box.get("min", 0.0))
-            mult = float(dial_box.get("mult", 0.01))  # FIXED: Default is 0.01
+            floatoutput = dial_box.get("floatoutput", 0)
         except (ValueError, TypeError) as e:
             self.error(
                 "dial-range", f"Dial has invalid numeric attributes: {e}", dial_id
@@ -1420,15 +1451,20 @@ class MaxhelpLinter:
         if mult == 0.0:
             self.warning(
                 "dial-range",
-                f"Dial has mult=0, will output constant value {min_val}",
+                f"Dial has mult=0, will output constant value 0",
                 dial_id,
             )
-            return (min_val, min_val)
+            return (0.0, 0.0)
 
         # Calculate outputs at both ends
-        # Max dial formula: output = (position * mult) + min
-        output_at_0 = 0 * mult + min_val  # = min_val
-        output_at_size = size * mult + min_val
+        if floatoutput == 1:
+            # With floatoutput=1, min is respected as output offset
+            output_at_0 = min_val
+            output_at_size = min_val + size * mult
+        else:
+            # Without floatoutput, outputs integers, min is ignored
+            output_at_0 = 0.0
+            output_at_size = size * mult
 
         # Return in sorted order (handles negative mult)
         return (min(output_at_0, output_at_size), max(output_at_0, output_at_size))
@@ -1630,6 +1666,151 @@ class MaxhelpLinter:
 
         return valid
 
+    def _validate_c_external_dial_ranges(self) -> bool:
+        """Validate dial ranges for C externals using metadata.
+
+        C externals (sr.maskgen, sr.tilegen, etc.) don't have .genjit files
+        to parse for parameter bounds. Instead, we use a metadata file
+        (c_external_params.json) that defines the parameter constraints.
+
+        For each C external with defined params:
+        1. Find param messages connected to the external
+        2. Trace upstream to find dials
+        3. Validate dial output range matches parameter bounds from metadata
+
+        Returns:
+            True if validation passes (no errors), False otherwise
+        """
+        valid = True
+
+        if not self.c_external_params:
+            return valid  # No metadata available, skip validation
+
+        # Find param messages once
+        param_messages = self._find_param_messages()
+
+        for external_name, params in self.c_external_params.items():
+            # Find all instances of this C external
+            external_boxes = self._find_boxes_by_type(external_name)
+            if not external_boxes:
+                continue
+
+            for param_name, param_info in params.items():
+                param_min = param_info.get("min")
+                param_max = param_info.get("max")
+
+                # Skip unbounded params (like seed which can be any value)
+                if param_min is None or param_max is None:
+                    continue
+
+                # Skip if no messages for this param
+                if param_name not in param_messages:
+                    continue
+
+                for msg_id in param_messages[param_name]:
+                    # Check if message connects to any instance of this external
+                    msg_connects_to_external = False
+                    for ext_id in external_boxes:
+                        try:
+                            if nx.has_path(
+                                self.graph, (msg_id, "box"), (ext_id, "box")
+                            ):
+                                msg_connects_to_external = True
+                                break
+                        except nx.NetworkXError:
+                            pass
+
+                    if not msg_connects_to_external:
+                        continue
+
+                    # Find upstream dial with path tracking
+                    dial_result = self._find_upstream_dial(msg_id)
+                    if dial_result is None:
+                        # No dial - might be flonum/number only, which is OK
+                        continue
+
+                    dial_id, dial_box, intermediate_path = dial_result
+
+                    # Check for intermediate value-modifying objects
+                    if len(intermediate_path) > 1:
+                        value_modifiers = {
+                            "expr",
+                            "scale",
+                            "*",
+                            "/",
+                            "+",
+                            "-",
+                            "!/",
+                            "!-",
+                            "pow",
+                            "abs",
+                        }
+                        intermediate_objects = [
+                            self.boxes.get(box_id, {}).get("text", "")
+                            for box_id in intermediate_path[1:]
+                        ]
+                        has_modifier = any(
+                            any(mod in text for mod in value_modifiers)
+                            for text in intermediate_objects
+                        )
+
+                        if has_modifier:
+                            # Skip validation - can't accurately determine range
+                            # The user is intentionally using arithmetic to adjust values
+                            self.info(
+                                "c-external-dial-range",
+                                f"Skipping validation for '{param_name}': dial has "
+                                f"intermediate value-modifying objects that may adjust "
+                                f"the output range.",
+                                dial_id,
+                            )
+                            continue
+
+                    # Calculate dial output range
+                    dial_range = self._calculate_dial_range(dial_box)
+                    if dial_range is None:
+                        valid = False
+                        continue
+
+                    dial_min, dial_max = dial_range
+                    # Use small tolerance for float comparison, not for semantic buffer
+                    tolerance = 0.0001
+
+                    # ERROR: Dial can output values below param minimum
+                    dial_exceeds_min = dial_min < param_min - tolerance
+                    # ERROR: Dial can output values above param maximum
+                    dial_exceeds_max = dial_max > param_max + tolerance
+
+                    if dial_exceeds_min or dial_exceeds_max:
+                        self.error(
+                            "c-external-dial-range",
+                            f"Dial output range [{dial_min:.3f}, {dial_max:.3f}] "
+                            f"EXCEEDS '{param_name}' bounds [{param_min}, {param_max}] "
+                            f"for {external_name}. "
+                            f"With dial at {'minimum' if dial_exceeds_min else 'maximum'} "
+                            f"position, value may cause undefined behavior or artifacts.",
+                            dial_id,
+                        )
+                        valid = False
+                    else:
+                        # WARNING: Dial can't reach full param range (informational)
+                        # Use larger tolerance here since this is just informational
+                        warn_tolerance = 0.001
+                        dial_cant_reach_min = dial_min > param_min + warn_tolerance
+                        dial_cant_reach_max = dial_max < param_max - warn_tolerance
+
+                        if dial_cant_reach_min or dial_cant_reach_max:
+                            self.warning(
+                                "c-external-dial-range",
+                                f"Dial output range [{dial_min:.3f}, {dial_max:.3f}] "
+                                f"cannot reach full '{param_name}' range "
+                                f"[{param_min}, {param_max}] for {external_name}. "
+                                f"This may be intentional.",
+                                dial_id,
+                            )
+
+        return valid
+
     def _validate_dial_decimals(self) -> bool:
         """
         Validate that dials outputting fractional values have proper decimal display.
@@ -1683,6 +1864,68 @@ class MaxhelpLinter:
                     f"Set decimals >= {required_decimals} for proper display precision.",
                     dial_id,
                 )
+
+        return valid
+
+    def _validate_dial_float_output(self) -> bool:
+        """
+        Validate that dials requiring float behavior have floatoutput=1.
+
+        floatoutput=1 is required when:
+        1. mult has a decimal component (e.g., 0.001)
+        2. min has a decimal component (e.g., 0.001)
+        3. min != 0 (even with integer values, min offset requires floatoutput)
+
+        Without floatoutput=1:
+        - Dial outputs integers (always 0 for small mult values like 0.001)
+        - The min attribute is ignored entirely
+
+        Examples:
+            - mult=0.001, min=0.001 -> needs floatoutput=1 (decimal values)
+            - mult=1.0, min=1.0 -> needs floatoutput=1 (min offset)
+            - mult=1.0, min=0.0 -> doesn't need floatoutput (integer output OK)
+
+        Returns:
+            True if validation passes (no errors), False otherwise
+        """
+        valid = True
+
+        # Find all dial boxes
+        dial_ids = self._find_boxes_by_maxclass("dial")
+
+        for dial_id in dial_ids:
+            dial_box = self.boxes.get(dial_id, {})
+
+            # Get mult and min attributes
+            mult = float(dial_box.get("mult", 0.01))
+            min_val = float(dial_box.get("min", 0.0))
+            floatoutput = dial_box.get("floatoutput", 0)
+
+            # Check if dial needs float output
+            # A value needs float output if it has a decimal component
+            mult_needs_float = mult != int(mult)
+            min_needs_float = min_val != int(min_val)
+            # Also need floatoutput if min != 0 (for offset to work)
+            min_offset_needs_float = min_val != 0.0
+            needs_float = mult_needs_float or min_needs_float or min_offset_needs_float
+
+            if needs_float and floatoutput != 1:
+                if min_offset_needs_float and not (mult_needs_float or min_needs_float):
+                    # min offset case with integer values
+                    self.error(
+                        "dial-float-output",
+                        f"Dial has min={min_val} offset but missing 'floatoutput: 1'. "
+                        f"Without this, Max ignores the min attribute entirely.",
+                        dial_id,
+                    )
+                else:
+                    self.error(
+                        "dial-float-output",
+                        f"Dial has float values (mult={mult}, min={min_val}) but missing "
+                        f"'floatoutput: 1'. Without this, Max outputs integers and ignores min.",
+                        dial_id,
+                    )
+                valid = False
 
         return valid
 
@@ -1822,6 +2065,7 @@ class MaxhelpLinter:
 
             # Dial feeds a parameter chain - check if it has initialization
             has_set_init = False
+            set_init_text = ""  # Track the set message text for range validation
 
             # Look for 'set' messages that connect to this dial
             for line in self.data.get("patcher", {}).get("lines", []):
@@ -1842,11 +2086,33 @@ class MaxhelpLinter:
                                         self.graph, (lb_id, "box"), (set_msg_id, "box")
                                     ):
                                         has_set_init = True
+                                        set_init_text = src_text
                                         break
                                 except nx.NetworkXError:
                                     pass
                             if has_set_init:
                                 break
+
+            # Validate set value is within dial's position range (0 to size)
+            # Note: dial `set` message takes internal POSITION, not output value
+            if has_set_init and set_init_text:
+                try:
+                    set_value = float(set_init_text.split()[1])
+                    dial_box = self.boxes.get(dial_id, {})
+                    dial_size = dial_box.get("size", 100.0)
+                    dial_min = dial_box.get("min", 0.0)
+
+                    if set_value < dial_min or set_value > dial_size:
+                        self.warning(
+                            "dial-init-range",
+                            f"Dial set value {set_value} is out of position range "
+                            f"[{dial_min}-{dial_size}]. The dial `set` message takes "
+                            f"internal position, not output value.",
+                            dial_id,
+                        )
+                        valid = False
+                except (IndexError, ValueError):
+                    pass  # Can't parse value, skip range check
 
             if not has_set_init:
                 self.warning(

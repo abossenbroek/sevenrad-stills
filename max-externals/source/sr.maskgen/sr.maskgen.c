@@ -11,7 +11,7 @@
  * recreates that pattern for artistic satellite imagery simulation.
  *
  * Parameters:
- *   - gap_width (float 0.0-0.5): Maximum gap fraction at image edges
+ *   - gap_width (float 0.001-0.5): Maximum gap fraction at image edges
  *   - scan_period (int 2-100): Number of rows per scan cycle
  *   - fill_mode (int 0-2): 0=black fill, 1=white fill, 2=mean neighbor fill
  *   - width (int): Image width in pixels
@@ -91,7 +91,7 @@ void ext_main(void *r) {
     /* Register attributes for inspector */
     CLASS_ATTR_FLOAT(c, "gap_width", 0, t_sr_maskgen, gap_width);
     CLASS_ATTR_LABEL(c, "gap_width", 0, "Gap Width");
-    CLASS_ATTR_FILTER_CLIP(c, "gap_width", 0.0, 0.5);
+    CLASS_ATTR_FILTER_CLIP(c, "gap_width", 0.001, 0.5);
     CLASS_ATTR_SAVE(c, "gap_width", 0);
 
     CLASS_ATTR_LONG(c, "scan_period", 0, t_sr_maskgen, scan_period);
@@ -307,7 +307,7 @@ void sr_maskgen_bang(t_sr_maskgen *x) {
  */
 void sr_maskgen_gap_width(t_sr_maskgen *x, double f) {
     post("sr.maskgen: gap_width called with %f", f);
-    x->gap_width = (float)SR_CLAMP(f, 0.0, 0.5);
+    x->gap_width = (float)SR_CLAMP(f, 0.001, 0.5);
     post("sr.maskgen: gap_width set to %f", x->gap_width);
 }
 
