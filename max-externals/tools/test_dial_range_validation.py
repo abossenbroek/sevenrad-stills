@@ -115,11 +115,11 @@ def test_real_file_validation() -> None:
         linter = MaxhelpLinter()
         linter.validate_file(corruption_path)
 
-        # Check no dial-range errors
-        dial_range_errors = [e for e in linter.errors if e.rule == "dial-range"]
+        # Check no dial-001 errors
+        dial_range_errors = [e for e in linter.errors if e.rule == "dial-001"]
         assert (
             len(dial_range_errors) == 0
-        ), f"sr.corruption should have no dial-range errors, got: {dial_range_errors}"
+        ), f"sr.corruption should have no dial-001 errors, got: {dial_range_errors}"
         print("PASS: test_real_file_validation - sr.corruption.maxhelp")
     else:
         print("SKIP: sr.corruption.maxhelp not found")
@@ -130,11 +130,11 @@ def test_real_file_validation() -> None:
         linter = MaxhelpLinter()
         linter.validate_file(bandswap_path)
 
-        # Should have no dial-range errors (dials were fixed to match params)
-        dial_range_errors = [e for e in linter.errors if e.rule == "dial-range"]
+        # Should have no dial-001 errors (dials were fixed to match params)
+        dial_range_errors = [e for e in linter.errors if e.rule == "dial-001"]
         assert (
             len(dial_range_errors) == 0
-        ), f"sr.bandswap should have 0 dial-range errors (fixed), got: {len(dial_range_errors)}"
+        ), f"sr.bandswap should have 0 dial-001 errors (fixed), got: {len(dial_range_errors)}"
 
         print("PASS: test_real_file_validation - sr.bandswap.maxhelp")
     else:
