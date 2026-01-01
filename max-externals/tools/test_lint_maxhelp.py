@@ -16,8 +16,9 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+import networkx as nx
 import pytest
-from lint_maxhelp import MaxhelpLinter
+from lint_maxhelp import LintGraph, MaxhelpLinter
 
 
 def create_test_patcher(
@@ -1605,6 +1606,170 @@ class TestDialFloatOutput:
         ), f"Expected dial-float-output error, got: {linter.errors}"
         assert "min=" in float_errors[0].message
         assert "floatoutput" in float_errors[0].message
+
+
+class TestLintGraph:
+    """Tests for LintGraph dataclass that builds shared graph state."""
+
+    def test_build_from_valid_patcher(self, tmp_path: Path) -> None:
+        """LintGraph.build() creates graph from patcher JSON."""
+        # Create minimal patcher with jit.movie -> jit.gl.pix chain
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.movie @output_texture 1",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.test",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+        ]
+        lines = [{"source": ["obj-1", 0], "destination": ["obj-2", 0]}]
+        patcher = create_test_patcher(boxes, lines)
+
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.filepath = test_file
+        linter.data = patcher
+        linter.boxes = {str(b["id"]): b for b in boxes}
+
+        lint_graph = LintGraph.build(patcher, linter)
+
+        assert isinstance(lint_graph.graph, nx.DiGraph)
+        assert len(lint_graph.boxes) == 2
+        assert "obj-1" in lint_graph.boxes
+        assert "obj-2" in lint_graph.boxes
+
+    def test_type_map_populated(self, tmp_path: Path) -> None:
+        """Type map has entries for outlets."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.movie @output_texture 1",
+                "numoutlets": 2,
+                "numinlets": 1,
+                "outlettype": ["jit_gl_texture", ""],
+            },
+        ]
+        patcher = create_test_patcher(boxes, [])
+
+        linter = MaxhelpLinter()
+        linter.filepath = tmp_path / "test.maxhelp"
+        linter.data = patcher
+        linter.boxes = {str(b["id"]): b for b in boxes}
+
+        lint_graph = LintGraph.build(patcher, linter)
+
+        # Should have type info for outlet 0
+        assert ("obj-1", 0) in lint_graph.type_map
+        assert lint_graph.type_map[("obj-1", 0)] == "texture"
+
+    def test_type_map_info_outlet(self, tmp_path: Path) -> None:
+        """Type map correctly identifies info outlets."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.movie @output_texture 1",
+                "numoutlets": 2,
+                "numinlets": 1,
+                "outlettype": ["jit_gl_texture", ""],
+            },
+        ]
+        patcher = create_test_patcher(boxes, [])
+
+        linter = MaxhelpLinter()
+        linter.filepath = tmp_path / "test.maxhelp"
+        linter.data = patcher
+        linter.boxes = {str(b["id"]): b for b in boxes}
+
+        lint_graph = LintGraph.build(patcher, linter)
+
+        # Outlet 1 should be info type
+        assert ("obj-1", 1) in lint_graph.type_map
+        assert lint_graph.type_map[("obj-1", 1)] == "info"
+
+    def test_empty_patcher_handled(self, tmp_path: Path) -> None:
+        """Empty patcher doesn't crash."""
+        data: dict[str, Any] = {"patcher": {"boxes": [], "lines": []}}
+        linter = MaxhelpLinter()
+        linter.filepath = tmp_path / "test.maxhelp"
+        linter.data = data
+        linter.boxes = {}
+
+        lint_graph = LintGraph.build(data, linter)
+        assert len(lint_graph.boxes) == 0
+        assert len(lint_graph.type_map) == 0
+        assert isinstance(lint_graph.graph, nx.DiGraph)
+
+    def test_graph_has_edges_for_connections(self, tmp_path: Path) -> None:
+        """Graph contains edges for patchlines."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.movie @output_texture 1",
+                "numoutlets": 2,
+                "numinlets": 1,
+                "outlettype": ["jit_gl_texture", ""],
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.test",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+        ]
+        lines = [{"source": ["obj-1", 0], "destination": ["obj-2", 0]}]
+        patcher = create_test_patcher(boxes, lines)
+
+        linter = MaxhelpLinter()
+        linter.filepath = tmp_path / "test.maxhelp"
+        linter.data = patcher
+        linter.boxes = {str(b["id"]): b for b in boxes}
+
+        lint_graph = LintGraph.build(patcher, linter)
+
+        # Check that edge exists from outlet to inlet
+        assert lint_graph.graph.has_edge(("obj-1", "out", 0), ("obj-2", "in", 0))
+        # Check that box-level edge exists
+        assert lint_graph.graph.has_edge(("obj-1", "box"), ("obj-2", "box"))
+
+    def test_graph_nodes_have_box_attribute(self, tmp_path: Path) -> None:
+        """Graph nodes store box reference in attributes."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.movie @output_texture 1",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+        ]
+        patcher = create_test_patcher(boxes, [])
+
+        linter = MaxhelpLinter()
+        linter.filepath = tmp_path / "test.maxhelp"
+        linter.data = patcher
+        linter.boxes = {str(b["id"]): b for b in boxes}
+
+        lint_graph = LintGraph.build(patcher, linter)
+
+        # Box node should have box attribute
+        box_node = lint_graph.graph.nodes.get(("obj-1", "box"))
+        assert box_node is not None
+        assert "box" in box_node
+        assert box_node["box"]["id"] == "obj-1"
 
 
 if __name__ == "__main__":

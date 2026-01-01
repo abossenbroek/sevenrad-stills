@@ -53,6 +53,99 @@ except ImportError:
 # Jitter objects that display/render images (inlet 0 expects matrix or texture)
 JITTER_DISPLAY_SINKS = {"jit.pwindow", "jit.window"}
 
+# Known Max/MSP and Jitter objects for validation
+# This is not exhaustive but covers commonly used objects in this project
+KNOWN_MAX_OBJECTS = {
+    # Standard Max objects
+    "loadbang",
+    "bang",
+    "button",
+    "toggle",
+    "message",
+    "comment",
+    "number",
+    "flonum",
+    "number~",
+    "dial",
+    "slider",
+    "live.dial",
+    "prepend",
+    "append",
+    "pack",
+    "unpack",
+    "route",
+    "select",
+    "gate",
+    "trigger",
+    "t",
+    "delay",
+    "pipe",
+    "metro",
+    "qmetro",
+    "counter",
+    "random",
+    "drunk",
+    "scale",
+    "expr",
+    "if",
+    "coll",
+    "dict",
+    "send",
+    "receive",
+    "s",
+    "r",
+    "value",
+    "pvar",
+    "print",
+    "sprintf",
+    "combine",
+    "regexp",
+    "zl",
+    # Jitter GPU objects
+    "jit.world",
+    "jit.gl.render",
+    "jit.gl.pix",
+    "jit.gl.slab",
+    "jit.gl.texture",
+    "jit.gl.videoplane",
+    "jit.gl.node",
+    "jit.gl.camera",
+    "jit.gl.gridshape",
+    "jit.gl.mesh",
+    "jit.gl.multiple",
+    "jit.gl.model",
+    "jit.gl.text",
+    # Jitter matrix/CPU objects
+    "jit.movie",
+    "jit.grab",
+    "jit.record",
+    "jit.vcr",
+    "jit.pwindow",
+    "jit.window",
+    "jit.matrix",
+    "jit.op",
+    "jit.xfade",
+    "jit.brcosa",
+    "jit.scalebias",
+    "jit.noise",
+    "jit.gradient",
+    "jit.dimmap",
+    "jit.submatrix",
+    "jit.concat",
+    "jit.pack",
+    "jit.unpack",
+    "jit.iter",
+    "jit.spill",
+    "jit.fill",
+    "jit.cellblock",
+    # Utility objects
+    "bpatcher",
+    "thispatcher",
+    "patcher",
+    "p",
+    "poly~",
+}
+
 
 class Severity(Enum):
     """Validation message severity levels."""
@@ -74,6 +167,92 @@ class LintError:
     def __str__(self) -> str:
         location = f" ({self.object_id})" if self.object_id else ""
         return f"  [{self.severity.value}] {self.rule}{location}: {self.message}"
+
+
+@dataclass
+class LintGraph:
+    """Shared graph state for all validation rules.
+
+    Built ONCE at start of validation, passed to ALL rules.
+    This class encapsulates the graph structure built from a Max patcher,
+    including outlet type information for type checking.
+
+    Attributes:
+        graph: Directed graph where nodes are (box_id, port_type, port_num) tuples.
+               Port types are 'in', 'out', or 'box'.
+        boxes: Dict mapping box_id to box properties dict.
+        type_map: Dict mapping (box_id, outlet_idx) to outlet type string.
+                  Types are: 'texture', 'matrix', 'info', 'bang_or_message', 'unknown'.
+    """
+
+    graph: nx.DiGraph
+    boxes: dict[str, dict[str, Any]]
+    type_map: dict[tuple[str, int], str]  # (box_id, outlet) -> type
+
+    @classmethod
+    def build(cls, data: dict[str, Any], linter: "MaxhelpLinter") -> "LintGraph":
+        """Build LintGraph from patcher JSON.
+
+        Args:
+            data: Parsed patcher JSON data with 'patcher' key containing 'boxes' and 'lines'.
+            linter: MaxhelpLinter instance for type inference methods.
+
+        Returns:
+            LintGraph with populated graph, boxes dict, and type_map.
+        """
+        graph = nx.DiGraph()
+        boxes: dict[str, dict[str, Any]] = {}
+        type_map: dict[tuple[str, int], str] = {}
+
+        # Extract boxes from patcher data
+        for box_wrapper in data.get("patcher", {}).get("boxes", []):
+            box = box_wrapper.get("box", {})
+            box_id = box.get("id", "")
+            if box_id:
+                boxes[box_id] = box
+
+                # Add nodes for outlets and populate type_map
+                for i in range(box.get("numoutlets", 0)):
+                    graph.add_node((box_id, "out", i), box=box)
+                    # Populate type_map for this outlet
+                    outlet_type = linter._get_outlet_type(box, i)
+                    type_map[(box_id, i)] = outlet_type
+
+                # Add nodes for inlets
+                for i in range(box.get("numinlets", 0)):
+                    graph.add_node((box_id, "in", i), box=box)
+
+                # Add a "box" node for easier lookup and path finding
+                graph.add_node((box_id, "box"), box=box)
+
+        # Add edges from patchlines with type information
+        for line in data.get("patcher", {}).get("lines", []):
+            patchline = line.get("patchline", {})
+            src = patchline.get("source", [])
+            dst = patchline.get("destination", [])
+
+            if len(src) >= 2 and len(dst) >= 2:
+                src_box_id, src_outlet = src[0], src[1]
+                dst_box_id, dst_inlet = dst[0], dst[1]
+
+                src_box = boxes.get(src_box_id, {})
+                dst_box = boxes.get(dst_box_id, {})
+
+                outlet_type = linter._get_outlet_type(src_box, src_outlet)
+                inlet_type = linter._get_expected_inlet_type(dst_box, dst_inlet)
+
+                # Add edge from outlet to inlet with type info
+                graph.add_edge(
+                    (src_box_id, "out", src_outlet),
+                    (dst_box_id, "in", dst_inlet),
+                    outlet_type=outlet_type,
+                    inlet_type=inlet_type,
+                )
+
+                # Add box-level edge for path finding
+                graph.add_edge((src_box_id, "box"), (dst_box_id, "box"))
+
+        return cls(graph=graph, boxes=boxes, type_map=type_map)
 
 
 class MaxhelpLinter:
@@ -391,6 +570,7 @@ class MaxhelpLinter:
         valid &= self._validate_no_overlaps()
         valid &= self._validate_param_initialization()
         valid &= self._validate_dial_initialization()
+        valid &= self._validate_known_objects()
 
         return valid
 
@@ -2121,6 +2301,94 @@ class MaxhelpLinter:
                     "Add 'loadbang -> message \"set N\" -> dial' to sync dial with "
                     "flonum initial value. Without this, touching dial outputs 0.",
                     dial_id,
+                )
+                valid = False
+
+        return valid
+
+    def _validate_known_objects(self) -> bool:
+        """
+        Validate that all objects in the patcher are known/valid.
+
+        This helps catch typos and non-existent objects like 'jit.gl.xfade'
+        which would cause "No such object" errors in Max.
+
+        Objects are considered valid if they:
+        - Are in the KNOWN_MAX_OBJECTS set
+        - Start with 'sr.' (project-specific objects)
+        - Are special maxclass types (comment, button, dial, etc.)
+        """
+        valid = True
+
+        # Max classes that don't use "text" for object name
+        non_text_classes = {
+            "comment",
+            "button",
+            "toggle",
+            "dial",
+            "slider",
+            "number",
+            "flonum",
+            "message",
+            "bpatcher",
+            "inlet",
+            "outlet",
+            "live.dial",
+            "live.slider",
+            "live.button",
+            "live.toggle",
+            "live.numbox",
+            "live.text",
+            "live.menu",
+            "panel",
+            "fpic",
+            "swatch",
+            "multislider",
+            "umenu",
+            "ubumenu",
+            "textbutton",
+            "rslider",
+            "kslider",
+        }
+
+        for box_wrapper in self.data.get("patcher", {}).get("boxes", []):
+            box = box_wrapper.get("box", {})
+            box_id = box.get("id", "")
+            maxclass = box.get("maxclass", "")
+
+            # Skip non-newobj classes (they're built-in UI elements)
+            if maxclass != "newobj":
+                continue
+
+            # Get object name from text field
+            text = box.get("text", "")
+            if not text:
+                continue
+
+            # Extract object name (first word, ignoring arguments)
+            obj_name = text.split()[0] if text else ""
+            if not obj_name:
+                continue
+
+            # Check if object is known
+            is_known = (
+                obj_name in KNOWN_MAX_OBJECTS
+                or obj_name.startswith("sr.")  # Project-specific objects
+                or obj_name.startswith("mc.")  # Max multichannel objects
+                or obj_name.startswith("mcs.")  # Max multichannel signal
+                or obj_name.startswith("gen~")  # Gen~ objects
+                or obj_name.startswith("jit.gl.")  # All Jitter GL objects
+                or obj_name.startswith("jit.anim.")  # Jitter animation
+                or obj_name.startswith("jit.phys.")  # Jitter physics
+                or obj_name in non_text_classes  # UI elements used as objects
+            )
+
+            if not is_known:
+                self.warning(
+                    "unknown-object",
+                    f"Unknown object '{obj_name}' - may cause 'No such object' "
+                    f"error in Max. Verify the object name is correct.",
+                    box_id,
                 )
                 valid = False
 
