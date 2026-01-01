@@ -1075,10 +1075,10 @@ class TestDialInitRange:
         linter.validate_file(test_file)
 
         # Should warn about out-of-range set value
-        range_warnings = [w for w in linter.warnings if w.rule == "dial-init-range"]
+        range_warnings = [w for w in linter.warnings if w.rule == "init-005-range"]
         assert (
             len(range_warnings) >= 1
-        ), f"Expected dial-init-range warning, got: {linter.warnings}"
+        ), f"Expected init-005-range warning, got: {linter.warnings}"
         assert "out of position range" in range_warnings[0].message
         assert "100" in range_warnings[0].message
 
@@ -1150,10 +1150,10 @@ class TestDialInitRange:
         linter.validate_file(test_file)
 
         # Should NOT have warning about out-of-range set value
-        range_warnings = [w for w in linter.warnings if w.rule == "dial-init-range"]
+        range_warnings = [w for w in linter.warnings if w.rule == "init-005-range"]
         assert (
             len(range_warnings) == 0
-        ), f"Unexpected dial-init-range warning: {range_warnings}"
+        ), f"Unexpected init-005-range warning: {range_warnings}"
 
     def test_dial_mult_1_set_integer_valid(self, tmp_path: Path) -> None:
         """Test that for mult=1.0, set with integer value is valid."""
@@ -1222,10 +1222,10 @@ class TestDialInitRange:
         linter.validate_file(test_file)
 
         # Should NOT have warning about out-of-range set value
-        range_warnings = [w for w in linter.warnings if w.rule == "dial-init-range"]
+        range_warnings = [w for w in linter.warnings if w.rule == "init-005-range"]
         assert (
             len(range_warnings) == 0
-        ), f"Unexpected dial-init-range warning: {range_warnings}"
+        ), f"Unexpected init-005-range warning: {range_warnings}"
 
 
 class TestCExternalDialRanges:
@@ -2627,6 +2627,36 @@ class TestContextValidation:
         assert len(errors) >= 1
         assert "underscore" in errors[0].message.lower()
 
+    def test_dots_in_drawto_error(self, tmp_path: Path) -> None:
+        """@drawto context with dots = ERROR (ctx-001)."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.world sr_good_ctx",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "newobj",
+                "text": "jit.movie @drawto sr.bad.ctx",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+        ]
+        patcher = create_test_patcher(boxes, [])
+
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        errors = [e for e in linter.errors if e.rule == "ctx-001"]
+        assert len(errors) >= 1
+        assert "@drawto" in errors[0].message
+
     def test_nonexistent_drawto_error(self, tmp_path: Path) -> None:
         """@drawto references non-existent context = ERROR (ctx-002)."""
         boxes = [
@@ -2912,6 +2942,282 @@ class TestInitValidation:
         linter.validate_file(test_file)
         init_003_warnings = [w for w in linter.warnings if w.rule == "init-003"]
         assert len(init_003_warnings) == 0
+
+    def test_flonum_not_initialized_error(self, tmp_path: Path) -> None:
+        """flonum feeding param message without loadbang init = ERROR (init-004)."""
+        boxes = [
+            {
+                "id": "obj-flonum",
+                "maxclass": "flonum",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-msg",
+                "maxclass": "message",
+                "text": "amount $1",
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+            {
+                "id": "obj-pix",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.effect",
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+        ]
+        lines = [
+            {"source": ["obj-flonum", 0], "destination": ["obj-msg", 0]},
+            {"source": ["obj-msg", 0], "destination": ["obj-pix", 0]},
+        ]
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+        errors = [e for e in linter.errors if e.rule == "init-004"]
+        assert len(errors) >= 1
+        assert "flonum" in errors[0].message.lower() or "amount" in errors[0].message
+
+    def test_number_not_initialized_error(self, tmp_path: Path) -> None:
+        """number feeding param message without loadbang init = ERROR (init-004)."""
+        boxes = [
+            {
+                "id": "obj-number",
+                "maxclass": "number",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-msg",
+                "maxclass": "message",
+                "text": "seed $1",
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+            {
+                "id": "obj-pix",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.effect",
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+        ]
+        lines = [
+            {"source": ["obj-number", 0], "destination": ["obj-msg", 0]},
+            {"source": ["obj-msg", 0], "destination": ["obj-pix", 0]},
+        ]
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+        errors = [e for e in linter.errors if e.rule == "init-004"]
+        assert len(errors) >= 1
+        assert "number" in errors[0].message.lower() or "seed" in errors[0].message
+
+    def test_flonum_initialized_no_error(self, tmp_path: Path) -> None:
+        """flonum with loadbang->message init path = no init-004 error."""
+        boxes = [
+            {"id": "obj-lb", "maxclass": "loadbang", "numoutlets": 1, "numinlets": 0},
+            {
+                "id": "obj-init-msg",
+                "maxclass": "message",
+                "text": "0.5",
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+            {
+                "id": "obj-flonum",
+                "maxclass": "flonum",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-param-msg",
+                "maxclass": "message",
+                "text": "amount $1",
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+            {
+                "id": "obj-pix",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.effect",
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+        ]
+        lines = [
+            {"source": ["obj-lb", 0], "destination": ["obj-init-msg", 0]},
+            {"source": ["obj-init-msg", 0], "destination": ["obj-flonum", 0]},
+            {"source": ["obj-flonum", 0], "destination": ["obj-param-msg", 0]},
+            {"source": ["obj-param-msg", 0], "destination": ["obj-pix", 0]},
+        ]
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+        errors = [e for e in linter.errors if e.rule == "init-004"]
+        assert len(errors) == 0
+
+    def test_dial_no_set_init_error(self, tmp_path: Path) -> None:
+        """Dial feeding param chain without 'set N' from loadbang = ERROR (init-005)."""
+        boxes = [
+            {
+                "id": "obj-dial",
+                "maxclass": "dial",
+                "numoutlets": 1,
+                "numinlets": 1,
+                "size": 100.0,
+            },
+            {
+                "id": "obj-flonum",
+                "maxclass": "flonum",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-msg",
+                "maxclass": "message",
+                "text": "amount $1",
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+            {
+                "id": "obj-pix",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.effect",
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+            {"id": "obj-lb", "maxclass": "loadbang", "numoutlets": 1, "numinlets": 0},
+        ]
+        lines = [
+            {"source": ["obj-dial", 0], "destination": ["obj-flonum", 0]},
+            {"source": ["obj-flonum", 0], "destination": ["obj-msg", 0]},
+            {"source": ["obj-msg", 0], "destination": ["obj-pix", 0]},
+        ]
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+        errors = [e for e in linter.errors if e.rule == "init-005"]
+        assert len(errors) >= 1
+        assert "dial" in errors[0].message.lower() or "set" in errors[0].message.lower()
+
+    def test_dial_with_set_init_no_error(self, tmp_path: Path) -> None:
+        """Dial with loadbang->set N->dial path = no init-005 error."""
+        boxes = [
+            {"id": "obj-lb", "maxclass": "loadbang", "numoutlets": 1, "numinlets": 0},
+            {
+                "id": "obj-set-msg",
+                "maxclass": "message",
+                "text": "set 50",
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+            {
+                "id": "obj-dial",
+                "maxclass": "dial",
+                "numoutlets": 1,
+                "numinlets": 1,
+                "size": 100.0,
+            },
+            {
+                "id": "obj-flonum",
+                "maxclass": "flonum",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-msg",
+                "maxclass": "message",
+                "text": "amount $1",
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+            {
+                "id": "obj-pix",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.effect",
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+        ]
+        lines = [
+            {"source": ["obj-lb", 0], "destination": ["obj-set-msg", 0]},
+            {"source": ["obj-set-msg", 0], "destination": ["obj-dial", 0]},
+            {"source": ["obj-dial", 0], "destination": ["obj-flonum", 0]},
+            {"source": ["obj-flonum", 0], "destination": ["obj-msg", 0]},
+            {"source": ["obj-msg", 0], "destination": ["obj-pix", 0]},
+        ]
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+        errors = [e for e in linter.errors if e.rule == "init-005"]
+        assert len(errors) == 0
+
+    def test_dial_set_out_of_range_error(self, tmp_path: Path) -> None:
+        """Dial set value out of position range triggers warning."""
+        boxes = [
+            {"id": "obj-lb", "maxclass": "loadbang", "numoutlets": 1, "numinlets": 0},
+            {
+                "id": "obj-set-msg",
+                "maxclass": "message",
+                "text": "set 150",  # Out of range for size 100
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+            {
+                "id": "obj-dial",
+                "maxclass": "dial",
+                "numoutlets": 1,
+                "numinlets": 1,
+                "size": 100.0,
+                "min": 0.0,
+            },
+            {
+                "id": "obj-flonum",
+                "maxclass": "flonum",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-msg",
+                "maxclass": "message",
+                "text": "amount $1",
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+            {
+                "id": "obj-pix",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.effect",
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+        ]
+        lines = [
+            {"source": ["obj-lb", 0], "destination": ["obj-set-msg", 0]},
+            {"source": ["obj-set-msg", 0], "destination": ["obj-dial", 0]},
+            {"source": ["obj-dial", 0], "destination": ["obj-flonum", 0]},
+            {"source": ["obj-flonum", 0], "destination": ["obj-msg", 0]},
+            {"source": ["obj-msg", 0], "destination": ["obj-pix", 0]},
+        ]
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+        # The out-of-range warning uses rule ID init-005-range
+        range_warnings = [w for w in linter.warnings if w.rule == "init-005-range"]
+        assert len(range_warnings) >= 1
 
 
 if __name__ == "__main__":

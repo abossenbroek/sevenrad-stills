@@ -655,6 +655,9 @@ class MaxhelpLinter:
 
         self.graph = self._build_graph()
 
+        # Build LintGraph once for all validation rules
+        self.lint_graph = LintGraph.build(self.data, self)
+
         # Run all validations
         valid = True
         valid &= self._validate_structure()
@@ -844,7 +847,10 @@ class MaxhelpLinter:
         return valid
 
     def _validate_context_rules(self) -> bool:
-        """Validate OpenGL context rules.
+        """Validate OpenGL context rules using LintGraph.
+
+        Uses self.lint_graph.boxes (built once at validation start) instead of
+        rebuilding box lists via _find_boxes_by_type().
 
         Checks context naming, existence, and uniqueness.
 
@@ -855,11 +861,17 @@ class MaxhelpLinter:
         """
         valid = True
 
-        # Find context-defining and context-using objects
-        jit_worlds = self._find_boxes_by_type("jit.world")
-        jit_movies = self._find_boxes_by_type("jit.movie")
-        jit_gl_pix = self._find_boxes_by_type("jit.gl.pix")
-        jit_gl_texture = self._find_boxes_by_type("jit.gl.texture")
+        # Use LintGraph.boxes instead of rebuilding lists
+        # Filter boxes by type from the pre-built boxes dict
+        jit_worlds: list[str] = []
+        drawto_boxes: list[str] = []  # jit.movie, jit.gl.pix, jit.gl.texture
+
+        for box_id, box in self.lint_graph.boxes.items():
+            text = box.get("text", "")
+            if text.startswith("jit.world"):
+                jit_worlds.append(box_id)
+            elif text.startswith(("jit.movie", "jit.gl.pix", "jit.gl.texture")):
+                drawto_boxes.append(box_id)
 
         # Track defined contexts and their defining objects
         context_definitions: dict[str, list[str]] = {}  # ctx_name -> [box_ids]
@@ -895,12 +907,12 @@ class MaxhelpLinter:
         # ctx-002: Check @drawto references exist
         defined_contexts = set(context_definitions.keys())
 
-        for box_id in jit_movies + jit_gl_pix + jit_gl_texture:
+        for box_id in drawto_boxes:
             box_text = self._get_box_text(box_id)
             drawto = self._extract_drawto(box_text)
 
             if drawto:
-                # Check for dots in @drawto value
+                # ctx-001: Check for dots in @drawto value
                 if "." in drawto:
                     self.error(
                         "ctx-001",
@@ -909,7 +921,7 @@ class MaxhelpLinter:
                     )
                     valid = False
 
-                # Check context exists
+                # ctx-002: Check context exists
                 if drawto not in defined_contexts:
                     self.error(
                         "ctx-002",
@@ -924,7 +936,7 @@ class MaxhelpLinter:
     def _validate_init_order(self) -> bool:
         """Validate initialization order for GPU objects."""
         valid = True
-        lint_graph = LintGraph.build(self.data, self)
+        lint_graph = self.lint_graph  # Use pre-built LintGraph
         loadbangs = self._find_boxes_by_maxclass("loadbang")
         loadbangs.extend(
             b
@@ -1217,7 +1229,7 @@ class MaxhelpLinter:
             True if validation passes (no errors), False otherwise.
         """
         valid = True
-        lint_graph = LintGraph.build(self.data, self)
+        lint_graph = self.lint_graph  # Use pre-built LintGraph
 
         # Check each edge for type compatibility
         for edge in lint_graph.graph.edges(data=True):
@@ -2491,16 +2503,13 @@ class MaxhelpLinter:
         """
         valid = True
 
-        # Find loadbang objects
-        loadbangs = [
+        # Find loadbang objects (both as maxclass and in newobj text)
+        loadbangs = self._find_boxes_by_maxclass("loadbang")
+        loadbangs.extend(
             b
             for b in self._find_boxes_by_maxclass("newobj")
             if "loadbang" in self._get_box_text(b)
-        ]
-
-        if not loadbangs:
-            # No loadbang - can't validate initialization
-            return valid
+        )
 
         # Find parameter messages (those with "$1" or fixed values)
         param_messages = self._find_param_messages()
@@ -2536,13 +2545,14 @@ class MaxhelpLinter:
                                     pass
 
                             if not has_init:
-                                self.warning(
-                                    "param-init",
+                                self.error(
+                                    "init-004",
                                     f"Parameter '{param_name}' control ({src_maxclass}) "
                                     f"not initialized from loadbang. "
                                     f"Will default to 0, potentially overriding object attributes.",
                                     src_box_id,
                                 )
+                                valid = False
 
         return valid
 
@@ -2560,15 +2570,13 @@ class MaxhelpLinter:
         """
         valid = True
 
-        # Find loadbang objects
-        loadbangs = [
+        # Find loadbang objects (both as maxclass and in newobj text)
+        loadbangs = self._find_boxes_by_maxclass("loadbang")
+        loadbangs.extend(
             b
             for b in self._find_boxes_by_maxclass("newobj")
             if "loadbang" in self._get_box_text(b)
-        ]
-
-        if not loadbangs:
-            return valid
+        )
 
         # Find dial objects
         dials = self._find_boxes_by_maxclass("dial")
@@ -2653,7 +2661,7 @@ class MaxhelpLinter:
 
                     if set_value < dial_min or set_value > dial_size:
                         self.warning(
-                            "dial-init-range",
+                            "init-005-range",
                             f"Dial set value {set_value} is out of position range "
                             f"[{dial_min}-{dial_size}]. The dial `set` message takes "
                             f"internal position, not output value.",
@@ -2664,8 +2672,8 @@ class MaxhelpLinter:
                     pass  # Can't parse value, skip range check
 
             if not has_set_init:
-                self.warning(
-                    "dial-init",
+                self.error(
+                    "init-005",
                     "Dial feeding parameter chain not initialized from loadbang. "
                     "Add 'loadbang -> message \"set N\" -> dial' to sync dial with "
                     "flonum initial value. Without this, touching dial outputs 0.",
@@ -2902,7 +2910,7 @@ class MaxhelpLinter:
             True if all flow rules pass, False otherwise.
         """
         valid = True
-        lint_graph = LintGraph.build(self.data, self)
+        lint_graph = self.lint_graph  # Use pre-built LintGraph
 
         # Find key objects
         qmetros = self._find_boxes_by_type("qmetro")
