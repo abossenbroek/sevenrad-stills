@@ -2146,5 +2146,295 @@ class TestCycleDetection:
         assert len(lint_graph.orphans) == 0
 
 
+class TestFlowValidation:
+    """Test signal flow validation rules (flow-001, flow-002, flow-003)."""
+
+    def test_missing_qmetro_error(self, tmp_path: Path) -> None:
+        """Missing qmetro for video = ERROR."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.movie @output_texture 1",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.test",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-3",
+                "maxclass": "jit.pwindow",
+                "numoutlets": 1,
+                "numinlets": 1,
+            },
+        ]
+        lines = [
+            {"source": ["obj-1", 0], "destination": ["obj-2", 0]},
+            {"source": ["obj-2", 0], "destination": ["obj-3", 0]},
+        ]
+        patcher = create_test_patcher(boxes, lines)
+
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        errors = [e for e in linter.errors if e.rule == "flow-001"]
+        assert len(errors) >= 1
+
+    def test_pix_disconnected_inlet_error(self, tmp_path: Path) -> None:
+        """jit.gl.pix with disconnected inlet = ERROR."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.test",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "jit.pwindow",
+                "numoutlets": 1,
+                "numinlets": 1,
+            },
+        ]
+        lines = [
+            {"source": ["obj-1", 0], "destination": ["obj-2", 0]},
+        ]
+        patcher = create_test_patcher(boxes, lines)
+
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        errors = [e for e in linter.errors if e.rule == "flow-003"]
+        assert len(errors) >= 1
+
+    def test_pix_not_connected_to_display_error(self, tmp_path: Path) -> None:
+        """jit.gl.pix output not reaching display = ERROR."""
+        boxes = [
+            {
+                "id": "obj-qmetro",
+                "maxclass": "newobj",
+                "text": "qmetro 30",
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+            {
+                "id": "obj-movie",
+                "maxclass": "newobj",
+                "text": "jit.movie @output_texture 1",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-pix",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.test",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            # jit.pwindow exists but not connected to jit.gl.pix
+            {
+                "id": "obj-pwindow",
+                "maxclass": "jit.pwindow",
+                "numoutlets": 1,
+                "numinlets": 1,
+            },
+        ]
+        lines = [
+            {"source": ["obj-qmetro", 0], "destination": ["obj-movie", 0]},
+            {"source": ["obj-movie", 0], "destination": ["obj-pix", 0]},
+            # NOTE: No connection from obj-pix to obj-pwindow
+        ]
+        patcher = create_test_patcher(boxes, lines)
+
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        errors = [e for e in linter.errors if e.rule == "flow-002"]
+        assert len(errors) >= 1
+
+    def test_complete_pipeline_no_error(self, tmp_path: Path) -> None:
+        """Complete qmetro->movie->pix->pwindow pipeline = no flow errors."""
+        boxes = [
+            {
+                "id": "obj-qmetro",
+                "maxclass": "newobj",
+                "text": "qmetro 30",
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+            {
+                "id": "obj-toggle",
+                "maxclass": "toggle",
+                "numoutlets": 1,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-movie",
+                "maxclass": "newobj",
+                "text": "jit.movie @output_texture 1",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-pix",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.test",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-pwindow",
+                "maxclass": "jit.pwindow",
+                "numoutlets": 1,
+                "numinlets": 1,
+            },
+        ]
+        lines = [
+            {"source": ["obj-toggle", 0], "destination": ["obj-qmetro", 0]},
+            {"source": ["obj-qmetro", 0], "destination": ["obj-movie", 0]},
+            {"source": ["obj-movie", 0], "destination": ["obj-pix", 0]},
+            {"source": ["obj-pix", 0], "destination": ["obj-pwindow", 0]},
+        ]
+        patcher = create_test_patcher(boxes, lines)
+
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        flow_errors = [e for e in linter.errors if e.rule.startswith("flow-")]
+        assert len(flow_errors) == 0
+
+
+class TestContextValidation:
+    """Test context validation rules (ctx-001 to ctx-003)."""
+
+    def test_dots_in_context_error(self, tmp_path: Path) -> None:
+        """Context name with dots = ERROR (ctx-001)."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.world sr.bad.ctx",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+        ]
+        patcher = create_test_patcher(boxes, [])
+
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        errors = [e for e in linter.errors if e.rule == "ctx-001"]
+        assert len(errors) >= 1
+        assert "underscore" in errors[0].message.lower()
+
+    def test_nonexistent_drawto_error(self, tmp_path: Path) -> None:
+        """@drawto references non-existent context = ERROR (ctx-002)."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.world sr_ctx",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "newobj",
+                "text": "jit.movie @drawto wrong_ctx",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+        ]
+        patcher = create_test_patcher(boxes, [])
+
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        errors = [e for e in linter.errors if e.rule == "ctx-002"]
+        assert len(errors) >= 1
+
+    def test_duplicate_context_error(self, tmp_path: Path) -> None:
+        """Multiple jit.world with same name = ERROR (ctx-003)."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.world sr_ctx",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "newobj",
+                "text": "jit.world sr_ctx",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+        ]
+        patcher = create_test_patcher(boxes, [])
+
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        errors = [e for e in linter.errors if e.rule == "ctx-003"]
+        assert len(errors) >= 1
+
+    def test_valid_context_no_error(self, tmp_path: Path) -> None:
+        """Valid context naming = no ctx errors."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.world sr_ctx @visible 0",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "newobj",
+                "text": "jit.movie @drawto sr_ctx",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+        ]
+        patcher = create_test_patcher(boxes, [])
+
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        ctx_errors = [e for e in linter.errors if e.rule.startswith("ctx-")]
+        assert len(ctx_errors) == 0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -660,6 +660,8 @@ class MaxhelpLinter:
         valid &= self._validate_structure()
         valid &= self._validate_context_naming()
         valid &= self._validate_context_initialization()
+        valid &= self._validate_context_rules()
+        valid &= self._validate_init_order()
         valid &= self._validate_signal_flow()
         valid &= self._validate_inlet_connections()
         valid &= self._validate_connection_types()
@@ -674,6 +676,7 @@ class MaxhelpLinter:
         valid &= self._validate_param_initialization()
         valid &= self._validate_dial_initialization()
         valid &= self._validate_known_objects()
+        valid &= self._validate_flow_rules()
 
         return valid
 
@@ -837,6 +840,147 @@ class MaxhelpLinter:
                 except nx.NetworkXError:
                     pass
 
+        return valid
+
+    def _validate_context_rules(self) -> bool:
+        """Validate OpenGL context rules.
+
+        Checks context naming, existence, and uniqueness.
+
+        Rules:
+            ctx-001: Dots in context name (ERROR)
+            ctx-002: @drawto references non-existent context (ERROR)
+            ctx-003: Multiple jit.world with same context name (ERROR)
+        """
+        valid = True
+
+        # Find context-defining and context-using objects
+        jit_worlds = self._find_boxes_by_type("jit.world")
+        jit_movies = self._find_boxes_by_type("jit.movie")
+        jit_gl_pix = self._find_boxes_by_type("jit.gl.pix")
+        jit_gl_texture = self._find_boxes_by_type("jit.gl.texture")
+
+        # Track defined contexts and their defining objects
+        context_definitions: dict[str, list[str]] = {}  # ctx_name -> [box_ids]
+
+        for world_id in jit_worlds:
+            world_text = self._get_box_text(world_id)
+            ctx = self._extract_context_name(world_text)
+            if ctx:
+                # ctx-001: Check for dots in context name
+                if "." in ctx:
+                    self.error(
+                        "ctx-001",
+                        f"Context name '{ctx}' contains dots - use underscores instead: '{ctx.replace('.', '_')}'",
+                        world_id,
+                    )
+                    valid = False
+
+                # Track for duplicate detection
+                if ctx not in context_definitions:
+                    context_definitions[ctx] = []
+                context_definitions[ctx].append(world_id)
+
+        # ctx-003: Check for duplicate context definitions
+        for ctx_name, defining_boxes in context_definitions.items():
+            if len(defining_boxes) > 1:
+                self.error(
+                    "ctx-003",
+                    f"Multiple jit.world objects define context '{ctx_name}': {defining_boxes}",
+                    defining_boxes[0],
+                )
+                valid = False
+
+        # ctx-002: Check @drawto references exist
+        defined_contexts = set(context_definitions.keys())
+
+        for box_id in jit_movies + jit_gl_pix + jit_gl_texture:
+            box_text = self._get_box_text(box_id)
+            drawto = self._extract_drawto(box_text)
+
+            if drawto:
+                # Check for dots in @drawto value
+                if "." in drawto:
+                    self.error(
+                        "ctx-001",
+                        f"@drawto context '{drawto}' contains dots - use underscores",
+                        box_id,
+                    )
+                    valid = False
+
+                # Check context exists
+                if drawto not in defined_contexts:
+                    self.error(
+                        "ctx-002",
+                        f"@drawto references non-existent context '{drawto}'. "
+                        f"Defined contexts: {defined_contexts or 'none'}",
+                        box_id,
+                    )
+                    valid = False
+
+        return valid
+
+    def _validate_init_order(self) -> bool:
+        """Validate initialization order for GPU objects."""
+        valid = True
+        lint_graph = LintGraph.build(self.data, self)
+        loadbangs = self._find_boxes_by_maxclass("loadbang")
+        loadbangs.extend(
+            b
+            for b in self._find_boxes_by_maxclass("newobj")
+            if "loadbang" in self._get_box_text(b)
+        )
+        jit_worlds = self._find_boxes_by_type("jit.world")
+        jit_movies = self._find_boxes_by_type("jit.movie")
+        for world_id in jit_worlds:
+            has_loadbang_path = False
+            for lb_id in loadbangs:
+                try:
+                    if nx.has_path(lint_graph.graph, (lb_id, "box"), (world_id, "box")):
+                        has_loadbang_path = True
+                        break
+                except nx.NetworkXError:
+                    continue
+            if not has_loadbang_path:
+                self.error(
+                    "init-001",
+                    "jit.world not receiving loadbang - context may not initialize properly",
+                    world_id,
+                )
+                valid = False
+        defined_contexts: set[str] = set()
+        for world_id in jit_worlds:
+            ctx = self._extract_context_name(self._get_box_text(world_id))
+            if ctx:
+                defined_contexts.add(ctx)
+        for movie_id in jit_movies:
+            drawto = self._extract_drawto(self._get_box_text(movie_id))
+            if drawto and drawto not in defined_contexts:
+                self.error(
+                    "init-002",
+                    f"jit.movie @drawto '{drawto}' references non-existent context. Defined contexts: {defined_contexts or 'none'}",
+                    movie_id,
+                )
+                valid = False
+        for movie_id in jit_movies:
+            movie_text = self._get_box_text(movie_id)
+            if "@output_texture 1" not in movie_text:
+                continue
+            for lb_id in loadbangs:
+                try:
+                    if nx.has_path(lint_graph.graph, (lb_id, "box"), (movie_id, "box")):
+                        path = nx.shortest_path(
+                            lint_graph.graph, (lb_id, "box"), (movie_id, "box")
+                        )
+                        path_texts = [self._get_box_text(node[0]) for node in path]
+                        if not any("delay" in t or "pipe" in t for t in path_texts):
+                            self.warning(
+                                "init-003",
+                                "No delay between loadbang and jit.movie - may cause race condition. Add 'delay 100' after loadbang.",
+                                movie_id,
+                            )
+                except nx.NetworkXError:
+                    continue
         return valid
 
     def _validate_signal_flow(self) -> bool:
@@ -2619,6 +2763,81 @@ class MaxhelpLinter:
                         f"Parameter '{param_name}' has no interactive control "
                         f"(dial, slider, toggle, button) - only number/flonum",
                     )
+
+        return valid
+
+    def _validate_flow_rules(self) -> bool:
+        """Validate signal flow rules using LintGraph.
+
+        Checks for complete video pipelines and connected inlets.
+
+        Rules:
+            flow-001: Missing qmetro for video playback (ERROR)
+            flow-002: Incomplete source->effect->display pipeline (ERROR)
+            flow-003: jit.gl.pix inlet not connected (ERROR)
+
+        Returns:
+            True if all flow rules pass, False otherwise.
+        """
+        valid = True
+        lint_graph = LintGraph.build(self.data, self)
+
+        # Find key objects
+        qmetros = self._find_boxes_by_type("qmetro")
+        jit_movies = self._find_boxes_by_type("jit.movie")
+        jit_gl_pix = self._find_boxes_by_type("jit.gl.pix")
+        display_sinks: list[str] = []
+        for box_id, box in self.boxes.items():
+            maxclass = box.get("maxclass", "")
+            text = box.get("text", "")
+            if maxclass in JITTER_DISPLAY_SINKS or any(
+                s in text for s in JITTER_DISPLAY_SINKS
+            ):
+                display_sinks.append(box_id)
+
+        # flow-001: Missing qmetro for video playback
+        # If there's a jit.movie, there should be a qmetro driving it
+        if jit_movies and not qmetros:
+            self.error(
+                "flow-001",
+                "No qmetro found for video playback. Add qmetro to drive jit.movie.",
+            )
+            valid = False
+
+        # flow-002: Incomplete pipeline (source->effect->display)
+        for pix_id in jit_gl_pix:
+            # Check if pix reaches a display sink
+            reaches_display = False
+            for sink_id in display_sinks:
+                try:
+                    if nx.has_path(lint_graph.graph, (pix_id, "box"), (sink_id, "box")):
+                        reaches_display = True
+                        break
+                except nx.NetworkXError:
+                    continue
+
+            if not reaches_display and display_sinks:
+                self.error(
+                    "flow-002",
+                    "jit.gl.pix output not connected to display (jit.pwindow/jit.window)",
+                    pix_id,
+                )
+                valid = False
+
+        # flow-003: jit.gl.pix inlet 0 not connected
+        for pix_id in jit_gl_pix:
+            inlet_0_node = (pix_id, "in", 0)
+            has_input = any(
+                edge[1] == inlet_0_node for edge in lint_graph.graph.edges()
+            )
+
+            if not has_input:
+                self.error(
+                    "flow-003",
+                    "jit.gl.pix inlet 0 not connected - no texture input",
+                    pix_id,
+                )
+                valid = False
 
         return valid
 
