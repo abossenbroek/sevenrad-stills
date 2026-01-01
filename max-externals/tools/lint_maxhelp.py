@@ -681,6 +681,7 @@ class MaxhelpLinter:
         valid &= self._validate_dial_initialization()
         valid &= self._validate_known_objects()
         valid &= self._validate_flow_rules()
+        valid &= self._validate_dead_code()
         valid &= self._validate_feedback_loops()
         valid &= self._validate_trigger_order()
 
@@ -2972,6 +2973,97 @@ class MaxhelpLinter:
                     pix_id,
                 )
                 valid = False
+
+        return valid
+
+    def _validate_dead_code(self) -> bool:
+        """Validate for dead code patterns using LintGraph analysis.
+
+        Detects orphaned objects, dead branches, and multiple sources to single inlet.
+
+        Rules:
+            dead-001: Orphaned objects (no connections) = ERROR
+            dead-002: Dead branches not reaching output = ERROR
+            dead-003: Multiple sources to single inlet (race) = WARNING
+
+        Excluded from orphan detection (dead-001):
+            - comment objects (labels)
+            - panel objects (visual organization)
+            - fpic objects (images)
+            - live.comment objects
+
+        Returns:
+            True if all dead code rules pass, False otherwise.
+        """
+        valid = True
+        lint_graph = self.lint_graph
+
+        # Objects excluded from orphan detection (UI/comment elements)
+        excluded_maxclasses = {"comment", "panel", "fpic", "live.comment"}
+
+        # dead-001: Orphaned objects (no connections)
+        for orphan_id in lint_graph.orphans:
+            box = lint_graph.boxes.get(orphan_id, {})
+            maxclass = box.get("maxclass", "")
+
+            # Skip excluded object types
+            if maxclass in excluded_maxclasses:
+                continue
+
+            self.error(
+                "dead-001",
+                f"Orphaned object with no connections: {box.get('text', maxclass)}",
+                orphan_id,
+            )
+            valid = False
+
+        # dead-002: Dead branches not reaching display sinks
+        for dead_id in lint_graph.dead_branches:
+            box = lint_graph.boxes.get(dead_id, {})
+            maxclass = box.get("maxclass", "")
+
+            # Skip excluded object types for dead branches too
+            if maxclass in excluded_maxclasses:
+                continue
+
+            self.error(
+                "dead-002",
+                f"Dead branch not reaching display: {box.get('text', maxclass)}",
+                dead_id,
+            )
+            valid = False
+
+        # dead-003: Multiple sources to single inlet (race condition)
+        # Build a map of (box_id, inlet) -> list of source connections
+        inlet_sources: dict[tuple[str, int], list[str]] = {}
+        for edge in lint_graph.graph.edges():
+            src_node, dst_node = edge
+            if (
+                isinstance(dst_node, tuple)
+                and len(dst_node) == 3
+                and dst_node[1] == "in"
+            ):
+                dest_box_id = dst_node[0]
+                dest_inlet = dst_node[2]
+                key = (dest_box_id, dest_inlet)
+
+                if key not in inlet_sources:
+                    inlet_sources[key] = []
+
+                # Extract source box ID
+                if isinstance(src_node, tuple) and len(src_node) >= 1:
+                    inlet_sources[key].append(src_node[0])
+
+        # Report inlets with multiple sources
+        for (box_id, inlet), sources in inlet_sources.items():
+            if len(sources) > 1:
+                box = lint_graph.boxes.get(box_id, {})
+                self.warning(
+                    "dead-003",
+                    f"Multiple sources ({len(sources)}) to inlet {inlet}: "
+                    f"race condition possible. Sources: {', '.join(sources)}",
+                    box_id,
+                )
 
         return valid
 
