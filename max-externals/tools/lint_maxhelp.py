@@ -155,6 +155,62 @@ class Severity(Enum):
     INFO = "INFO"
 
 
+class JitterType(Enum):
+    """Jitter connection type for strict type checking.
+
+    Represents the types of data that can flow through Jitter connections.
+    Used by TYPE_COMPATIBLE to enforce strict type matching.
+    """
+
+    TEXTURE = "jit_gl_texture"  # GPU texture
+    MATRIX = "jit_matrix"  # CPU matrix
+    TEXTURE_NAME = "texture_name"  # String reference to named texture
+    BANG = "bang"  # Trigger message
+    MESSAGE = "message"  # Any Max message
+    INFO = "info"  # Dump outlet metadata
+    UNKNOWN = "unknown"  # Unrecognized objects
+
+
+# Strict type compatibility matrix - NO implicit conversions
+TYPE_COMPATIBLE: dict[tuple[JitterType, JitterType], bool] = {
+    # Same type -> compatible
+    (JitterType.TEXTURE, JitterType.TEXTURE): True,
+    (JitterType.MATRIX, JitterType.MATRIX): True,
+    # Cross-domain connections -> ERROR (strict mode)
+    (JitterType.TEXTURE, JitterType.MATRIX): False,  # ERROR - can't feed GPU to CPU
+    (JitterType.MATRIX, JitterType.TEXTURE): False,  # ERROR - can't feed CPU to GPU
+    # Info outlet -> data inlet -> ERROR
+    (JitterType.INFO, JitterType.TEXTURE): False,  # ERROR - info is metadata
+    (JitterType.INFO, JitterType.MATRIX): False,  # ERROR
+    # Bang/message -> data inlet -> ERROR
+    (JitterType.BANG, JitterType.TEXTURE): False,  # ERROR - bang can't be image data
+    (JitterType.BANG, JitterType.MATRIX): False,  # ERROR
+    (JitterType.MESSAGE, JitterType.TEXTURE): False,  # ERROR
+    (JitterType.MESSAGE, JitterType.MATRIX): False,  # ERROR
+    # BANG and MESSAGE can go to MESSAGE inlets
+    (JitterType.BANG, JitterType.MESSAGE): True,
+    (JitterType.MESSAGE, JitterType.MESSAGE): True,
+    # UNKNOWN is permissive (for unrecognized objects)
+    (JitterType.UNKNOWN, JitterType.UNKNOWN): True,
+}
+
+
+def types_compatible(source: JitterType, dest: JitterType) -> bool:
+    """Check if source type can connect to dest type (strict mode).
+
+    Args:
+        source: The type of the outlet (source of connection).
+        dest: The expected type of the inlet (destination of connection).
+
+    Returns:
+        True if the connection is type-compatible, False otherwise.
+    """
+    # TEXTURE can go to "matrix_or_texture" display sinks
+    if source == JitterType.TEXTURE and dest == JitterType.MATRIX:
+        return False  # Strict - use explicit conversion
+    return TYPE_COMPATIBLE.get((source, dest), False)
+
+
 @dataclass
 class LintError:
     """Represents a validation error with severity and location."""
@@ -183,11 +239,18 @@ class LintGraph:
         boxes: Dict mapping box_id to box properties dict.
         type_map: Dict mapping (box_id, outlet_idx) to outlet type string.
                   Types are: 'texture', 'matrix', 'info', 'bang_or_message', 'unknown'.
+        cycles: Pre-computed cycles via nx.simple_cycles() on box-level graph.
+                Each cycle is a list of box IDs forming the feedback loop.
+        orphans: Box IDs with no connections (degree 0 in box-level graph).
+        dead_branches: Box IDs not reaching any display sink (jit.pwindow, jit.window).
     """
 
     graph: nx.DiGraph
     boxes: dict[str, dict[str, Any]]
     type_map: dict[tuple[str, int], str]  # (box_id, outlet) -> type
+    cycles: list[list[str]]  # Pre-computed cycles (list of box ID lists)
+    orphans: set[str]  # Box IDs with no connections
+    dead_branches: set[str]  # Box IDs not reaching display sinks
 
     @classmethod
     def build(cls, data: dict[str, Any], linter: "MaxhelpLinter") -> "LintGraph":
@@ -198,11 +261,14 @@ class LintGraph:
             linter: MaxhelpLinter instance for type inference methods.
 
         Returns:
-            LintGraph with populated graph, boxes dict, and type_map.
+            LintGraph with populated graph, boxes dict, type_map, cycles, orphans, and dead_branches.
         """
         graph = nx.DiGraph()
         boxes: dict[str, dict[str, Any]] = {}
         type_map: dict[tuple[str, int], str] = {}
+
+        # Build a separate box-level graph for cycle/orphan/dead-branch detection
+        box_graph = nx.DiGraph()
 
         # Extract boxes from patcher data
         for box_wrapper in data.get("patcher", {}).get("boxes", []):
@@ -210,6 +276,7 @@ class LintGraph:
             box_id = box.get("id", "")
             if box_id:
                 boxes[box_id] = box
+                box_graph.add_node(box_id)
 
                 # Add nodes for outlets and populate type_map
                 for i in range(box.get("numoutlets", 0)):
@@ -252,7 +319,43 @@ class LintGraph:
                 # Add box-level edge for path finding
                 graph.add_edge((src_box_id, "box"), (dst_box_id, "box"))
 
-        return cls(graph=graph, boxes=boxes, type_map=type_map)
+                # Add edge to box-level graph for cycle detection
+                box_graph.add_edge(src_box_id, dst_box_id)
+
+        # Compute cycles using networkx simple_cycles on box-level graph
+        cycles = list(nx.simple_cycles(box_graph))
+
+        # Compute orphans - boxes with no edges at box level (degree 0)
+        orphans = {box_id for box_id in boxes if box_graph.degree(box_id) == 0}
+
+        # Compute dead branches - boxes not reaching display sinks
+        # Display sinks: jit.pwindow, jit.window
+        display_sinks: set[str] = set()
+        for box_id, box in boxes.items():
+            text = box.get("text", "")
+            maxclass = box.get("maxclass", "")
+            if maxclass in JITTER_DISPLAY_SINKS or any(
+                sink in text for sink in JITTER_DISPLAY_SINKS
+            ):
+                display_sinks.add(box_id)
+
+        # Find all nodes that can reach a sink (ancestors in directed graph)
+        reaches_sink: set[str] = set()
+        for sink in display_sinks:
+            reaches_sink.add(sink)
+            reaches_sink.update(nx.ancestors(box_graph, sink))
+
+        # Dead branches are boxes that don't reach any sink and aren't orphans
+        dead_branches = set(boxes.keys()) - reaches_sink - orphans
+
+        return cls(
+            graph=graph,
+            boxes=boxes,
+            type_map=type_map,
+            cycles=cycles,
+            orphans=orphans,
+            dead_branches=dead_branches,
+        )
 
 
 class MaxhelpLinter:

@@ -18,7 +18,13 @@ from typing import Any
 
 import networkx as nx
 import pytest
-from lint_maxhelp import LintGraph, MaxhelpLinter
+from lint_maxhelp import (
+    TYPE_COMPATIBLE,
+    JitterType,
+    LintGraph,
+    MaxhelpLinter,
+    types_compatible,
+)
 
 
 def create_test_patcher(
@@ -1770,6 +1776,374 @@ class TestLintGraph:
         assert box_node is not None
         assert "box" in box_node
         assert box_node["box"]["id"] == "obj-1"
+
+
+class TestJitterType:
+    """Test JitterType enum and TYPE_COMPATIBLE matrix."""
+
+    def test_texture_to_texture_compatible(self) -> None:
+        """Texture->Texture is valid."""
+        assert TYPE_COMPATIBLE[(JitterType.TEXTURE, JitterType.TEXTURE)] is True
+
+    def test_texture_to_matrix_incompatible(self) -> None:
+        """Texture->Matrix is INVALID (strict)."""
+        assert TYPE_COMPATIBLE[(JitterType.TEXTURE, JitterType.MATRIX)] is False
+
+    def test_matrix_to_texture_incompatible(self) -> None:
+        """Matrix->Texture is INVALID (strict)."""
+        assert TYPE_COMPATIBLE[(JitterType.MATRIX, JitterType.TEXTURE)] is False
+
+    def test_info_to_data_incompatible(self) -> None:
+        """Info outlet->data inlet is INVALID."""
+        assert TYPE_COMPATIBLE[(JitterType.INFO, JitterType.TEXTURE)] is False
+        assert TYPE_COMPATIBLE[(JitterType.INFO, JitterType.MATRIX)] is False
+
+    def test_bang_to_message_compatible(self) -> None:
+        """Bang can go to message inlet."""
+        assert TYPE_COMPATIBLE[(JitterType.BANG, JitterType.MESSAGE)] is True
+
+    def test_types_compatible_helper(self) -> None:
+        """types_compatible() helper works."""
+        assert types_compatible(JitterType.TEXTURE, JitterType.TEXTURE) is True
+        assert types_compatible(JitterType.TEXTURE, JitterType.MATRIX) is False
+
+    def test_matrix_to_matrix_compatible(self) -> None:
+        """Matrix->Matrix is valid."""
+        assert TYPE_COMPATIBLE[(JitterType.MATRIX, JitterType.MATRIX)] is True
+
+    def test_unknown_to_unknown_compatible(self) -> None:
+        """Unknown->Unknown is permissive."""
+        assert TYPE_COMPATIBLE[(JitterType.UNKNOWN, JitterType.UNKNOWN)] is True
+
+    def test_bang_to_texture_incompatible(self) -> None:
+        """Bang cannot be image data."""
+        assert TYPE_COMPATIBLE[(JitterType.BANG, JitterType.TEXTURE)] is False
+        assert TYPE_COMPATIBLE[(JitterType.BANG, JitterType.MATRIX)] is False
+
+    def test_message_to_texture_incompatible(self) -> None:
+        """Message cannot be image data."""
+        assert TYPE_COMPATIBLE[(JitterType.MESSAGE, JitterType.TEXTURE)] is False
+        assert TYPE_COMPATIBLE[(JitterType.MESSAGE, JitterType.MATRIX)] is False
+
+    def test_message_to_message_compatible(self) -> None:
+        """Message can go to message inlet."""
+        assert TYPE_COMPATIBLE[(JitterType.MESSAGE, JitterType.MESSAGE)] is True
+
+    def test_jitter_type_values(self) -> None:
+        """JitterType enum has correct string values."""
+        assert JitterType.TEXTURE.value == "jit_gl_texture"
+        assert JitterType.MATRIX.value == "jit_matrix"
+        assert JitterType.TEXTURE_NAME.value == "texture_name"
+        assert JitterType.BANG.value == "bang"
+        assert JitterType.MESSAGE.value == "message"
+        assert JitterType.INFO.value == "info"
+        assert JitterType.UNKNOWN.value == "unknown"
+
+
+class TestCycleDetection:
+    """Tests for cycle detection in LintGraph for GPU feedback loops."""
+
+    def test_no_cycles_in_linear_chain(self, tmp_path: Path) -> None:
+        """Linear chain has no cycles."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.movie",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-3",
+                "maxclass": "jit.pwindow",
+                "numoutlets": 1,
+                "numinlets": 1,
+            },
+        ]
+        lines = [
+            {"source": ["obj-1", 0], "destination": ["obj-2", 0]},
+            {"source": ["obj-2", 0], "destination": ["obj-3", 0]},
+        ]
+        patcher = create_test_patcher(boxes, lines)
+
+        linter = MaxhelpLinter()
+        linter.filepath = tmp_path / "test.maxhelp"
+        linter.data = patcher
+        linter.boxes = {str(b["id"]): b for b in boxes}
+
+        lint_graph = LintGraph.build(patcher, linter)
+        assert len(lint_graph.cycles) == 0
+
+    def test_detects_direct_cycle(self, tmp_path: Path) -> None:
+        """Direct pix->pix feedback detected as cycle."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.effect1",
+                "numoutlets": 2,
+                "numinlets": 2,
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.effect2",
+                "numoutlets": 2,
+                "numinlets": 2,
+            },
+        ]
+        lines = [
+            {"source": ["obj-1", 0], "destination": ["obj-2", 0]},
+            {"source": ["obj-2", 0], "destination": ["obj-1", 1]},  # Feedback!
+        ]
+        patcher = create_test_patcher(boxes, lines)
+
+        linter = MaxhelpLinter()
+        linter.filepath = tmp_path / "test.maxhelp"
+        linter.data = patcher
+        linter.boxes = {str(b["id"]): b for b in boxes}
+
+        lint_graph = LintGraph.build(patcher, linter)
+        assert len(lint_graph.cycles) >= 1
+
+    def test_orphans_detected(self, tmp_path: Path) -> None:
+        """Orphaned objects (no connections) detected."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.movie",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-orphan",
+                "maxclass": "newobj",
+                "text": "print",
+                "numoutlets": 0,
+                "numinlets": 1,
+            },  # Not connected
+        ]
+        lines = [
+            {"source": ["obj-1", 0], "destination": ["obj-2", 0]},
+        ]
+        patcher = create_test_patcher(boxes, lines)
+
+        linter = MaxhelpLinter()
+        linter.filepath = tmp_path / "test.maxhelp"
+        linter.data = patcher
+        linter.boxes = {str(b["id"]): b for b in boxes}
+
+        lint_graph = LintGraph.build(patcher, linter)
+        assert "obj-orphan" in lint_graph.orphans
+
+    def test_dead_branches_detected(self, tmp_path: Path) -> None:
+        """Dead branches (not reaching display) detected."""
+        boxes = [
+            {
+                "id": "obj-main",
+                "maxclass": "newobj",
+                "text": "jit.movie",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-display",
+                "maxclass": "jit.pwindow",
+                "numoutlets": 1,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-dead1",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-dead2",
+                "maxclass": "newobj",
+                "text": "print",
+                "numoutlets": 0,
+                "numinlets": 1,
+            },
+        ]
+        lines = [
+            {
+                "source": ["obj-main", 0],
+                "destination": ["obj-display", 0],
+            },  # Main path to display
+            {
+                "source": ["obj-dead1", 0],
+                "destination": ["obj-dead2", 0],
+            },  # Dead branch
+        ]
+        patcher = create_test_patcher(boxes, lines)
+
+        linter = MaxhelpLinter()
+        linter.filepath = tmp_path / "test.maxhelp"
+        linter.data = patcher
+        linter.boxes = {str(b["id"]): b for b in boxes}
+
+        lint_graph = LintGraph.build(patcher, linter)
+        # obj-dead1 and obj-dead2 don't reach display
+        assert "obj-dead1" in lint_graph.dead_branches
+        assert "obj-dead2" in lint_graph.dead_branches
+
+    def test_self_loop_detected(self, tmp_path: Path) -> None:
+        """Self-referential loop detected as cycle."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.feedback",
+                "numoutlets": 2,
+                "numinlets": 2,
+            },
+        ]
+        lines = [
+            {
+                "source": ["obj-1", 0],
+                "destination": ["obj-1", 1],
+            },  # Self-loop
+        ]
+        patcher = create_test_patcher(boxes, lines)
+
+        linter = MaxhelpLinter()
+        linter.filepath = tmp_path / "test.maxhelp"
+        linter.data = patcher
+        linter.boxes = {str(b["id"]): b for b in boxes}
+
+        lint_graph = LintGraph.build(patcher, linter)
+        assert len(lint_graph.cycles) >= 1
+        # Self-loop should appear as single-element cycle
+        assert any(len(c) == 1 for c in lint_graph.cycles)
+
+    def test_three_node_cycle(self, tmp_path: Path) -> None:
+        """Three-node cycle (A->B->C->A) detected."""
+        boxes = [
+            {
+                "id": "obj-a",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.a",
+                "numoutlets": 2,
+                "numinlets": 2,
+            },
+            {
+                "id": "obj-b",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.b",
+                "numoutlets": 2,
+                "numinlets": 2,
+            },
+            {
+                "id": "obj-c",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.c",
+                "numoutlets": 2,
+                "numinlets": 2,
+            },
+        ]
+        lines = [
+            {"source": ["obj-a", 0], "destination": ["obj-b", 0]},
+            {"source": ["obj-b", 0], "destination": ["obj-c", 0]},
+            {"source": ["obj-c", 0], "destination": ["obj-a", 1]},  # Back to A
+        ]
+        patcher = create_test_patcher(boxes, lines)
+
+        linter = MaxhelpLinter()
+        linter.filepath = tmp_path / "test.maxhelp"
+        linter.data = patcher
+        linter.boxes = {str(b["id"]): b for b in boxes}
+
+        lint_graph = LintGraph.build(patcher, linter)
+        assert len(lint_graph.cycles) >= 1
+        # Should have a 3-node cycle
+        assert any(len(c) == 3 for c in lint_graph.cycles)
+
+    def test_all_connected_to_display_no_dead_branches(self, tmp_path: Path) -> None:
+        """When all boxes reach display, no dead branches."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.movie",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-3",
+                "maxclass": "jit.pwindow",
+                "numoutlets": 1,
+                "numinlets": 1,
+            },
+        ]
+        lines = [
+            {"source": ["obj-1", 0], "destination": ["obj-2", 0]},
+            {"source": ["obj-2", 0], "destination": ["obj-3", 0]},
+        ]
+        patcher = create_test_patcher(boxes, lines)
+
+        linter = MaxhelpLinter()
+        linter.filepath = tmp_path / "test.maxhelp"
+        linter.data = patcher
+        linter.boxes = {str(b["id"]): b for b in boxes}
+
+        lint_graph = LintGraph.build(patcher, linter)
+        assert len(lint_graph.dead_branches) == 0
+
+    def test_jit_window_also_display_sink(self, tmp_path: Path) -> None:
+        """jit.window is also recognized as a display sink."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.movie",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "jit.window",
+                "numoutlets": 1,
+                "numinlets": 1,
+            },
+        ]
+        lines = [
+            {"source": ["obj-1", 0], "destination": ["obj-2", 0]},
+        ]
+        patcher = create_test_patcher(boxes, lines)
+
+        linter = MaxhelpLinter()
+        linter.filepath = tmp_path / "test.maxhelp"
+        linter.data = patcher
+        linter.boxes = {str(b["id"]): b for b in boxes}
+
+        lint_graph = LintGraph.build(patcher, linter)
+        # All boxes reach the display sink
+        assert len(lint_graph.dead_branches) == 0
+        assert len(lint_graph.orphans) == 0
 
 
 if __name__ == "__main__":
