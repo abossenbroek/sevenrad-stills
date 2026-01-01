@@ -69,8 +69,8 @@ class TestOverlapDetection:
         linter.validate_file(test_file)
 
         # Check specifically for overlap errors (not other validation errors)
-        overlap_errors = [e for e in linter.errors if e.rule == "overlap"]
-        overlap_warnings = [w for w in linter.warnings if w.rule == "overlap"]
+        overlap_errors = [e for e in linter.errors if e.rule == "overlap-001"]
+        overlap_warnings = [w for w in linter.warnings if w.rule == "overlap-001"]
         assert len(overlap_errors) == 0
         assert len(overlap_warnings) == 0
 
@@ -98,8 +98,8 @@ class TestOverlapDetection:
         valid = linter.validate_file(test_file)
 
         assert not valid
-        assert any(e.rule == "overlap" for e in linter.errors)
-        overlap_errors = [e for e in linter.errors if e.rule == "overlap"]
+        assert any(e.rule == "overlap-001" for e in linter.errors)
+        overlap_errors = [e for e in linter.errors if e.rule == "overlap-001"]
         assert "900" in overlap_errors[0].message
 
     def test_minor_overlap_warning(self, tmp_path: Path) -> None:
@@ -126,7 +126,7 @@ class TestOverlapDetection:
         linter.validate_file(test_file)
 
         # Should have a warning for partial overlap
-        overlap_warnings = [w for w in linter.warnings if w.rule == "overlap"]
+        overlap_warnings = [w for w in linter.warnings if w.rule == "overlap-001"]
         assert len(overlap_warnings) > 0
         assert "partially overlap" in overlap_warnings[0].message
 
@@ -165,7 +165,7 @@ class TestOverlapDetection:
         linter.validate_file(test_file)
 
         # Should not report overlap for connected boxes
-        overlap_errors = [e for e in linter.errors if e.rule == "overlap"]
+        overlap_errors = [e for e in linter.errors if e.rule == "overlap-001"]
         assert len(overlap_errors) == 0
 
     def test_comments_excluded_from_overlap(self, tmp_path: Path) -> None:
@@ -193,7 +193,7 @@ class TestOverlapDetection:
         linter.validate_file(test_file)
 
         # Check specifically for overlap errors (not other validation errors)
-        overlap_errors = [e for e in linter.errors if e.rule == "overlap"]
+        overlap_errors = [e for e in linter.errors if e.rule == "overlap-001"]
         assert len(overlap_errors) == 0
 
     def test_multiple_overlaps_all_reported(self, tmp_path: Path) -> None:
@@ -223,7 +223,7 @@ class TestOverlapDetection:
         linter = MaxhelpLinter()
         linter.validate_file(test_file)
 
-        overlap_errors = [e for e in linter.errors if e.rule == "overlap"]
+        overlap_errors = [e for e in linter.errors if e.rule == "overlap-001"]
         # Should detect obj-1/obj-2 and obj-2/obj-3 overlaps
         assert len(overlap_errors) >= 2
 
@@ -259,7 +259,7 @@ class TestOverlapDetection:
         linter = MaxhelpLinter()
         linter.validate_file(test_file)
 
-        overlap_errors = [e for e in linter.errors if e.rule == "overlap"]
+        overlap_errors = [e for e in linter.errors if e.rule == "overlap-001"]
         # Should detect both button/toggle and flonum/message overlaps
         assert len(overlap_errors) >= 2
 
@@ -286,7 +286,7 @@ class TestOverlapDetection:
         linter = MaxhelpLinter()
         linter.validate_file(test_file)
 
-        overlap_errors = [e for e in linter.errors if e.rule == "overlap"]
+        overlap_errors = [e for e in linter.errors if e.rule == "overlap-001"]
         assert len(overlap_errors) >= 1
 
     def test_edge_touching_no_overlap(self, tmp_path: Path) -> None:
@@ -313,7 +313,7 @@ class TestOverlapDetection:
         linter.validate_file(test_file)
 
         # Check specifically for overlap errors (not other validation errors)
-        overlap_errors = [e for e in linter.errors if e.rule == "overlap"]
+        overlap_errors = [e for e in linter.errors if e.rule == "overlap-001"]
         assert len(overlap_errors) == 0
 
     def test_vertical_separation(self, tmp_path: Path) -> None:
@@ -340,7 +340,7 @@ class TestOverlapDetection:
         linter.validate_file(test_file)
 
         # Check specifically for overlap errors (not other validation errors)
-        overlap_errors = [e for e in linter.errors if e.rule == "overlap"]
+        overlap_errors = [e for e in linter.errors if e.rule == "overlap-001"]
         assert len(overlap_errors) == 0
 
 
@@ -908,11 +908,11 @@ class TestDialDecimals:
         linter = MaxhelpLinter()
         linter.validate_file(test_file)
 
-        # Should have warning about missing decimals
-        decimal_warnings = [w for w in linter.warnings if w.rule == "dial-decimals"]
-        assert len(decimal_warnings) >= 1
-        assert "decimals" in decimal_warnings[0].message
-        assert ">= 2" in decimal_warnings[0].message
+        # Should have error about missing decimals (dial-003)
+        decimal_errors = [e for e in linter.errors if e.rule == "dial-003"]
+        assert len(decimal_errors) >= 1
+        assert "decimals" in decimal_errors[0].message
+        assert ">= 2" in decimal_errors[0].message
 
     def test_dial_with_sufficient_decimals_valid(self, tmp_path: Path) -> None:
         """Test that dial with proper decimals passes validation."""
@@ -938,9 +938,9 @@ class TestDialDecimals:
         linter = MaxhelpLinter()
         linter.validate_file(test_file)
 
-        # Should NOT have warning about decimals
-        decimal_warnings = [w for w in linter.warnings if w.rule == "dial-decimals"]
-        assert len(decimal_warnings) == 0
+        # Should NOT have error about decimals (dial-003)
+        decimal_errors = [e for e in linter.errors if e.rule == "dial-003"]
+        assert len(decimal_errors) == 0
 
     def test_dial_with_integer_mult_valid(self, tmp_path: Path) -> None:
         """Test that dial with mult >= 1.0 doesn't need decimals."""
@@ -966,9 +966,9 @@ class TestDialDecimals:
         linter = MaxhelpLinter()
         linter.validate_file(test_file)
 
-        # Should NOT have warning about decimals for integer mult
-        decimal_warnings = [w for w in linter.warnings if w.rule == "dial-decimals"]
-        assert len(decimal_warnings) == 0
+        # Should NOT have error about decimals for integer mult (dial-003)
+        decimal_errors = [e for e in linter.errors if e.rule == "dial-003"]
+        assert len(decimal_errors) == 0
 
     def test_dial_mult_0001_requires_3_decimals(self, tmp_path: Path) -> None:
         """Test that mult=0.001 requires decimals >= 3."""
@@ -994,10 +994,10 @@ class TestDialDecimals:
         linter = MaxhelpLinter()
         linter.validate_file(test_file)
 
-        # Should warn about insufficient decimals
-        decimal_warnings = [w for w in linter.warnings if w.rule == "dial-decimals"]
-        assert len(decimal_warnings) >= 1
-        assert ">= 3" in decimal_warnings[0].message
+        # Should error about insufficient decimals (dial-003)
+        decimal_errors = [e for e in linter.errors if e.rule == "dial-003"]
+        assert len(decimal_errors) >= 1
+        assert ">= 3" in decimal_errors[0].message
 
 
 class TestDialInitRange:
@@ -1289,10 +1289,8 @@ class TestCExternalDialRanges:
         linter.validate_file(test_file)
 
         # Should ERROR: dial min 0.0 < param min 0.001
-        range_errors = [e for e in linter.errors if e.rule == "c-external-dial-range"]
-        assert (
-            len(range_errors) >= 1
-        ), f"Expected c-external-dial-range error, got: {linter.errors}"
+        range_errors = [e for e in linter.errors if e.rule == "dial-001"]
+        assert len(range_errors) >= 1, f"Expected dial-001 error, got: {linter.errors}"
         assert "gap_width" in range_errors[0].message
         assert "EXCEEDS" in range_errors[0].message
 
@@ -1355,11 +1353,9 @@ class TestCExternalDialRanges:
         linter = MaxhelpLinter()
         linter.validate_file(test_file)
 
-        # Should NOT have c-external-dial-range errors
-        range_errors = [e for e in linter.errors if e.rule == "c-external-dial-range"]
-        assert (
-            len(range_errors) == 0
-        ), f"Unexpected c-external-dial-range error: {range_errors}"
+        # Should NOT have dial-001 errors
+        range_errors = [e for e in linter.errors if e.rule == "dial-001"]
+        assert len(range_errors) == 0, f"Unexpected dial-001 error: {range_errors}"
 
     def test_dial_exceeds_param_max_error(self, tmp_path: Path) -> None:
         """Test that dial exceeding param max triggers error."""
@@ -1418,10 +1414,8 @@ class TestCExternalDialRanges:
         linter.validate_file(test_file)
 
         # Should ERROR: dial max 1.0 > param max 0.5
-        range_errors = [e for e in linter.errors if e.rule == "c-external-dial-range"]
-        assert (
-            len(range_errors) >= 1
-        ), f"Expected c-external-dial-range error, got: {linter.errors}"
+        range_errors = [e for e in linter.errors if e.rule == "dial-001"]
+        assert len(range_errors) >= 1, f"Expected dial-001 error, got: {linter.errors}"
         assert "EXCEEDS" in range_errors[0].message
 
     def test_no_metadata_graceful(self, tmp_path: Path, monkeypatch: Any) -> None:
@@ -1450,8 +1444,8 @@ class TestCExternalDialRanges:
         # Should not raise, validation is skipped gracefully
         linter.validate_file(test_file)
 
-        # No c-external-dial-range errors (validation skipped)
-        range_errors = [e for e in linter.errors if e.rule == "c-external-dial-range"]
+        # No dial-001 errors (validation skipped)
+        range_errors = [e for e in linter.errors if e.rule == "dial-001"]
         assert len(range_errors) == 0
 
 
@@ -1482,7 +1476,7 @@ class TestDialFloatOutput:
         linter.validate_file(test_file)
 
         # Should ERROR: dial needs floatoutput=1
-        float_errors = [e for e in linter.errors if e.rule == "dial-float-output"]
+        float_errors = [e for e in linter.errors if e.rule == "dial-002"]
         assert (
             len(float_errors) >= 1
         ), f"Expected dial-float-output error, got: {linter.errors}"
@@ -1513,7 +1507,7 @@ class TestDialFloatOutput:
         linter.validate_file(test_file)
 
         # Should ERROR: dial needs floatoutput=1
-        float_errors = [e for e in linter.errors if e.rule == "dial-float-output"]
+        float_errors = [e for e in linter.errors if e.rule == "dial-002"]
         assert (
             len(float_errors) >= 1
         ), f"Expected dial-float-output error, got: {linter.errors}"
@@ -1544,7 +1538,7 @@ class TestDialFloatOutput:
         linter.validate_file(test_file)
 
         # Should NOT have dial-float-output errors
-        float_errors = [e for e in linter.errors if e.rule == "dial-float-output"]
+        float_errors = [e for e in linter.errors if e.rule == "dial-002"]
         assert (
             len(float_errors) == 0
         ), f"Unexpected dial-float-output error: {float_errors}"
@@ -1574,7 +1568,7 @@ class TestDialFloatOutput:
         linter.validate_file(test_file)
 
         # Should NOT have dial-float-output errors
-        float_errors = [e for e in linter.errors if e.rule == "dial-float-output"]
+        float_errors = [e for e in linter.errors if e.rule == "dial-002"]
         assert (
             len(float_errors) == 0
         ), f"Unexpected dial-float-output error: {float_errors}"
@@ -1606,7 +1600,7 @@ class TestDialFloatOutput:
         linter.validate_file(test_file)
 
         # Should ERROR: dial needs floatoutput=1 for min offset to work
-        float_errors = [e for e in linter.errors if e.rule == "dial-float-output"]
+        float_errors = [e for e in linter.errors if e.rule == "dial-002"]
         assert (
             len(float_errors) >= 1
         ), f"Expected dial-float-output error, got: {linter.errors}"
@@ -3218,6 +3212,419 @@ class TestInitValidation:
         # The out-of-range warning uses rule ID init-005-range
         range_warnings = [w for w in linter.warnings if w.rule == "init-005-range"]
         assert len(range_warnings) >= 1
+
+
+class TestTriggerValidation:
+    """Test trigger ordering validation (trigger-001)."""
+
+    def test_t_l_b_wrong_order_error(self, tmp_path: Path) -> None:
+        """t l b sends bang before message to same destination = ERROR (trigger-001).
+
+        Max fires outlets RIGHT to LEFT, so 't l b' fires:
+        - outlet 1 (b) first
+        - outlet 0 (l) second
+
+        If both go to the same destination, the bang arrives before the list,
+        which is typically wrong (bang should trigger after data is ready).
+        """
+        boxes = [
+            {
+                "id": "obj-trigger",
+                "maxclass": "newobj",
+                "text": "t l b",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-dest",
+                "maxclass": "newobj",
+                "text": "message",
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+        ]
+        lines = [
+            {
+                "source": ["obj-trigger", 0],
+                "destination": ["obj-dest", 0],
+            },  # l -> dest inlet 0
+            {
+                "source": ["obj-trigger", 1],
+                "destination": ["obj-dest", 0],
+            },  # b -> dest inlet 0
+        ]
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        errors = [e for e in linter.errors if e.rule == "trigger-001"]
+        assert len(errors) >= 1
+        assert "bang" in errors[0].message.lower()
+        assert (
+            "before" in errors[0].message.lower()
+            or "order" in errors[0].message.lower()
+        )
+
+    def test_t_b_l_correct_order_no_error(self, tmp_path: Path) -> None:
+        """t b l sends message before bang = no error.
+
+        Max fires RIGHT to LEFT, so 't b l' fires:
+        - outlet 1 (l) first (sends list/message)
+        - outlet 0 (b) second (sends bang after data)
+
+        This is the CORRECT order for dependent operations.
+        """
+        boxes = [
+            {
+                "id": "obj-trigger",
+                "maxclass": "newobj",
+                "text": "t b l",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-dest",
+                "maxclass": "newobj",
+                "text": "message",
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+        ]
+        lines = [
+            {
+                "source": ["obj-trigger", 0],
+                "destination": ["obj-dest", 0],
+            },  # b -> dest inlet 0
+            {
+                "source": ["obj-trigger", 1],
+                "destination": ["obj-dest", 0],
+            },  # l -> dest inlet 0
+        ]
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        errors = [e for e in linter.errors if e.rule == "trigger-001"]
+        assert len(errors) == 0
+
+    def test_independent_outlets_no_error(self, tmp_path: Path) -> None:
+        """Trigger outlets going to different destinations = no error.
+
+        Even with 't l b' order, if outlets go to different destinations,
+        the ordering doesn't matter.
+        """
+        boxes = [
+            {
+                "id": "obj-trigger",
+                "maxclass": "newobj",
+                "text": "t l b",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-dest1",
+                "maxclass": "newobj",
+                "text": "message",
+                "numoutlets": 1,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-dest2",
+                "maxclass": "newobj",
+                "text": "print",
+                "numoutlets": 0,
+                "numinlets": 1,
+            },
+        ]
+        lines = [
+            {
+                "source": ["obj-trigger", 0],
+                "destination": ["obj-dest1", 0],
+            },  # l -> dest1
+            {
+                "source": ["obj-trigger", 1],
+                "destination": ["obj-dest2", 0],
+            },  # b -> dest2
+        ]
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        errors = [e for e in linter.errors if e.rule == "trigger-001"]
+        assert len(errors) == 0
+
+    def test_trigger_longform_syntax(self, tmp_path: Path) -> None:
+        """'trigger' instead of 't' should also be validated."""
+        boxes = [
+            {
+                "id": "obj-trigger",
+                "maxclass": "newobj",
+                "text": "trigger list bang",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-dest",
+                "maxclass": "newobj",
+                "text": "message",
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+        ]
+        lines = [
+            {
+                "source": ["obj-trigger", 0],
+                "destination": ["obj-dest", 0],
+            },  # list -> dest inlet 0
+            {
+                "source": ["obj-trigger", 1],
+                "destination": ["obj-dest", 0],
+            },  # bang -> dest inlet 0
+        ]
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        errors = [e for e in linter.errors if e.rule == "trigger-001"]
+        assert len(errors) >= 1
+
+    def test_multiple_data_types_with_bang(self, tmp_path: Path) -> None:
+        """t i b with both to same destination = error."""
+        boxes = [
+            {
+                "id": "obj-trigger",
+                "maxclass": "newobj",
+                "text": "t i b",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-dest",
+                "maxclass": "newobj",
+                "text": "message",
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+        ]
+        lines = [
+            {
+                "source": ["obj-trigger", 0],
+                "destination": ["obj-dest", 0],
+            },  # i -> dest inlet 0
+            {
+                "source": ["obj-trigger", 1],
+                "destination": ["obj-dest", 0],
+            },  # b -> dest inlet 0
+        ]
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        errors = [e for e in linter.errors if e.rule == "trigger-001"]
+        assert len(errors) >= 1
+
+
+class TestFeedbackValidation:
+    """Test feedback loop validation (feedback-001, feedback-002)."""
+
+    def test_unbuffered_feedback_error(self, tmp_path: Path) -> None:
+        """Direct pix->pix feedback without buffer = ERROR (feedback-001)."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.effect1",
+                "numoutlets": 2,
+                "numinlets": 2,
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.effect2",
+                "numoutlets": 2,
+                "numinlets": 2,
+            },
+        ]
+        lines = [
+            {"source": ["obj-1", 0], "destination": ["obj-2", 0]},
+            {"source": ["obj-2", 0], "destination": ["obj-1", 1]},  # Direct feedback!
+        ]
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        errors = [e for e in linter.errors if e.rule == "feedback-001"]
+        assert len(errors) >= 1
+        assert (
+            "unbuffered" in errors[0].message.lower()
+            or "buffer" in errors[0].message.lower()
+        )
+
+    def test_buffered_feedback_no_error(self, tmp_path: Path) -> None:
+        """pix->texture->pix feedback (properly buffered) = no error."""
+        boxes = [
+            {
+                "id": "obj-pix1",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.effect1",
+                "numoutlets": 2,
+                "numinlets": 2,
+            },
+            {
+                "id": "obj-tex",
+                "maxclass": "newobj",
+                "text": "jit.gl.texture sr_ctx @name feedback_buf",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-pix2",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.effect2",
+                "numoutlets": 2,
+                "numinlets": 2,
+            },
+        ]
+        lines = [
+            {"source": ["obj-pix1", 0], "destination": ["obj-tex", 0]},
+            {"source": ["obj-tex", 0], "destination": ["obj-pix2", 0]},
+            {
+                "source": ["obj-pix2", 0],
+                "destination": ["obj-pix1", 1],
+            },  # Buffered feedback
+        ]
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        feedback_errors = [e for e in linter.errors if e.rule == "feedback-001"]
+        assert len(feedback_errors) == 0
+
+    def test_buffer_missing_name_warning(self, tmp_path: Path) -> None:
+        """jit.gl.texture in feedback loop without @name = WARNING (feedback-002)."""
+        boxes = [
+            {
+                "id": "obj-pix1",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.effect1",
+                "numoutlets": 2,
+                "numinlets": 2,
+            },
+            {
+                "id": "obj-tex",
+                "maxclass": "newobj",
+                "text": "jit.gl.texture sr_ctx",  # No @name attribute!
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-pix2",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.effect2",
+                "numoutlets": 2,
+                "numinlets": 2,
+            },
+        ]
+        lines = [
+            {"source": ["obj-pix1", 0], "destination": ["obj-tex", 0]},
+            {"source": ["obj-tex", 0], "destination": ["obj-pix2", 0]},
+            {"source": ["obj-pix2", 0], "destination": ["obj-pix1", 1]},
+        ]
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        warnings = [w for w in linter.warnings if w.rule == "feedback-002"]
+        assert len(warnings) >= 1
+        assert "@name" in warnings[0].message
+
+    def test_self_loop_unbuffered_error(self, tmp_path: Path) -> None:
+        """Single pix feeding back to itself without buffer = ERROR (feedback-001)."""
+        boxes = [
+            {
+                "id": "obj-pix",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.feedback",
+                "numoutlets": 2,
+                "numinlets": 2,
+            },
+        ]
+        lines = [
+            {"source": ["obj-pix", 0], "destination": ["obj-pix", 1]},  # Self-loop
+        ]
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        errors = [e for e in linter.errors if e.rule == "feedback-001"]
+        assert len(errors) >= 1
+
+    def test_buffer_with_name_no_warning(self, tmp_path: Path) -> None:
+        """jit.gl.texture with @name in feedback loop = no warning."""
+        boxes = [
+            {
+                "id": "obj-pix1",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.effect1",
+                "numoutlets": 2,
+                "numinlets": 2,
+            },
+            {
+                "id": "obj-tex",
+                "maxclass": "newobj",
+                "text": "jit.gl.texture sr_ctx @name my_buffer",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-pix2",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.effect2",
+                "numoutlets": 2,
+                "numinlets": 2,
+            },
+        ]
+        lines = [
+            {"source": ["obj-pix1", 0], "destination": ["obj-tex", 0]},
+            {"source": ["obj-tex", 0], "destination": ["obj-pix2", 0]},
+            {"source": ["obj-pix2", 0], "destination": ["obj-pix1", 1]},
+        ]
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        feedback_warnings = [w for w in linter.warnings if w.rule == "feedback-002"]
+        assert len(feedback_warnings) == 0
 
 
 if __name__ == "__main__":

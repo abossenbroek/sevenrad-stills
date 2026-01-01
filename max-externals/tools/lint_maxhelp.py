@@ -681,6 +681,8 @@ class MaxhelpLinter:
         valid &= self._validate_dial_initialization()
         valid &= self._validate_known_objects()
         valid &= self._validate_flow_rules()
+        valid &= self._validate_feedback_loops()
+        valid &= self._validate_trigger_order()
 
         return valid
 
@@ -1478,9 +1480,10 @@ class MaxhelpLinter:
         }
 
         # Collect interactive boxes with their rectangles
+        # Use LintGraph.boxes for consistent state
         interactive_boxes: list[tuple[str, list[float]]] = []
 
-        for box_id, box in self.boxes.items():
+        for box_id, box in self.lint_graph.boxes.items():
             maxclass = box.get("maxclass", "")
             if maxclass in interactive_types:
                 rect = box.get("patching_rect", [])
@@ -1512,14 +1515,14 @@ class MaxhelpLinter:
                     # Significant overlap (>25% of smaller box)
                     if overlap_area > 0.25 * min_area:
                         self.error(
-                            "overlap",
+                            "overlap-001",
                             f"Boxes '{id1}' and '{id2}' overlap "
                             f"({int(overlap_area)}px²)",
                         )
                         valid = False
                     elif overlap_area > 100:  # Only warn for overlaps > 100px²
                         self.warning(
-                            "overlap",
+                            "overlap-001",
                             f"Boxes '{id1}' and '{id2}' partially overlap "
                             f"({int(overlap_area)}px²)",
                         )
@@ -2207,7 +2210,7 @@ class MaxhelpLinter:
                     if dial_exceeds_min or dial_exceeds_max:
                         # ERROR: Dial can produce values outside param range
                         self.error(
-                            "dial-range",
+                            "dial-001",
                             f"Dial output range [{dial_min:.3f}, {dial_max:.3f}] "
                             f"EXCEEDS param '{param_name}' bounds "
                             f"[{param_min}, {param_max}] from {shader_name}.genjit. "
@@ -2344,7 +2347,7 @@ class MaxhelpLinter:
 
                     if dial_exceeds_min or dial_exceeds_max:
                         self.error(
-                            "c-external-dial-range",
+                            "dial-001",
                             f"Dial output range [{dial_min:.3f}, {dial_max:.3f}] "
                             f"EXCEEDS '{param_name}' bounds [{param_min}, {param_max}] "
                             f"for {external_name}. "
@@ -2389,11 +2392,11 @@ class MaxhelpLinter:
         """
         valid = True
 
-        # Find all dial boxes
+        # Find all dial boxes using LintGraph for consistent state
         dial_ids = self._find_boxes_by_maxclass("dial")
 
         for dial_id in dial_ids:
-            dial_box = self.boxes.get(dial_id, {})
+            dial_box = self.lint_graph.boxes.get(dial_id, {})
 
             # Get mult attribute (default is 0.01 in Max)
             mult = dial_box.get("mult", 0.01)
@@ -2419,12 +2422,13 @@ class MaxhelpLinter:
             actual_decimals = dial_box.get("decimals", 0)
 
             if actual_decimals < required_decimals:
-                self.warning(
-                    "dial-decimals",
+                self.error(
+                    "dial-003",
                     f"Dial has mult={mult} (fractional output) but decimals={actual_decimals}. "
                     f"Set decimals >= {required_decimals} for proper display precision.",
                     dial_id,
                 )
+                valid = False
 
         return valid
 
@@ -2451,11 +2455,11 @@ class MaxhelpLinter:
         """
         valid = True
 
-        # Find all dial boxes
+        # Find all dial boxes using LintGraph for consistent state
         dial_ids = self._find_boxes_by_maxclass("dial")
 
         for dial_id in dial_ids:
-            dial_box = self.boxes.get(dial_id, {})
+            dial_box = self.lint_graph.boxes.get(dial_id, {})
 
             # Get mult and min attributes
             mult = float(dial_box.get("mult", 0.01))
@@ -2474,14 +2478,14 @@ class MaxhelpLinter:
                 if min_offset_needs_float and not (mult_needs_float or min_needs_float):
                     # min offset case with integer values
                     self.error(
-                        "dial-float-output",
+                        "dial-002",
                         f"Dial has min={min_val} offset but missing 'floatoutput: 1'. "
                         f"Without this, Max ignores the min attribute entirely.",
                         dial_id,
                     )
                 else:
                     self.error(
-                        "dial-float-output",
+                        "dial-002",
                         f"Dial has float values (mult={mult}, min={min_val}) but missing "
                         f"'floatoutput: 1'. Without this, Max outputs integers and ignores min.",
                         dial_id,
@@ -2968,6 +2972,170 @@ class MaxhelpLinter:
                     pix_id,
                 )
                 valid = False
+
+        return valid
+
+    def _validate_feedback_loops(self) -> bool:
+        """Validate feedback loops have proper buffering.
+
+        GPU feedback loops in Max/Jitter require proper buffering with
+        jit.gl.texture to avoid undefined behavior. This method checks
+        all detected cycles for proper buffer usage.
+
+        Rules:
+            feedback-001: Unbuffered feedback (pix->pix without jit.gl.texture) = ERROR
+            feedback-002: Feedback buffer missing @name attribute = WARNING
+
+        Returns:
+            True if all feedback rules pass, False otherwise.
+        """
+        valid = True
+
+        for cycle in self.lint_graph.cycles:
+            # cycle is a list of box IDs forming the feedback loop
+            cycle_box_ids = cycle  # Already box IDs from LintGraph.build()
+
+            # Check if jit.gl.texture exists in cycle (buffer)
+            texture_boxes_in_cycle: list[str] = []
+            for bid in cycle_box_ids:
+                box = self.lint_graph.boxes.get(bid, {})
+                text = box.get("text", "")
+                if "jit.gl.texture" in text:
+                    texture_boxes_in_cycle.append(bid)
+
+            has_buffer = len(texture_boxes_in_cycle) > 0
+
+            if not has_buffer:
+                # Find jit.gl.pix objects in unbuffered loop
+                pix_boxes = []
+                for bid in cycle_box_ids:
+                    box = self.lint_graph.boxes.get(bid, {})
+                    text = box.get("text", "")
+                    if "jit.gl.pix" in text:
+                        pix_boxes.append(bid)
+
+                if pix_boxes:
+                    # Report error for unbuffered feedback
+                    self.error(
+                        "feedback-001",
+                        f"Unbuffered GPU feedback loop detected. "
+                        f"Add jit.gl.texture buffer between pix objects. "
+                        f"Cycle: {' -> '.join(cycle_box_ids)}",
+                        pix_boxes[0],
+                    )
+                    valid = False
+            else:
+                # Check if buffer has @name attribute (feedback-002)
+                for tex_bid in texture_boxes_in_cycle:
+                    box = self.lint_graph.boxes.get(tex_bid, {})
+                    text = box.get("text", "")
+                    if "@name" not in text:
+                        self.warning(
+                            "feedback-002",
+                            f"Feedback buffer jit.gl.texture missing @name attribute. "
+                            f"Add @name for reliable texture reference.",
+                            tex_bid,
+                        )
+
+        return valid
+
+    def _validate_trigger_order(self) -> bool:
+        """Validate trigger objects don't send bang before message.
+
+        Max fires outlets RIGHT to LEFT. For a trigger object like 't l b':
+        - outlet 1 (b) fires FIRST
+        - outlet 0 (l) fires SECOND
+
+        If bang (b) is at a higher index than a data outlet (l/i/f/s) and both
+        go to the same destination, the bang arrives before the data, which is
+        typically wrong for dependent operations.
+
+        Rules:
+            trigger-001: Bang outlet fires before data outlet to same destination (ERROR)
+
+        Returns:
+            True if all trigger rules pass, False otherwise.
+        """
+        valid = True
+        lint_graph = self.lint_graph
+
+        # Data types (non-bang) that should arrive before bang
+        data_types = {"l", "list", "i", "int", "f", "float", "s", "symbol"}
+        bang_types = {"b", "bang"}
+
+        # Find all trigger objects
+        trigger_boxes = [
+            bid
+            for bid, box in lint_graph.boxes.items()
+            if box.get("text", "").startswith(("t ", "trigger "))
+        ]
+
+        for trig_id in trigger_boxes:
+            text = lint_graph.boxes[trig_id].get("text", "")
+            parts = text.split()
+            if len(parts) < 2:
+                continue
+
+            outlets = parts[1:]  # e.g., ['l', 'b'] or ['list', 'bang']
+
+            # Find destinations for each outlet from connections
+            # Build a map: outlet_index -> list of (dest_box_id, dest_inlet)
+            outlet_dests: dict[int, list[tuple[str, int]]] = {}
+            for edge in lint_graph.graph.edges():
+                src_node, dst_node = edge
+                if (
+                    isinstance(src_node, tuple)
+                    and len(src_node) == 3
+                    and src_node[0] == trig_id
+                    and src_node[1] == "out"
+                ):
+                    outlet_idx = src_node[2]
+                    if isinstance(dst_node, tuple) and len(dst_node) == 3:
+                        dest_box_id = dst_node[0]
+                        dest_inlet = dst_node[2]
+                        if outlet_idx not in outlet_dests:
+                            outlet_dests[outlet_idx] = []
+                        outlet_dests[outlet_idx].append((dest_box_id, dest_inlet))
+
+            # Find indices of bang and data outlets
+            bang_outlets = [i for i, o in enumerate(outlets) if o.lower() in bang_types]
+            msg_outlets = [i for i, o in enumerate(outlets) if o.lower() in data_types]
+
+            # Check for problematic ordering:
+            # If a bang outlet has a HIGHER index than a data outlet
+            # AND both go to the same destination, the bang fires FIRST (wrong!)
+            for bang_idx in bang_outlets:
+                for msg_idx in msg_outlets:
+                    # Higher index = fires first in Max (right to left)
+                    if bang_idx > msg_idx:
+                        # Check if they share any destination
+                        bang_dests = set(outlet_dests.get(bang_idx, []))
+                        msg_dests = set(outlet_dests.get(msg_idx, []))
+                        shared_dests = bang_dests & msg_dests
+
+                        if shared_dests:
+                            # Get the types for the error message
+                            bang_type = outlets[bang_idx]
+                            msg_type = outlets[msg_idx]
+                            dest_info = next(iter(shared_dests))
+
+                            # Suggest corrected order (swap bang to be before data in text)
+                            corrected = outlets.copy()
+                            corrected[bang_idx], corrected[msg_idx] = (
+                                corrected[msg_idx],
+                                corrected[bang_idx],
+                            )
+                            corrected_text = f"{parts[0]} {' '.join(corrected)}"
+
+                            self.error(
+                                "trigger-001",
+                                f"Trigger outlet order causes bang ({bang_type}) to fire "
+                                f"before data ({msg_type}) to same destination "
+                                f"'{dest_info[0]}' inlet {dest_info[1]}. "
+                                f"Suggest: '{corrected_text}'",
+                                trig_id,
+                            )
+                            valid = False
 
         return valid
 
