@@ -665,6 +665,7 @@ class MaxhelpLinter:
         valid &= self._validate_signal_flow()
         valid &= self._validate_inlet_connections()
         valid &= self._validate_connection_types()
+        valid &= self._validate_strict_types()
         valid &= self._validate_display_sink_sources()
         valid &= self._validate_metadata()
         valid &= self._validate_parameter_ui()
@@ -1198,6 +1199,127 @@ class MaxhelpLinter:
                     f"May cause runtime error.",
                     f"{src_box_id} → {dst_box_id}",
                 )
+
+        return valid
+
+    def _validate_strict_types(self) -> bool:
+        """Validate strict type compatibility on connections.
+
+        Uses LintGraph to check each connection for type mismatches.
+        Implements type validation rules:
+        - type-001: Texture outlet -> matrix inlet = ERROR
+        - type-002: Matrix outlet -> texture inlet = ERROR
+        - type-003: Info outlet -> data inlet = ERROR
+        - type-004: jit.movie in GPU pipeline without @output_texture 1 = ERROR
+        - type-005: jit.pwindow receiving texture without GPU context = ERROR
+
+        Returns:
+            True if validation passes (no errors), False otherwise.
+        """
+        valid = True
+        lint_graph = LintGraph.build(self.data, self)
+
+        # Check each edge for type compatibility
+        for edge in lint_graph.graph.edges(data=True):
+            src_node, dst_node, edge_data = edge
+
+            # Only check outlet->inlet edges
+            if len(src_node) < 3 or len(dst_node) < 3:
+                continue
+            if src_node[1] != "out" or dst_node[1] != "in":
+                continue
+
+            outlet_type = edge_data.get("outlet_type", "unknown")
+            inlet_type = edge_data.get("inlet_type", "unknown")
+
+            src_box_id = src_node[0]
+            dst_box_id = dst_node[0]
+
+            # type-001: Texture -> Matrix
+            if outlet_type == "texture" and inlet_type == "matrix":
+                self.error(
+                    "type-001",
+                    "Type mismatch: texture outlet cannot connect to matrix inlet",
+                    src_box_id,
+                )
+                valid = False
+
+            # type-002: Matrix -> Texture
+            if outlet_type == "matrix" and inlet_type == "texture":
+                self.error(
+                    "type-002",
+                    "Type mismatch: matrix outlet cannot connect to texture inlet. "
+                    "Use jit.movie @output_texture 1 for GPU pipeline.",
+                    src_box_id,
+                )
+                valid = False
+
+            # type-003: Info -> Data inlet
+            if outlet_type == "info" and inlet_type in ("texture", "matrix"):
+                self.error(
+                    "type-003",
+                    "Type mismatch: info outlet (metadata) connected to data inlet",
+                    src_box_id,
+                )
+                valid = False
+
+        # type-004: jit.movie in GPU pipeline without @output_texture 1
+        jit_movies = self._find_boxes_by_type("jit.movie")
+        jit_gl_pix = self._find_boxes_by_type("jit.gl.pix")
+
+        for movie_id in jit_movies:
+            movie_text = self._get_box_text(movie_id)
+            has_output_texture = "@output_texture 1" in movie_text
+
+            # Check if connected to jit.gl.pix (GPU pipeline)
+            for pix_id in jit_gl_pix:
+                try:
+                    if nx.has_path(
+                        lint_graph.graph, (movie_id, "box"), (pix_id, "box")
+                    ):
+                        if not has_output_texture:
+                            self.error(
+                                "type-004",
+                                "jit.movie connected to GPU pipeline (jit.gl.pix) "
+                                "but missing @output_texture 1",
+                                movie_id,
+                            )
+                            valid = False
+                        break
+                except nx.NetworkXError:
+                    pass
+
+        # type-005: jit.pwindow receiving texture without GPU context
+        jit_pwindows = self._find_boxes_by_maxclass("jit.pwindow")
+        jit_worlds = self._find_boxes_by_type("jit.world")
+
+        for pwindow_id in jit_pwindows:
+            # Find sources connected to inlet 0
+            inlet_node = (pwindow_id, "in", 0)
+            if inlet_node not in lint_graph.graph:
+                continue
+
+            for pred in lint_graph.graph.predecessors(inlet_node):
+                if len(pred) < 3 or pred[1] != "out":
+                    continue
+
+                src_box_id = pred[0]
+                src_outlet = pred[2]
+                src_box = lint_graph.boxes.get(src_box_id, {})
+                outlet_type = self._get_outlet_type(src_box, src_outlet)
+
+                # Check if source outputs texture
+                if outlet_type == "texture":
+                    # Check if there's a jit.world for GPU context
+                    if not jit_worlds:
+                        self.error(
+                            "type-005",
+                            "jit.pwindow receiving texture without GPU context. "
+                            "Add jit.world to create OpenGL context or use "
+                            "jit.matrix for CPU processing.",
+                            pwindow_id,
+                        )
+                        valid = False
 
         return valid
 

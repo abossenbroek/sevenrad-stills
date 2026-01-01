@@ -1840,6 +1840,285 @@ class TestJitterType:
         assert JitterType.UNKNOWN.value == "unknown"
 
 
+class TestTypeValidation:
+    """Tests for strict type validation rules (type-001 to type-005)."""
+
+    def test_texture_to_matrix_error(self, tmp_path: Path) -> None:
+        """Texture output to matrix inlet = ERROR (type-001)."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.test",
+                "numoutlets": 2,
+                "numinlets": 1,
+                "outlettype": ["jit_gl_texture", ""],
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "newobj",
+                "text": "jit.matrix 4 char 320 240",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+        ]
+        lines = [{"source": ["obj-1", 0], "destination": ["obj-2", 0]}]
+        patcher = create_test_patcher(boxes, lines)
+
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        errors = [e for e in linter.errors if e.rule == "type-001"]
+        assert len(errors) >= 1
+        assert "type mismatch" in errors[0].message.lower()
+
+    def test_matrix_to_texture_error(self, tmp_path: Path) -> None:
+        """Matrix output to texture inlet = ERROR (type-002)."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.movie",  # No @output_texture, outputs matrix
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.test",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+        ]
+        lines = [{"source": ["obj-1", 0], "destination": ["obj-2", 0]}]
+        patcher = create_test_patcher(boxes, lines)
+
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        errors = [e for e in linter.errors if e.rule == "type-002"]
+        assert len(errors) >= 1
+        assert "type mismatch" in errors[0].message.lower()
+
+    def test_info_outlet_to_data_inlet_error(self, tmp_path: Path) -> None:
+        """Info outlet to texture/matrix inlet = ERROR (type-003)."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.movie @output_texture 1",
+                "numoutlets": 2,
+                "numinlets": 1,
+                "outlettype": ["jit_gl_texture", ""],
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.test",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+        ]
+        # Connect outlet 1 (info) to jit.gl.pix inlet 0 (expects texture)
+        lines = [{"source": ["obj-1", 1], "destination": ["obj-2", 0]}]
+        patcher = create_test_patcher(boxes, lines)
+
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        errors = [e for e in linter.errors if e.rule == "type-003"]
+        assert len(errors) >= 1
+        assert "info outlet" in errors[0].message.lower()
+
+    def test_movie_without_output_texture_in_gpu_pipeline_error(
+        self, tmp_path: Path
+    ) -> None:
+        """jit.movie without @output_texture 1 connected to jit.gl.pix = ERROR."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.movie @autostart 1",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.test",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+        ]
+        lines = [{"source": ["obj-1", 0], "destination": ["obj-2", 0]}]
+        patcher = create_test_patcher(boxes, lines)
+
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        errors = [e for e in linter.errors if e.rule == "type-004"]
+        assert len(errors) >= 1
+
+    def test_pwindow_texture_without_context_error(self, tmp_path: Path) -> None:
+        """jit.pwindow receiving texture without GPU context = ERROR (type-005)."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.movie @output_texture 1",
+                "numoutlets": 2,
+                "numinlets": 1,
+                "outlettype": ["jit_gl_texture", ""],
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "jit.pwindow",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+        ]
+        lines = [{"source": ["obj-1", 0], "destination": ["obj-2", 0]}]
+        patcher = create_test_patcher(boxes, lines)
+
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        errors = [e for e in linter.errors if e.rule == "type-005"]
+        assert len(errors) >= 1
+        assert "gpu context" in errors[0].message.lower()
+
+    def test_valid_texture_chain_no_error(self, tmp_path: Path) -> None:
+        """Valid texture->texture chain with GPU context = no type errors."""
+        boxes = [
+            {
+                "id": "obj-world",
+                "maxclass": "newobj",
+                "text": "jit.world sr_test_ctx @visible 0",
+                "numoutlets": 1,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.movie @output_texture 1 @drawto sr_test_ctx",
+                "numoutlets": 2,
+                "numinlets": 1,
+                "outlettype": ["jit_gl_texture", ""],
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.test",
+                "numoutlets": 2,
+                "numinlets": 1,
+                "outlettype": ["jit_gl_texture", ""],
+            },
+            {
+                "id": "obj-3",
+                "maxclass": "jit.pwindow",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+        ]
+        lines = [
+            {"source": ["obj-1", 0], "destination": ["obj-2", 0]},
+            {"source": ["obj-2", 0], "destination": ["obj-3", 0]},
+        ]
+        patcher = create_test_patcher(boxes, lines)
+
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        type_errors = [e for e in linter.errors if e.rule.startswith("type-")]
+        assert len(type_errors) == 0
+
+    def test_movie_with_output_texture_to_pix_valid(self, tmp_path: Path) -> None:
+        """jit.movie with @output_texture 1 to jit.gl.pix = valid (no type-004)."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.movie @output_texture 1",
+                "numoutlets": 2,
+                "numinlets": 1,
+                "outlettype": ["jit_gl_texture", ""],
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "newobj",
+                "text": "jit.gl.pix @gen sr.test",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+        ]
+        lines = [{"source": ["obj-1", 0], "destination": ["obj-2", 0]}]
+        patcher = create_test_patcher(boxes, lines)
+
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        type_004_errors = [e for e in linter.errors if e.rule == "type-004"]
+        assert len(type_004_errors) == 0
+
+    def test_pwindow_with_gpu_context_valid(self, tmp_path: Path) -> None:
+        """jit.pwindow receiving texture with jit.world context = valid."""
+        boxes = [
+            {
+                "id": "obj-world",
+                "maxclass": "newobj",
+                "text": "jit.world sr_test_ctx @visible 0",
+                "numoutlets": 1,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.movie @output_texture 1",
+                "numoutlets": 2,
+                "numinlets": 1,
+                "outlettype": ["jit_gl_texture", ""],
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "jit.pwindow",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+        ]
+        lines = [{"source": ["obj-1", 0], "destination": ["obj-2", 0]}]
+        patcher = create_test_patcher(boxes, lines)
+
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+
+        type_005_errors = [e for e in linter.errors if e.rule == "type-005"]
+        assert len(type_005_errors) == 0
+
+
 class TestCycleDetection:
     """Tests for cycle detection in LintGraph for GPU feedback loops."""
 
@@ -2434,6 +2713,205 @@ class TestContextValidation:
 
         ctx_errors = [e for e in linter.errors if e.rule.startswith("ctx-")]
         assert len(ctx_errors) == 0
+
+
+class TestInitValidation:
+    """Test initialization order validation (init-001, init-002, init-003)."""
+
+    def test_jit_world_no_loadbang_error(self, tmp_path: Path) -> None:
+        """jit.world without loadbang path = ERROR (init-001)."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.world sr_ctx",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "newobj",
+                "text": "jit.movie @drawto sr_ctx",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+        ]
+        patcher = create_test_patcher(boxes, [])
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+        errors = [e for e in linter.errors if e.rule == "init-001"]
+        assert len(errors) >= 1
+        assert "loadbang" in errors[0].message
+
+    def test_movie_nonexistent_drawto_error(self, tmp_path: Path) -> None:
+        """jit.movie @drawto to nonexistent context = ERROR (init-002)."""
+        boxes = [
+            {
+                "id": "obj-1",
+                "maxclass": "newobj",
+                "text": "jit.world sr_ctx",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-2",
+                "maxclass": "newobj",
+                "text": "jit.movie @drawto wrong_ctx",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+        ]
+        patcher = create_test_patcher(boxes, [])
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+        errors = [e for e in linter.errors if e.rule == "init-002"]
+        assert len(errors) >= 1
+        assert "wrong_ctx" in errors[0].message
+
+    def test_no_delay_between_loadbang_and_movie_warning(self, tmp_path: Path) -> None:
+        """Loadbang directly to jit.movie @output_texture = WARNING (init-003)."""
+        boxes = [
+            {"id": "obj-lb", "maxclass": "loadbang", "numoutlets": 1, "numinlets": 0},
+            {
+                "id": "obj-world",
+                "maxclass": "newobj",
+                "text": "jit.world sr_ctx @visible 0",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-movie",
+                "maxclass": "newobj",
+                "text": "jit.movie @output_texture 1 @drawto sr_ctx",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+        ]
+        lines = [
+            {"source": ["obj-lb", 0], "destination": ["obj-world", 0]},
+            {"source": ["obj-lb", 0], "destination": ["obj-movie", 0]},
+        ]
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+        warnings = [w for w in linter.warnings if w.rule == "init-003"]
+        assert len(warnings) >= 1
+        assert "delay" in warnings[0].message
+
+    def test_valid_init_order_no_error(self, tmp_path: Path) -> None:
+        """Proper loadbang->delay->jit.world->jit.movie = no init errors."""
+        boxes = [
+            {"id": "obj-lb", "maxclass": "loadbang", "numoutlets": 1, "numinlets": 0},
+            {
+                "id": "obj-delay",
+                "maxclass": "newobj",
+                "text": "delay 100",
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+            {
+                "id": "obj-world",
+                "maxclass": "newobj",
+                "text": "jit.world sr_ctx @visible 0",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-movie",
+                "maxclass": "newobj",
+                "text": "jit.movie @output_texture 1 @drawto sr_ctx",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+        ]
+        lines = [
+            {"source": ["obj-lb", 0], "destination": ["obj-world", 0]},
+            {"source": ["obj-lb", 0], "destination": ["obj-delay", 0]},
+            {"source": ["obj-delay", 0], "destination": ["obj-movie", 0]},
+        ]
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+        init_errors = [e for e in linter.errors if e.rule.startswith("init-")]
+        assert len(init_errors) == 0
+
+    def test_pipe_also_counts_as_delay(self, tmp_path: Path) -> None:
+        """Using 'pipe' instead of 'delay' should also satisfy init-003."""
+        boxes = [
+            {"id": "obj-lb", "maxclass": "loadbang", "numoutlets": 1, "numinlets": 0},
+            {
+                "id": "obj-pipe",
+                "maxclass": "newobj",
+                "text": "pipe 100",
+                "numoutlets": 1,
+                "numinlets": 2,
+            },
+            {
+                "id": "obj-world",
+                "maxclass": "newobj",
+                "text": "jit.world sr_ctx @visible 0",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-movie",
+                "maxclass": "newobj",
+                "text": "jit.movie @output_texture 1 @drawto sr_ctx",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+        ]
+        lines = [
+            {"source": ["obj-lb", 0], "destination": ["obj-world", 0]},
+            {"source": ["obj-lb", 0], "destination": ["obj-pipe", 0]},
+            {"source": ["obj-pipe", 0], "destination": ["obj-movie", 0]},
+        ]
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+        init_003_warnings = [w for w in linter.warnings if w.rule == "init-003"]
+        assert len(init_003_warnings) == 0
+
+    def test_movie_without_output_texture_no_init003(self, tmp_path: Path) -> None:
+        """jit.movie without @output_texture 1 should not trigger init-003."""
+        boxes = [
+            {"id": "obj-lb", "maxclass": "loadbang", "numoutlets": 1, "numinlets": 0},
+            {
+                "id": "obj-world",
+                "maxclass": "newobj",
+                "text": "jit.world sr_ctx @visible 0",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+            {
+                "id": "obj-movie",
+                "maxclass": "newobj",
+                "text": "jit.movie @drawto sr_ctx",
+                "numoutlets": 2,
+                "numinlets": 1,
+            },
+        ]
+        lines = [
+            {"source": ["obj-lb", 0], "destination": ["obj-world", 0]},
+            {"source": ["obj-lb", 0], "destination": ["obj-movie", 0]},
+        ]
+        patcher = create_test_patcher(boxes, lines)
+        test_file = tmp_path / "test.maxhelp"
+        test_file.write_text(json.dumps(patcher))
+        linter = MaxhelpLinter()
+        linter.validate_file(test_file)
+        init_003_warnings = [w for w in linter.warnings if w.rule == "init-003"]
+        assert len(init_003_warnings) == 0
 
 
 if __name__ == "__main__":
