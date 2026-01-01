@@ -22,6 +22,22 @@ from lint_maxhelp import (
     types_compatible,
 )
 
+# Export for test modules
+__all__ = [
+    "TYPE_COMPATIBLE",
+    "Any",
+    "JitterType",
+    "LintGraph",
+    "MaxhelpLinter",
+    "Path",
+    "create_test_patcher",
+    "json",
+    "nx",
+    "pytest",
+    "tempfile",
+    "types_compatible",
+]
+
 
 def create_test_patcher(
     boxes: list[dict[str, Any]], lines: list[dict[str, Any]] | None = None
