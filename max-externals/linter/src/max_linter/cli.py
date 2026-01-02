@@ -189,7 +189,7 @@ def main(args: list[str] | None = None) -> int:
         "files",
         nargs="*",
         type=Path,
-        help="Files or directories to lint (.genjit and/or .maxhelp)",
+        help="Files or directories to lint (.genjit, .maxhelp, and/or .maxpat)",
     )
     parser.add_argument(
         "--check-lsp",
@@ -210,6 +210,11 @@ def main(args: list[str] | None = None) -> int:
         "--maxhelp",
         action="store_true",
         help="Lint only .maxhelp files (skip .genjit)",
+    )
+    parser.add_argument(
+        "--maxpat",
+        action="store_true",
+        help="Lint only .maxpat files (skip .genjit and .maxhelp)",
     )
     parser.add_argument(
         "--c-external",
@@ -256,23 +261,34 @@ def main(args: list[str] | None = None) -> int:
 
     for path in parsed.files:
         if path.is_dir():
-            if not parsed.maxhelp and not parsed.c_external:
+            if not parsed.maxhelp and not parsed.maxpat and not parsed.c_external:
                 genjit_files.extend(path.glob("*.genjit"))
-            if not parsed.c_external:
+            if not parsed.maxpat and not parsed.c_external:
                 maxhelp_files.extend(path.glob("*.maxhelp"))
+            if not parsed.maxhelp and not parsed.c_external:
+                maxhelp_files.extend(path.glob("*.maxpat"))
             if parsed.c_external:
                 c_files.extend(path.rglob("*.c"))
-        elif path.suffix == ".genjit" and not parsed.maxhelp and not parsed.c_external:
+        elif (
+            path.suffix == ".genjit"
+            and not parsed.maxhelp
+            and not parsed.maxpat
+            and not parsed.c_external
+        ):
             genjit_files.append(path)
-        elif path.suffix == ".maxhelp" and not parsed.c_external:
-            maxhelp_files.append(path)
+        elif path.suffix in (".maxhelp", ".maxpat") and not parsed.c_external:
+            # Handle both .maxhelp and .maxpat with proper flag filtering
+            is_maxhelp = path.suffix == ".maxhelp" and not parsed.maxpat
+            is_maxpat = path.suffix == ".maxpat" and not parsed.maxhelp
+            if is_maxhelp or is_maxpat:
+                maxhelp_files.append(path)
         elif path.suffix == ".c" and parsed.c_external:
             c_files.append(path)
         else:
             print(f"Warning: Skipping unsupported file: {path}", file=sys.stderr)
 
     if not genjit_files and not maxhelp_files and not c_files:
-        print("No .genjit, .maxhelp, or .c files found", file=sys.stderr)
+        print("No .genjit, .maxhelp, .maxpat, or .c files found", file=sys.stderr)
         return 1
 
     # Initialize validators
@@ -344,7 +360,12 @@ def main(args: list[str] | None = None) -> int:
     if genjit_files:
         print(f"  {len(genjit_files)} .genjit file(s)")
     if maxhelp_files:
-        print(f"  {len(maxhelp_files)} .maxhelp file(s)")
+        maxhelp_count = len([f for f in maxhelp_files if f.suffix == ".maxhelp"])
+        maxpat_count = len([f for f in maxhelp_files if f.suffix == ".maxpat"])
+        if maxhelp_count:
+            print(f"  {maxhelp_count} .maxhelp file(s)")
+        if maxpat_count:
+            print(f"  {maxpat_count} .maxpat file(s)")
     if c_files:
         print(f"  {len(c_files)} .c file(s)")
     if failed:
