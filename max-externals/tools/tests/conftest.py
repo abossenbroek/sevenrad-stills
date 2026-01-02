@@ -8,7 +8,6 @@ This module provides shared fixtures and imports used across all test modules.
 from __future__ import annotations
 
 import json
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -33,8 +32,6 @@ __all__ = [
     "create_test_patcher",
     "json",
     "nx",
-    "pytest",
-    "tempfile",
     "types_compatible",
 ]
 

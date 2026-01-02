@@ -19,7 +19,7 @@ from max_linter.results import (
 from max_linter.validators.c_semantic import CSemanticValidator
 from max_linter.validators.clangd import ClangdValidator
 from max_linter.validators.glsl import GLSLValidator
-from max_linter.validators.maxhelp import MaxhelpValidator
+from max_linter.validators.maxhelp import MaxhelpLinter
 
 
 def _make_param_diagnostic(param_name: str, error_msg: str) -> Diagnostic:
@@ -133,39 +133,6 @@ def lint_file(
     return LintResult(
         filepath=str(filepath),
         diagnostics=all_diagnostics,
-        success=not has_errors,
-    )
-
-
-def lint_maxhelp_file(
-    filepath: Path,
-    maxhelp_validator: MaxhelpValidator,
-    strict: bool = False,
-) -> LintResult:
-    """Lint a single .maxhelp file.
-
-    Args:
-        filepath: Path to the file
-        maxhelp_validator: MaxhelpValidator instance
-        strict: If True, treat warnings as errors
-
-    Returns:
-        Lint result with diagnostics
-    """
-    diagnostics = maxhelp_validator.validate(filepath)
-
-    if strict:
-        # Treat warnings as errors in strict mode
-        has_errors = any(
-            d.severity in (DiagnosticSeverity.ERROR, DiagnosticSeverity.WARNING)
-            for d in diagnostics
-        )
-    else:
-        has_errors = any(d.severity == DiagnosticSeverity.ERROR for d in diagnostics)
-
-    return LintResult(
-        filepath=str(filepath),
-        diagnostics=diagnostics,
         success=not has_errors,
     )
 
@@ -314,15 +281,7 @@ def main(args: list[str] | None = None) -> int:
     genexpr_validator = GenExprValidator()
     c_validator = CSemanticValidator()
 
-    # Determine code directory for shader reference validation
-    # Typically ../code/ relative to help files
-    code_dir = None
-    if maxhelp_files:
-        code_dir = maxhelp_files[0].parent.parent / "code"
-        if not code_dir.exists():
-            code_dir = None
-
-    maxhelp_validator = MaxhelpValidator(code_dir=code_dir)
+    maxhelp_linter = MaxhelpLinter(strict=parsed.strict, verbose=parsed.verbose)
 
     # Lint files
     results: list[LintResult] = []
@@ -348,20 +307,16 @@ def main(args: list[str] | None = None) -> int:
 
     # Lint .maxhelp files
     for filepath in sorted(maxhelp_files):
-        result = lint_maxhelp_file(
-            filepath,
-            maxhelp_validator,
-            strict=parsed.strict,
-        )
-        results.append(result)
+        maxhelp_linter.validate_file(filepath)
+        maxhelp_linter.print_results(filepath)
 
-        # Print results
-        if result.diagnostics:
-            print(f"\n{filepath}:")
-            for diagnostic in result.diagnostics:
-                print(f"  {diagnostic}")
-        elif parsed.verbose:
-            print(f"{filepath}: OK")
+        results.append(
+            LintResult(
+                filepath=str(filepath),
+                diagnostics=[],
+                success=not maxhelp_linter.has_errors(),
+            )
+        )
 
     # Lint C external source files
     for filepath in sorted(c_files):

@@ -15,7 +15,6 @@ if TYPE_CHECKING:
     from max_linter.validators.c_semantic import CSemanticValidator
     from max_linter.validators.clangd import ClangdValidator
     from max_linter.validators.glsl import GLSLValidator
-    from max_linter.validators.maxhelp_validator import MaxhelpValidator
 
 
 def __getattr__(name: str) -> type:
@@ -32,15 +31,6 @@ def __getattr__(name: str) -> type:
         from max_linter.validators.glsl import GLSLValidator
 
         return GLSLValidator
-    if name == "MaxhelpValidator":
-        try:
-            from max_linter.validators.maxhelp_validator import MaxhelpValidator
-
-            return MaxhelpValidator
-        except ImportError as err:
-            raise AttributeError(
-                f"module {__name__!r} has no attribute {name!r}"
-            ) from err
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -48,6 +38,5 @@ __all__ = [
     "CSemanticValidator",
     "ClangdValidator",
     "GLSLValidator",
-    "MaxhelpValidator",
     "maxhelp",
 ]
