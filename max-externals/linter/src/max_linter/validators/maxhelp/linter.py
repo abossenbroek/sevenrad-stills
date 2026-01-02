@@ -266,9 +266,10 @@ class MaxhelpLinter(
             self.error("file", f"File does not exist: {filepath}")
             return False
 
-        if filepath.suffix != ".maxhelp":
+        if filepath.suffix not in (".maxhelp", ".maxpat"):
             self.error(
-                "file", f"File must have .maxhelp extension, got: {filepath.suffix}"
+                "file",
+                f"File must have .maxhelp or .maxpat extension, got: {filepath.suffix}",
             )
             return False
 

@@ -93,8 +93,11 @@ def main() -> int:
     files_failed = 0
 
     for filepath in args.files:
-        # Expand directory to all .maxhelp files, or use single file
-        files = list(filepath.glob("*.maxhelp")) if filepath.is_dir() else [filepath]
+        # Expand directory to all .maxhelp and .maxpat files, or use single file
+        if filepath.is_dir():
+            files = list(filepath.glob("*.maxhelp")) + list(filepath.glob("*.maxpat"))
+        else:
+            files = [filepath]
 
         for f in files:
             files_checked += 1

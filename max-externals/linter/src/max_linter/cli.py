@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from max_linter.extractors.genjit import GenjitExtractor
+from max_linter.formatters import FORMATTERS, get_formatter
 from max_linter.genexpr import GenExprValidator
 from max_linter.results import (
     Diagnostic,
@@ -242,6 +243,13 @@ def main(args: list[str] | None = None) -> int:
         action="version",
         version="max-linter 0.1.0",
     )
+    parser.add_argument(
+        "--output-format",
+        "-f",
+        choices=list(FORMATTERS.keys()),
+        default="text",
+        help="Output format: text (default), json, yaml, or github (CI annotations)",
+    )
 
     parsed = parser.parse_args(args)
     setup_logging(parsed.verbose)
@@ -299,6 +307,9 @@ def main(args: list[str] | None = None) -> int:
 
     maxhelp_linter = MaxhelpLinter(strict=parsed.strict, verbose=parsed.verbose)
 
+    # Initialize output formatter
+    formatter = get_formatter(parsed.output_format)
+
     # Lint files
     results: list[LintResult] = []
 
@@ -313,18 +324,44 @@ def main(args: list[str] | None = None) -> int:
         )
         results.append(result)
 
-        # Print results
-        if result.diagnostics:
-            print(f"\n{filepath}:")
-            for diagnostic in result.diagnostics:
-                print(f"  {diagnostic}")
-        elif parsed.verbose:
-            print(f"{filepath}: OK")
+        # Convert diagnostics to LintError format for formatter
+        from max_linter.lint_error import LintError
+        from max_linter.types import Severity
 
-    # Lint .maxhelp files
+        errors = [
+            LintError(
+                severity=Severity.ERROR,
+                rule=str(d.code or d.source or "genjit"),
+                message=d.message,
+            )
+            for d in result.diagnostics
+            if d.severity == DiagnosticSeverity.ERROR
+        ]
+        warnings = [
+            LintError(
+                severity=Severity.WARNING,
+                rule=str(d.code or d.source or "genjit"),
+                message=d.message,
+            )
+            for d in result.diagnostics
+            if d.severity == DiagnosticSeverity.WARNING
+        ]
+        formatter.format_file_result(filepath, errors, warnings, parsed.verbose)
+
+    # Lint .maxhelp/.maxpat files
     for filepath in sorted(maxhelp_files):
         maxhelp_linter.validate_file(filepath)
-        maxhelp_linter.print_results(filepath)
+
+        # Use formatter instead of print_results for non-text formats
+        if parsed.output_format == "text":
+            maxhelp_linter.print_results(filepath)
+        else:
+            formatter.format_file_result(
+                filepath,
+                maxhelp_linter.errors,
+                maxhelp_linter.warnings,
+                parsed.verbose,
+            )
 
         results.append(
             LintResult(
@@ -343,37 +380,51 @@ def main(args: list[str] | None = None) -> int:
         )
         results.append(result)
 
-        # Print results
-        if result.diagnostics:
-            print(f"\n{filepath}:")
-            for diagnostic in result.diagnostics:
-                print(f"  {diagnostic}")
-        elif parsed.verbose:
-            print(f"{filepath}: OK")
+        # Convert diagnostics to LintError format for formatter
+        from max_linter.lint_error import LintError
+        from max_linter.types import Severity
+
+        errors = [
+            LintError(
+                severity=Severity.ERROR,
+                rule=str(d.code or d.source or "c-external"),
+                message=d.message,
+            )
+            for d in result.diagnostics
+            if d.severity == DiagnosticSeverity.ERROR
+        ]
+        warnings = [
+            LintError(
+                severity=Severity.WARNING,
+                rule=str(d.code or d.source or "c-external"),
+                message=d.message,
+            )
+            for d in result.diagnostics
+            if d.severity == DiagnosticSeverity.WARNING
+        ]
+        formatter.format_file_result(filepath, errors, warnings, parsed.verbose)
 
     # Summary
     total = len(results)
     failed = sum(1 for r in results if not r.success)
-    warnings = sum(1 for r in results if r.has_warnings and not r.has_errors)
+    warnings_count = sum(1 for r in results if r.has_warnings and not r.has_errors)
 
-    print(f"\nValidated {total} file(s)")
+    # Build file counts
+    file_counts: dict[str, int] = {}
     if genjit_files:
-        print(f"  {len(genjit_files)} .genjit file(s)")
+        file_counts[".genjit"] = len(genjit_files)
     if maxhelp_files:
         maxhelp_count = len([f for f in maxhelp_files if f.suffix == ".maxhelp"])
         maxpat_count = len([f for f in maxhelp_files if f.suffix == ".maxpat"])
         if maxhelp_count:
-            print(f"  {maxhelp_count} .maxhelp file(s)")
+            file_counts[".maxhelp"] = maxhelp_count
         if maxpat_count:
-            print(f"  {maxpat_count} .maxpat file(s)")
+            file_counts[".maxpat"] = maxpat_count
     if c_files:
-        print(f"  {len(c_files)} .c file(s)")
-    if failed:
-        print(f"  {failed} with errors")
-    if warnings:
-        print(f"  {warnings} with warnings")
-    if failed == 0 and warnings == 0:
-        print("  All files passed")
+        file_counts[".c"] = len(c_files)
+
+    formatter.format_summary(total, failed, warnings_count, file_counts)
+    formatter.finalize()
 
     return 1 if failed > 0 else 0
 
