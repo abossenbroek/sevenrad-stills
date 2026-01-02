@@ -501,32 +501,68 @@ fragColor = TDOutputSwizzle(color);  // Preserves alpha
 
 ### Video/Temporal Considerations
 
-Effects must handle video input correctly:
+Effects must handle video input correctly.
 
-**Seed Handling for Noise Effects**:
+#### Temporal Behavior Per Effect
+
+| Effect | Seed Behavior | Frame Dependency | Animate Parameter |
+|--------|---------------|------------------|-------------------|
+| saturation | N/A | None | - |
+| chromatic_aberration | N/A | None | - |
+| noise | Configurable | Optional | `Animatenoise` |
+| salt_pepper | Configurable | Optional | `Animatenoise` |
+| corduroy | Static | None | - |
+| gaussian_blur | N/A | None | - |
+| circular_blur | N/A | None | - |
+| motion_blur | N/A | None | - |
+| downscale | N/A | None | - |
+| slc_off | Static | None | - |
+| band_swap | Static | None | - |
+| buffer_corruption | Configurable | Optional | `Animateglitch` |
+| bayer_filter | N/A | None | - |
+
+#### Seed Handling for Noise Effects
+
 ```glsl
-// Option 1: Static seed (same noise pattern every frame)
-uniform int uSeed;  // User-controlled, constant
+// Standard temporal uniforms
+uniform int uSeed;           // Base seed (user-controlled)
+uniform int uAnimateNoise;   // 0 = static, 1 = per-frame
+uniform float uTime;         // absTime.seconds from TD
 
-// Option 2: Animated seed (different noise per frame)
-uniform int uSeed;
-uniform int uFrameIndex;  // From TD's absTime.frame
-int effectiveSeed = uSeed + uFrameIndex;
-
-// Option 3: Temporal toggle parameter
-uniform int uAnimateNoise;  // 0 = static, 1 = per-frame
-int effectiveSeed = uAnimateNoise > 0 ? uSeed + uFrameIndex : uSeed;
+// CORRECT: Use time-based seed variation
+int getEffectiveSeed() {
+    if (uAnimateNoise > 0) {
+        return uSeed + int(uTime * 1000.0);
+    }
+    return uSeed;
+}
 ```
 
-**Frame Rate Independence**:
+#### TouchDesigner Time Access
+
+```python
+# CORRECT way to get frame index in TouchDesigner Python
+frame_index = me.time.frame  # Current timeline frame
+
+# WRONG - absTime.frame does NOT exist
+# frame_index = absTime.frame  # This will error!
+
+# For seconds-based timing:
+current_seconds = absTime.seconds  # This works
+```
+
+#### Frame Rate Independence
+
 - Blur effects: No temporal dependencies, naturally frame-rate independent
 - Noise effects: Provide "Animate" toggle for static vs. per-frame noise
 - Motion effects: Use `uTimeDelta` for consistent speed across frame rates
 
-**Avoiding Temporal Artifacts**:
+#### Avoiding Temporal Artifacts
+
 - No dithering patterns that cause flickering
 - Consistent random patterns when seed is static
 - Smooth parameter interpolation (TD handles via parameter ramp)
+- Test all effects on 60fps video before release
 
 ---
 

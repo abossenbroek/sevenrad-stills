@@ -6,6 +6,7 @@ Migrate 14 Taichi GPU effects to TouchDesigner operators using **GLSL 330 core**
 
 - [01-LINTING-INFRASTRUCTURE.md](01-LINTING-INFRASTRUCTURE.md) - Linting tools, CI/CD, editor integration
 - [02-EFFECTS-AND-DEMOS.md](02-EFFECTS-AND-DEMOS.md) - GLSL effects, .tox structure, demo system
+- [03-REMEDIATION-PLAN.md](03-REMEDIATION-PLAN.md) - Pre-implementation validation and infrastructure hardening
 
 ---
 
@@ -82,11 +83,45 @@ Phase 4: Demo System                [See 02-EFFECTS-AND-DEMOS.md]
 
 1. All 14 effects working in TouchDesigner on macOS Apple Silicon
 2. Linting catches syntax/semantic errors before TD testing
-3. Each operator has comprehensive demo with help
-4. CI validates all shaders on every PR
+3. Each operator has comprehensive demo with help (video-first)
+4. CI validates all shaders on every PR (including macOS Metal validation)
 5. Master demo project showcases all effects with chain builder
 6. Pure GLSL implementation for all effects (C++ only if absolutely necessary)
-7. Unit render tests pass with MD5 comparison of expected outputs
+7. Unit render tests pass with perceptual diff comparison (SSIM >= 0.99)
+
+---
+
+## Gate Criteria (Before Phase 2)
+
+> **IMPORTANT**: Do not proceed to effect implementation until all gates pass.
+> See [03-REMEDIATION-PLAN.md](03-REMEDIATION-PLAN.md) for full details.
+
+| Gate | Requirement | Validation |
+|------|-------------|------------|
+| G1 | macOS CI runner operational | Renders test shader, uploads artifact |
+| G2 | TD preamble extracted | validate_glsl.py uses real TD uniforms |
+| G3 | PCG hash validated | Bit-identical to Taichi OR divergence documented |
+| G4 | Bilinear sampling aligned | Within 1/255 tolerance at test positions |
+| G5 | Perceptual diff active | MD5 replaced with SSIM in all tests |
+| G6 | MoltenVK validation in CI | SPIRV-Cross Metal compilation passes |
+| G7 | Temporal behavior defined | All 14 effects have seed/animation spec |
+
+---
+
+## GLSL Feasibility Checklist
+
+Before attempting pure GLSL for any effect, verify:
+
+- [ ] No random-access writes required (fragment shaders read-only)
+- [ ] No inter-pixel communication (each pixel independent)
+- [ ] No recursive algorithms
+- [ ] Loops bounded to <1024 iterations
+- [ ] No bitwise float manipulation (reinterpret_cast equivalent)
+- [ ] No geometry shader requirements (Metal limitation)
+
+**Pre-Approved C++ Exceptions:**
+- `buffer_corruption` - XOR mode needs bitwise float ops
+- `band_swap` - Try GLSL compute first, C++ fallback approved
 
 ---
 
