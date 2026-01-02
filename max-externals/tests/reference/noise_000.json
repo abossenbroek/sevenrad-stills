@@ -1,0 +1,10 @@
+{
+  "effect": "noise",
+  "case_id": 0,
+  "description": "Light Gaussian noise",
+  "params": {
+    "mode": "gaussian",
+    "amount": 0.1,
+    "seed": 42
+  }
+}

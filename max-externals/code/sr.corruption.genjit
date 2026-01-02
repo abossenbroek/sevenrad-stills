@@ -1,0 +1,237 @@
+{
+	"patcher": {
+		"fileversion": 1,
+		"appversion": {
+			"major": 8,
+			"minor": 6,
+			"revision": 0
+		},
+		"rect": [
+			100.0,
+			100.0,
+			650.0,
+			550.0
+		],
+		"bgcolor": [
+			0.9,
+			0.9,
+			0.9,
+			0.9
+		],
+		"bglocked": 0,
+		"openinpresentation": 0,
+		"default_fontsize": 12.0,
+		"default_fontface": 0,
+		"default_fontname": "Arial",
+		"gridonopen": 0,
+		"gridsize": [
+			15.0,
+			15.0
+		],
+		"gridsnaponopen": 0,
+		"statusbarvisible": 0,
+		"toolbarvisible": 1,
+		"boxanimatetime": 200,
+		"imprint": 0,
+		"enablehscroll": 1,
+		"enablevscroll": 1,
+		"devicewidth": 0.0,
+		"description": "",
+		"digest": "",
+		"tags": "",
+		"title": "sr.corruption.genjit",
+		"boxes": [
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-1",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						50.0,
+						60.0,
+						30.0,
+						20.0
+					],
+					"text": "in 1"
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-2",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						130.0,
+						60.0,
+						30.0,
+						20.0
+					],
+					"text": "in 2"
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-3",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						130.0,
+						30.0,
+						100.0,
+						20.0
+					],
+					"text": "param mode 0 0 2"
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-4",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						250.0,
+						30.0,
+						100.0,
+						20.0
+					],
+					"text": "param intensity 0.5 0 1"
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-5",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						370.0,
+						30.0,
+						100.0,
+						20.0
+					],
+					"text": "param seed 0 0 1000"
+				}
+			},
+			{
+				"box": {
+					"code": "/*\r\n * sr.corruption.genjit\r\n *\r\n * Tile-based corruption effect with multiple modes\r\n * Part of SevenRad Max 8 Effects\r\n *\r\n * Inputs:\r\n *   in1: Source image\r\n *   in2: Tile mask (white = corrupt, black = pass through)\r\n *\r\n * Parameters:\r\n *   mode (int 0-2): 0 = XOR noise, 1 = invert, 2 = channel shuffle (default: 0)\r\n *   intensity (float 0-1): Effect strength (default: 0.5)\r\n *   seed (int): Random seed for deterministic results (default: 0)\r\n *\r\n * Source: src/sevenrad_stills/operations/corruption_taichi.py\r\n */\r\n\r\n/*\r\n * GPU Hash Function\r\n * Sin-based hash for GPU-friendly random number generation\r\n * Must be declared BEFORE all statements\r\n */\r\ngpu_hash(px, py, s) {\r\n    dot_val = px * 12.9898 + py * 78.233 + s * 43.758;\r\n    return fract(sin(dot_val) * 43758.5453);\r\n}\r\n\r\n// Sample tile mask from second input\r\nmask_value = sample(in2, norm).r;\r\n\r\n// Get integer pixel coordinates for hash\r\npx = int(norm.x * dim.x);\r\npy = int(norm.y * dim.y);\r\n\r\n// Default: pass through unchanged\r\nout1 = in1;\r\n\r\n// If mask value > 0.5, this pixel is in a corrupted tile region\r\nif (mask_value > 0.5) {\r\n    // Read original RGB channels\r\n    r = in1.r;\r\n    g = in1.g;\r\n    b = in1.b;\r\n\r\n    if (mode == 0) {\r\n        // XOR mode - mix with random noise pattern\r\n        rand_r = gpu_hash(px, py, seed);\r\n        rand_g = gpu_hash(px, py, seed + 1);\r\n        rand_b = gpu_hash(px, py, seed + 2);\r\n\r\n        // Convert to [0-255] range, apply XOR-like operation\r\n        r_int = int(r * 255.0);\r\n        g_int = int(g * 255.0);\r\n        b_int = int(b * 255.0);\r\n\r\n        // Generate XOR masks based on intensity\r\n        xor_mask_r = int(rand_r * 255.0 * intensity);\r\n        xor_mask_g = int(rand_g * 255.0 * intensity);\r\n        xor_mask_b = int(rand_b * 255.0 * intensity);\r\n\r\n        // Simulate XOR by flipping bits proportional to mask\r\n        r_corrupted = float(abs(r_int - xor_mask_r) % 256) / 255.0;\r\n        g_corrupted = float(abs(g_int - xor_mask_g) % 256) / 255.0;\r\n        b_corrupted = float(abs(b_int - xor_mask_b) % 256) / 255.0;\r\n\r\n        out1 = vec(r_corrupted, g_corrupted, b_corrupted, in1.a);\r\n\r\n    } else if (mode == 1) {\r\n        // Invert mode - blend with inverted colors using squared intensity\r\n        r_inv = 1.0 - r;\r\n        g_inv = 1.0 - g;\r\n        b_inv = 1.0 - b;\r\n\r\n        // Squared intensity for non-linear blend (avoids gray at 0.5)\r\n        blend = intensity * intensity;\r\n        r_out = r * (1.0 - blend) + r_inv * blend;\r\n        g_out = g * (1.0 - blend) + g_inv * blend;\r\n        b_out = b * (1.0 - blend) + b_inv * blend;\r\n\r\n        out1 = vec(r_out, g_out, b_out, in1.a);\r\n\r\n    } else {\r\n        // Shuffle mode - deterministic channel permutation (no probability gate)\r\n        rand_idx = gpu_hash(px, py, seed);\r\n        perm_idx = int(rand_idx * 5.0) % 5;  // 5 non-identity permutations\r\n\r\n        if (perm_idx == 0) {\r\n            // RBG\r\n            out1 = vec(r, b, g, in1.a);\r\n        } else if (perm_idx == 1) {\r\n            // GRB\r\n            out1 = vec(g, r, b, in1.a);\r\n        } else if (perm_idx == 2) {\r\n            // GBR\r\n            out1 = vec(g, b, r, in1.a);\r\n        } else if (perm_idx == 3) {\r\n            // BRG\r\n            out1 = vec(b, r, g, in1.a);\r\n        } else {\r\n            // BGR\r\n            out1 = vec(b, g, r, in1.a);\r\n        }\r\n    }\r\n}",
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-6",
+					"maxclass": "codebox",
+					"numinlets": 2,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						50.0,
+						120.0,
+						500.0,
+						340.0
+					]
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-7",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						50.0,
+						480.0,
+						37.0,
+						20.0
+					],
+					"text": "out 1"
+				}
+			}
+		],
+		"lines": [
+			{
+				"patchline": {
+					"destination": [
+						"obj-6",
+						0
+					],
+					"disabled": 0,
+					"hidden": 0,
+					"source": [
+						"obj-1",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"destination": [
+						"obj-6",
+						1
+					],
+					"disabled": 0,
+					"hidden": 0,
+					"source": [
+						"obj-2",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"destination": [
+						"obj-7",
+						0
+					],
+					"disabled": 0,
+					"hidden": 0,
+					"source": [
+						"obj-6",
+						0
+					]
+				}
+			}
+		],
+		"dependency_cache": [
+			{
+				"name": "codebox.mxo",
+				"type": "iLaX"
+			},
+			{
+				"name": "param.mxo",
+				"type": "iLaX"
+			}
+		]
+	}
+}

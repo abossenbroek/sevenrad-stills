@@ -1,0 +1,8 @@
+{
+  "effect": "blur",
+  "case_id": 3,
+  "description": "No change (passthrough)",
+  "params": {
+    "sigma": 0.0
+  }
+}

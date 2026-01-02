@@ -1,0 +1,8 @@
+{
+  "effect": "blur",
+  "case_id": 1,
+  "description": "Medium blur",
+  "params": {
+    "sigma": 5.0
+  }
+}

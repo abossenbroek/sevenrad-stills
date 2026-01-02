@@ -1,0 +1,8 @@
+{
+  "effect": "bayer",
+  "case_id": 2,
+  "description": "GRBG pattern",
+  "params": {
+    "pattern": "GRBG"
+  }
+}

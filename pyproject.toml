@@ -70,8 +70,6 @@ select = [
 ignore = [
     "D203",   # one-blank-line-before-class (conflicts with D211)
     "D212",   # multi-line-summary-first-line (conflicts with D213)
-    "ANN101", # missing-type-self (self annotations are redundant)
-    "ANN102", # missing-type-cls (cls annotations are redundant)
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -90,6 +88,7 @@ ignore = [
 "src/sevenrad_stills/operations/*_metal.py" = ["ANN201", "PLR0913"]  # Metal operations have special signatures
 "src/sevenrad_stills/operations/*_mlx.py" = ["ANN201", "PLR0913"]  # MLX operations have special signatures
 "src/sevenrad_stills/operations/buffer_corruption_metal.py" = ["PLR0915", "PLR2004", "T201", "RUF001", "RUF002", "RUF003", "E501", "ANN401"]  # Metal GPU implementation uses debug prints, unicode chars, and PyObjC Any types
+"max-externals/tools/*" = ["T201", "ANN", "D", "C901", "PLR0912", "PLR0915", "S607", "S603", "E501", "PLR1722", "SIM102", "PLR2004", "B007"]  # CLI tools use print, subprocess, relaxed complexity
 
 [tool.pytest.ini_options]
 markers = [
@@ -163,6 +162,15 @@ module = [
     "sevenrad_stills.operations.salt_pepper_taichi",
     "sevenrad_stills.operations.saturation_taichi",
     "sevenrad_stills.operations.slc_off_taichi",
+]
+ignore_errors = true
+
+# Skip mypy for Max/MSP external tools (standalone CLI utilities)
+[[tool.mypy.overrides]]
+module = [
+    "convert_genexpr",
+    "lint_genjit",
+    "test_lint_genjit",
 ]
 ignore_errors = true
 

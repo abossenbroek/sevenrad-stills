@@ -1,0 +1,203 @@
+{
+	"patcher": {
+		"fileversion": 1,
+		"appversion": {
+			"major": 8,
+			"minor": 6,
+			"revision": 0
+		},
+		"rect": [
+			100.0,
+			100.0,
+			650.0,
+			550.0
+		],
+		"bgcolor": [
+			0.9,
+			0.9,
+			0.9,
+			0.9
+		],
+		"bglocked": 0,
+		"openinpresentation": 0,
+		"default_fontsize": 12.0,
+		"default_fontface": 0,
+		"default_fontname": "Arial",
+		"gridonopen": 0,
+		"gridsize": [
+			15.0,
+			15.0
+		],
+		"gridsnaponopen": 0,
+		"statusbarvisible": 0,
+		"toolbarvisible": 1,
+		"boxanimatetime": 200,
+		"imprint": 0,
+		"enablehscroll": 1,
+		"enablevscroll": 1,
+		"devicewidth": 0.0,
+		"description": "",
+		"digest": "",
+		"tags": "",
+		"title": "sr.downscale.genjit",
+		"boxes": [
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-1",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						50.0,
+						60.0,
+						30.0,
+						20.0
+					],
+					"text": "in 1"
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-2",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						130.0,
+						30.0,
+						100.0,
+						20.0
+					],
+					"text": "param scale 0.5 0 1"
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-3",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						250.0,
+						30.0,
+						100.0,
+						20.0
+					],
+					"text": "param pixelate 1 0 1"
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-4",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						370.0,
+						30.0,
+						100.0,
+						20.0
+					],
+					"text": "param method 0 0 1"
+				}
+			},
+			{
+				"box": {
+					"code": "/*\n * sr.downscale.genjit\n *\n * Pixelation effect\n * Part of SevenRad Max 9 Effects\n *\n * Parameters:\n *   scale (float 0-1): Pixelation amount, higher = more pixelated (default: 0.5)\n *     scale=0 -> 1 pixel (no effect)\n *     scale=0.5 -> 16 pixels\n *     scale=1 -> 256 pixels\n *   pixelate (int 0-1): 1 = pixelate mode, 0 = pass-through (default: 1)\n *   method (int 0-1): 0 = nearest neighbor, 1 = bilinear (default: 0)\n *\n * Modes:\n *   Pixelate: Quantizes to lower resolution grid, creates blocky pixels\n *   Pass-through: No effect, returns original image\n *\n * Source: Python downscale implementation\n */\n\n// Clamp scale to valid range\ns = clamp(scale, 0.0, 1.0);\n\n// Calculate pixel size using exponential scaling\n// scale 0->1 maps to pixel_size 1->256 (2^0 to 2^8)\npixel_size = pow(2.0, s * 8.0);\n\n// Initialize coord in outer scope (GenExpr uses strict block scoping)\ncoord = vec(0, 0);\n\n// Determine sampling coordinate based on mode\nif (pixelate > 0.5) {\n    // Pixelate mode: quantize to lower resolution grid\n    // Floor to pixel boundaries, then add half pixel offset for center\n    coord_x = (floor(norm.x * dim.x / pixel_size) * pixel_size + pixel_size * 0.5) / dim.x;\n    coord_y = (floor(norm.y * dim.y / pixel_size) * pixel_size + pixel_size * 0.5) / dim.y;\n    coord = vec(coord_x, coord_y);\n} else {\n    // Pass-through mode: no effect\n    coord = norm;\n}\n\n// Clamp coordinates to valid range\ncoord = clamp(coord, vec(0, 0), vec(1, 1));\n\n// Sample with selected method\n// Note: GenExpr sample() uses bilinear by default\n// For nearest neighbor, we floor to pixel center\nif (method < 0.5) {\n    // Nearest neighbor: floor to pixel center\n    px = floor(coord.x * dim.x) + 0.5;\n    py = floor(coord.y * dim.y) + 0.5;\n    out1 = sample(in1, vec(px / dim.x, py / dim.y));\n} else {\n    // Bilinear: use coordinate directly\n    out1 = sample(in1, coord);\n}",
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-5",
+					"maxclass": "codebox",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						50.0,
+						120.0,
+						500.0,
+						340.0
+					]
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-6",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						50.0,
+						480.0,
+						37.0,
+						20.0
+					],
+					"text": "out 1"
+				}
+			}
+		],
+		"lines": [
+			{
+				"patchline": {
+					"destination": [
+						"obj-5",
+						0
+					],
+					"disabled": 0,
+					"hidden": 0,
+					"source": [
+						"obj-1",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"destination": [
+						"obj-6",
+						0
+					],
+					"disabled": 0,
+					"hidden": 0,
+					"source": [
+						"obj-5",
+						0
+					]
+				}
+			}
+		],
+		"dependency_cache": [
+			{
+				"name": "codebox.mxo",
+				"type": "iLaX"
+			},
+			{
+				"name": "param.mxo",
+				"type": "iLaX"
+			}
+		]
+	}
+}

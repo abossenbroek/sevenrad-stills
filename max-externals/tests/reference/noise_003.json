@@ -1,0 +1,10 @@
+{
+  "effect": "noise",
+  "case_id": 3,
+  "description": "Vertical artifacts",
+  "params": {
+    "mode": "column",
+    "amount": 0.3,
+    "seed": 456
+  }
+}

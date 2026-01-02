@@ -1,0 +1,9 @@
+{
+  "effect": "motion",
+  "case_id": 3,
+  "description": "Strong diagonal",
+  "params": {
+    "kernel_size": 30,
+    "angle": 135.0
+  }
+}

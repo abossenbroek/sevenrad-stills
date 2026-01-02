@@ -1,0 +1,167 @@
+#!/usr/bin/env python3
+# ruff: noqa: S101
+"""Test dial range validation functionality."""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+from typing import Callable
+
+# Add linter to path
+sys.path.insert(0, str(Path(__file__).parent))
+from lint_maxhelp import MaxhelpLinter
+
+
+def test_calculate_dial_range() -> None:
+    """Test _calculate_dial_range method with various configurations."""
+    linter = MaxhelpLinter()
+
+    # Standard 0-1 range: size=100, min=0, mult=0.01
+    dial_box = {"size": 100.0, "min": 0.0, "mult": 0.01}
+    dial_range = linter._calculate_dial_range(dial_box)
+    assert dial_range is not None, "Expected valid range"
+    min_out, max_out = dial_range
+    assert abs(min_out - 0.0) < 0.001, f"Expected min 0.0, got {min_out}"
+    assert abs(max_out - 1.0) < 0.001, f"Expected max 1.0, got {max_out}"
+    print("PASS: test_calculate_dial_range - standard 0-1")
+
+    # Seed 0-1000 range: size=1000, min=0, mult=1.0
+    dial_box = {"size": 1000.0, "min": 0.0, "mult": 1.0}
+    dial_range = linter._calculate_dial_range(dial_box)
+    assert dial_range is not None, "Expected valid range"
+    min_out, max_out = dial_range
+    assert abs(min_out - 0.0) < 0.001, f"Expected min 0.0, got {min_out}"
+    assert abs(max_out - 1000.0) < 0.001, f"Expected max 1000.0, got {max_out}"
+    print("PASS: test_calculate_dial_range - seed 0-1000")
+
+    # Test with min=1: demonstrates wrong dial config produces [1.0, 1.99]
+    # (min=1 should be min=0.01 for a 0.01-1.0 range)
+    dial_box = {"size": 99.0, "min": 1.0, "mult": 0.01}
+    dial_range = linter._calculate_dial_range(dial_box)
+    assert dial_range is not None, "Expected valid range"
+    min_out, max_out = dial_range
+    assert abs(min_out - 1.0) < 0.001, f"Expected min 1.0, got {min_out}"
+    assert abs(max_out - 1.99) < 0.001, f"Expected max 1.99, got {max_out}"
+    print("PASS: test_calculate_dial_range - min=1 produces [1.0, 1.99]")
+
+    # Correct 0.01-1 range: size=99, min=0.01, mult=0.01
+    dial_box = {"size": 99.0, "min": 0.01, "mult": 0.01}
+    dial_range = linter._calculate_dial_range(dial_box)
+    assert dial_range is not None, "Expected valid range"
+    min_out, max_out = dial_range
+    assert abs(min_out - 0.01) < 0.001, f"Expected min 0.01, got {min_out}"
+    assert abs(max_out - 1.0) < 0.001, f"Expected max 1.0, got {max_out}"
+    print("PASS: test_calculate_dial_range - correct 0.01-1 range")
+
+    # Default values (should use size=100, min=0, mult=0.01)
+    # FIXED: Default mult is 0.01 (not 1.0), so output range is [0, 1]
+    dial_box = {}
+    dial_range = linter._calculate_dial_range(dial_box)
+    assert dial_range is not None, "Expected valid range, got None"
+    min_out, max_out = dial_range
+    assert abs(min_out - 0.0) < 0.001, f"Expected min 0.0, got {min_out}"
+    assert abs(max_out - 1.0) < 0.001, f"Expected max 1.0, got {max_out}"
+    print("PASS: test_calculate_dial_range - defaults")
+
+
+def test_parse_genjit_params() -> None:
+    """Test _parse_genjit_params with new format."""
+    linter = MaxhelpLinter()
+
+    # Test with actual sr.corruption.genjit
+    genjit_path = Path("code/sr.corruption.genjit")
+    if not genjit_path.exists():
+        print("SKIP: test_parse_genjit_params - sr.corruption.genjit not found")
+        return
+
+    params = linter._parse_genjit_params(genjit_path)
+
+    # Should have 3 params: mode, intensity, seed
+    assert len(params) == 3, f"Expected 3 params, got {len(params)}"
+
+    # Check mode param
+    mode_param = next((p for p in params if p["name"] == "mode"), None)
+    assert mode_param is not None, "mode param not found"
+    assert mode_param["min"] == 0.0, f"Expected mode min 0.0, got {mode_param['min']}"
+    assert mode_param["max"] == 2.0, f"Expected mode max 2.0, got {mode_param['max']}"
+
+    # Check intensity param
+    intensity_param = next((p for p in params if p["name"] == "intensity"), None)
+    assert intensity_param is not None, "intensity param not found"
+    assert (
+        intensity_param["min"] == 0.0
+    ), f"Expected intensity min 0.0, got {intensity_param['min']}"
+    assert (
+        intensity_param["max"] == 1.0
+    ), f"Expected intensity max 1.0, got {intensity_param['max']}"
+
+    # Check seed param
+    seed_param = next((p for p in params if p["name"] == "seed"), None)
+    assert seed_param is not None, "seed param not found"
+    assert seed_param["min"] == 0.0, f"Expected seed min 0.0, got {seed_param['min']}"
+    assert (
+        seed_param["max"] == 1000.0
+    ), f"Expected seed max 1000.0, got {seed_param['max']}"
+
+    print("PASS: test_parse_genjit_params")
+
+
+def test_real_file_validation() -> None:
+    """Test with actual help patchers to ensure no regressions."""
+    # Test sr.corruption.maxhelp (should pass)
+    corruption_path = Path("help/sr.corruption.maxhelp")
+    if corruption_path.exists():
+        linter = MaxhelpLinter()
+        linter.validate_file(corruption_path)
+
+        # Check no dial-001 errors
+        dial_range_errors = [e for e in linter.errors if e.rule == "dial-001"]
+        assert (
+            len(dial_range_errors) == 0
+        ), f"sr.corruption should have no dial-001 errors, got: {dial_range_errors}"
+        print("PASS: test_real_file_validation - sr.corruption.maxhelp")
+    else:
+        print("SKIP: sr.corruption.maxhelp not found")
+
+    # Test sr.bandswap.maxhelp (should pass - dials were fixed)
+    bandswap_path = Path("help/sr.bandswap.maxhelp")
+    if bandswap_path.exists():
+        linter = MaxhelpLinter()
+        linter.validate_file(bandswap_path)
+
+        # Should have no dial-001 errors (dials were fixed to match params)
+        dial_range_errors = [e for e in linter.errors if e.rule == "dial-001"]
+        assert (
+            len(dial_range_errors) == 0
+        ), f"sr.bandswap should have 0 dial-001 errors (fixed), got: {len(dial_range_errors)}"
+
+        print("PASS: test_real_file_validation - sr.bandswap.maxhelp")
+    else:
+        print("SKIP: sr.bandswap.maxhelp not found")
+
+
+def run_all_tests() -> int:
+    """Run all test functions."""
+    tests: list[Callable[[], None]] = [
+        test_calculate_dial_range,
+        test_parse_genjit_params,
+        test_real_file_validation,
+    ]
+
+    for test in tests:
+        try:
+            test()
+        except AssertionError as e:
+            print(f"FAIL: {test.__name__}: {e}")
+            import traceback
+
+            traceback.print_exc()
+            return 1
+
+    print("\nAll tests passed!")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(run_all_tests())

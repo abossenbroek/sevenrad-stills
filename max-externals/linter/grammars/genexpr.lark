@@ -1,0 +1,157 @@
+// Lark grammar for GenExpr shader language
+// Used in Max/MSP Gen~ codebox objects
+
+// Entry point - a program is a series of statements
+?start: statement*
+
+// Statements
+?statement: assignment
+          | compound_assignment
+          | if_statement
+          | for_loop
+          | while_loop
+          | break_statement
+          | continue_statement
+          | function_def
+          | return_statement
+
+// Assignment: identifier = expression;
+assignment: NAME "=" expression ";"
+
+// Compound assignment: identifier OP= expression;
+compound_assignment: NAME compound_op expression ";"
+compound_op: "+=" | "-=" | "*=" | "/="
+
+// If statement with optional else if and else clauses
+if_statement: IF "(" expression ")" block (else_if_clause)* (else_clause)?
+else_if_clause: ELSE IF "(" expression ")" block
+else_clause: ELSE block
+
+// For loop: for (init; cond; step) { ... }
+for_loop: FOR "(" for_init ";" expression ";" for_step ")" block
+for_init: simple_assignment | simple_compound_assignment
+for_step: simple_assignment | simple_compound_assignment | NAME "++" | NAME "--"
+
+// Simplified versions for use in for loops (without semicolon)
+simple_assignment: NAME "=" expression
+simple_compound_assignment: NAME compound_op expression
+
+// While loop: while (cond) { ... }
+while_loop: WHILE "(" expression ")" block
+
+// Control flow
+break_statement: BREAK ";"
+continue_statement: CONTINUE ";"
+
+// Function definition: name(args) { body }
+function_def: NAME "(" parameters ")" block
+parameters: (NAME ("," NAME)*)?
+
+// Return statement: return expr;
+return_statement: RETURN expression ";"
+
+// Block of code
+block: "{" statement* "}"
+
+// Expressions with precedence (lowest to highest)
+?expression: ternary
+
+// Ternary: cond ? expr1 : expr2
+?ternary: logical_or
+        | logical_or "?" expression ":" ternary
+
+// Logical OR
+?logical_or: logical_and
+           | logical_or "||" logical_and
+
+// Logical AND
+?logical_and: bitwise_or
+            | logical_and "&&" bitwise_or
+
+// Bitwise OR
+?bitwise_or: bitwise_xor
+           | bitwise_or "|" bitwise_xor
+
+// Bitwise XOR
+?bitwise_xor: bitwise_and
+            | bitwise_xor "^" bitwise_and
+
+// Bitwise AND
+?bitwise_and: comparison
+            | bitwise_and "&" comparison
+
+// Comparison operators
+?comparison: shift
+           | comparison "==" shift
+           | comparison "!=" shift
+           | comparison "<" shift
+           | comparison ">" shift
+           | comparison "<=" shift
+           | comparison ">=" shift
+
+// Bit shift operators
+?shift: addition
+      | shift "<<" addition
+      | shift ">>" addition
+
+// Addition and subtraction
+?addition: multiplication
+         | addition "+" multiplication
+         | addition "-" multiplication
+
+// Multiplication, division, and modulo
+?multiplication: unary
+               | multiplication "*" unary
+               | multiplication "/" unary
+               | multiplication "%" unary
+
+// Unary operators
+?unary: postfix
+      | "-" unary
+      | "!" unary
+      | "+" unary
+
+// Postfix operations (member access, function calls, array indexing)
+?postfix: atom
+        | postfix "." swizzle      -> member_access
+        | postfix "(" arguments ")" -> function_call
+        | postfix "[" expression "]" -> array_index
+
+// Function arguments
+arguments: (expression ("," expression)*)?
+
+// Swizzle patterns (e.g., .rgb, .xyz, .xyzw, .r, .g, .b, .a)
+// Allow any length for parsing, validate length (<=4) in semantic analyzer
+swizzle: /[xyzwrgba]+/
+
+// Atomic expressions (highest precedence)
+?atom: NUMBER
+     | STRING
+     | NAME
+     | "(" expression ")"
+
+// Lexical tokens
+NUMBER: /-?\d+\.?\d*([eE][+-]?\d+)?/
+STRING: /"[^"]*"/
+
+// Keywords - must be defined before NAME
+IF: "if"
+ELSE: "else"
+FOR: "for"
+WHILE: "while"
+BREAK: "break"
+CONTINUE: "continue"
+RETURN: "return"
+
+// NAME - excludes keywords using negative lookahead
+NAME: /(?!(if|else|for|while|break|continue|return)\b)[a-zA-Z_][a-zA-Z0-9_]*/
+
+// Comments (ignored like whitespace)
+COMMENT: /\/\/[^\n]*/
+MULTILINE_COMMENT: /\/\*(.|\n)*?\*\//
+
+// Whitespace (ignored)
+%import common.WS
+%ignore WS
+%ignore COMMENT
+%ignore MULTILINE_COMMENT

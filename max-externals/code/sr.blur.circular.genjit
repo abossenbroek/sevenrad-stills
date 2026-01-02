@@ -1,0 +1,163 @@
+{
+	"patcher": {
+		"fileversion": 1,
+		"appversion": {
+			"major": 8,
+			"minor": 6,
+			"revision": 0
+		},
+		"rect": [
+			100.0,
+			100.0,
+			650.0,
+			550.0
+		],
+		"bgcolor": [
+			0.9,
+			0.9,
+			0.9,
+			0.9
+		],
+		"bglocked": 0,
+		"openinpresentation": 0,
+		"default_fontsize": 12.0,
+		"default_fontface": 0,
+		"default_fontname": "Arial",
+		"gridonopen": 0,
+		"gridsize": [
+			15.0,
+			15.0
+		],
+		"gridsnaponopen": 0,
+		"statusbarvisible": 0,
+		"toolbarvisible": 1,
+		"boxanimatetime": 200,
+		"imprint": 0,
+		"enablehscroll": 1,
+		"enablevscroll": 1,
+		"devicewidth": 0.0,
+		"description": "",
+		"digest": "",
+		"tags": "",
+		"title": "sr.blur.circular.genjit",
+		"boxes": [
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-1",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						50.0,
+						60.0,
+						30.0,
+						20.0
+					],
+					"text": "in 1"
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-2",
+					"maxclass": "newobj",
+					"numinlets": 0,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						130.0,
+						30.0,
+						100.0,
+						20.0
+					],
+					"text": "param radius 5 0 30"
+				}
+			},
+			{
+				"box": {
+					"code": "/*\r\n * sr.blur.circular.genjit\r\n *\r\n * Circular disk blur (bokeh-like effect)\r\n * Part of SevenRad Max 8 Effects\r\n *\r\n * Parameters:\r\n *   radius (int 0-30): Disk radius in pixels\r\n *\r\n * Algorithm:\r\n *   - Uniform averaging over circular disk\r\n *   - Tests each point in bounding box: x^2 + y^2 <= r^2\r\n *   - All samples have equal weight (box blur)\r\n *\r\n * Performance:\r\n *   O(r^2) per pixel - may be slow for large radii.\r\n *   Consider using separable blur for large sigma values.\r\n *\r\n * Visual Effect:\r\n *   Creates smooth, circular bokeh-like blur.\r\n *   Different from Gaussian blur (no edge falloff).\r\n *\r\n * Source: src/sevenrad_stills/operations/blur_circular_taichi.py\r\n */\r\n\r\n\r\n// Accumulator for color sum\r\nsum = vec(0, 0, 0, 0);\r\ncount = 0;\r\n\r\n// Iterate over bounding box of the circular disk\r\nfor (y = -radius; y <= radius; y += 1) {\r\n    for (x = -radius; x <= radius; x += 1) {\r\n        // Check if point is inside circular disk\r\n        // Using integer comparison to match reference implementation\r\n        if (x*x + y*y <= radius*radius) {\r\n            // Convert pixel offset to normalized coordinates\r\n            offset = vec(float(x) / dim.x, float(y) / dim.y);\r\n\r\n            // Sample and accumulate\r\n            sum += sample(in1, norm + offset);\r\n            count += 1;\r\n        }\r\n    }\r\n}\r\n\r\n// Average all samples (uniform weighting)\r\nout1 = sum / max(float(count), 1.0);",
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-3",
+					"maxclass": "codebox",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"outlettype": [
+						""
+					],
+					"patching_rect": [
+						50.0,
+						120.0,
+						500.0,
+						340.0
+					]
+				}
+			},
+			{
+				"box": {
+					"fontname": "Arial",
+					"fontsize": 12.0,
+					"id": "obj-4",
+					"maxclass": "newobj",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						50.0,
+						480.0,
+						37.0,
+						20.0
+					],
+					"text": "out 1"
+				}
+			}
+		],
+		"lines": [
+			{
+				"patchline": {
+					"destination": [
+						"obj-3",
+						0
+					],
+					"disabled": 0,
+					"hidden": 0,
+					"source": [
+						"obj-1",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"destination": [
+						"obj-4",
+						0
+					],
+					"disabled": 0,
+					"hidden": 0,
+					"source": [
+						"obj-3",
+						0
+					]
+				}
+			}
+		],
+		"dependency_cache": [
+			{
+				"name": "codebox.mxo",
+				"type": "iLaX"
+			},
+			{
+				"name": "param.mxo",
+				"type": "iLaX"
+			}
+		]
+	}
+}

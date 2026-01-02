@@ -1,0 +1,9 @@
+{
+  "effect": "downscale",
+  "case_id": 1,
+  "description": "Quarter resolution pixelated",
+  "params": {
+    "scale": 0.25,
+    "pixelate": true
+  }
+}

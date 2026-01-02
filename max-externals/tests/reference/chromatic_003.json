@@ -1,0 +1,9 @@
+{
+  "effect": "chromatic",
+  "case_id": 3,
+  "description": "Asymmetric fringing",
+  "params": {
+    "shift_x": 10.0,
+    "shift_y": -5.0
+  }
+}

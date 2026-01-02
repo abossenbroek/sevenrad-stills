@@ -1,0 +1,10 @@
+{
+  "effect": "slcoff",
+  "case_id": 1,
+  "description": "White fill",
+  "params": {
+    "gap_width": 0.15,
+    "scan_period": 8,
+    "fill_mode": "white"
+  }
+}

@@ -1,0 +1,254 @@
+{
+  "noise": [
+    {
+      "case_id": 0,
+      "description": "Light Gaussian noise",
+      "output_path": "max-externals/tests/reference/noise_000.png",
+      "params_path": "max-externals/tests/reference/noise_000.json"
+    },
+    {
+      "case_id": 1,
+      "description": "Heavy Gaussian noise",
+      "output_path": "max-externals/tests/reference/noise_001.png",
+      "params_path": "max-externals/tests/reference/noise_001.json"
+    },
+    {
+      "case_id": 2,
+      "description": "Horizontal scanlines",
+      "output_path": "max-externals/tests/reference/noise_002.png",
+      "params_path": "max-externals/tests/reference/noise_002.json"
+    },
+    {
+      "case_id": 3,
+      "description": "Vertical artifacts",
+      "output_path": "max-externals/tests/reference/noise_003.png",
+      "params_path": "max-externals/tests/reference/noise_003.json"
+    }
+  ],
+  "saturation": [
+    {
+      "case_id": 0,
+      "description": "Complete grayscale",
+      "output_path": "max-externals/tests/reference/saturation_000.png",
+      "params_path": "max-externals/tests/reference/saturation_000.json"
+    },
+    {
+      "case_id": 1,
+      "description": "50% desaturated",
+      "output_path": "max-externals/tests/reference/saturation_001.png",
+      "params_path": "max-externals/tests/reference/saturation_001.json"
+    },
+    {
+      "case_id": 2,
+      "description": "Moderately boosted",
+      "output_path": "max-externals/tests/reference/saturation_002.png",
+      "params_path": "max-externals/tests/reference/saturation_002.json"
+    },
+    {
+      "case_id": 3,
+      "description": "Heavily saturated",
+      "output_path": "max-externals/tests/reference/saturation_003.png",
+      "params_path": "max-externals/tests/reference/saturation_003.json"
+    }
+  ],
+  "chromatic": [
+    {
+      "case_id": 0,
+      "description": "Horizontal RGB fringing",
+      "output_path": "max-externals/tests/reference/chromatic_000.png",
+      "params_path": "max-externals/tests/reference/chromatic_000.json"
+    },
+    {
+      "case_id": 1,
+      "description": "Vertical RGB fringing",
+      "output_path": "max-externals/tests/reference/chromatic_001.png",
+      "params_path": "max-externals/tests/reference/chromatic_001.json"
+    },
+    {
+      "case_id": 2,
+      "description": "Diagonal fringing",
+      "output_path": "max-externals/tests/reference/chromatic_002.png",
+      "params_path": "max-externals/tests/reference/chromatic_002.json"
+    },
+    {
+      "case_id": 3,
+      "description": "Asymmetric fringing",
+      "output_path": "max-externals/tests/reference/chromatic_003.png",
+      "params_path": "max-externals/tests/reference/chromatic_003.json"
+    }
+  ],
+  "blur": [
+    {
+      "case_id": 0,
+      "description": "Subtle blur",
+      "output_path": "max-externals/tests/reference/blur_000.png",
+      "params_path": "max-externals/tests/reference/blur_000.json"
+    },
+    {
+      "case_id": 1,
+      "description": "Medium blur",
+      "output_path": "max-externals/tests/reference/blur_001.png",
+      "params_path": "max-externals/tests/reference/blur_001.json"
+    },
+    {
+      "case_id": 2,
+      "description": "Heavy blur",
+      "output_path": "max-externals/tests/reference/blur_002.png",
+      "params_path": "max-externals/tests/reference/blur_002.json"
+    },
+    {
+      "case_id": 3,
+      "description": "No change (passthrough)",
+      "output_path": "max-externals/tests/reference/blur_003.png",
+      "params_path": "max-externals/tests/reference/blur_003.json"
+    }
+  ],
+  "blur_circular": [
+    {
+      "case_id": 0,
+      "description": "Small disk blur",
+      "output_path": "max-externals/tests/reference/blur_circular_000.png",
+      "params_path": "max-externals/tests/reference/blur_circular_000.json"
+    },
+    {
+      "case_id": 1,
+      "description": "Medium disk blur",
+      "output_path": "max-externals/tests/reference/blur_circular_001.png",
+      "params_path": "max-externals/tests/reference/blur_circular_001.json"
+    },
+    {
+      "case_id": 2,
+      "description": "Large disk blur",
+      "output_path": "max-externals/tests/reference/blur_circular_002.png",
+      "params_path": "max-externals/tests/reference/blur_circular_002.json"
+    }
+  ],
+  "motion": [
+    {
+      "case_id": 0,
+      "description": "Horizontal motion",
+      "output_path": "max-externals/tests/reference/motion_000.png",
+      "params_path": "max-externals/tests/reference/motion_000.json"
+    },
+    {
+      "case_id": 1,
+      "description": "Vertical motion",
+      "output_path": "max-externals/tests/reference/motion_001.png",
+      "params_path": "max-externals/tests/reference/motion_001.json"
+    },
+    {
+      "case_id": 2,
+      "description": "Diagonal motion",
+      "output_path": "max-externals/tests/reference/motion_002.png",
+      "params_path": "max-externals/tests/reference/motion_002.json"
+    },
+    {
+      "case_id": 3,
+      "description": "Strong diagonal",
+      "output_path": "max-externals/tests/reference/motion_003.png",
+      "params_path": "max-externals/tests/reference/motion_003.json"
+    }
+  ],
+  "saltpepper": [],
+  "corduroy": [
+    {
+      "case_id": 0,
+      "description": "Vertical stripes",
+      "output_path": "max-externals/tests/reference/corduroy_000.png",
+      "params_path": "max-externals/tests/reference/corduroy_000.json"
+    },
+    {
+      "case_id": 1,
+      "description": "Horizontal stripes",
+      "output_path": "max-externals/tests/reference/corduroy_001.png",
+      "params_path": "max-externals/tests/reference/corduroy_001.json"
+    },
+    {
+      "case_id": 2,
+      "description": "Dense stripes",
+      "output_path": "max-externals/tests/reference/corduroy_002.png",
+      "params_path": "max-externals/tests/reference/corduroy_002.json"
+    }
+  ],
+  "bayer": [
+    {
+      "case_id": 0,
+      "description": "RGGB pattern",
+      "output_path": "max-externals/tests/reference/bayer_000.png",
+      "params_path": "max-externals/tests/reference/bayer_000.json"
+    },
+    {
+      "case_id": 1,
+      "description": "BGGR pattern",
+      "output_path": "max-externals/tests/reference/bayer_001.png",
+      "params_path": "max-externals/tests/reference/bayer_001.json"
+    },
+    {
+      "case_id": 2,
+      "description": "GRBG pattern",
+      "output_path": "max-externals/tests/reference/bayer_002.png",
+      "params_path": "max-externals/tests/reference/bayer_002.json"
+    },
+    {
+      "case_id": 3,
+      "description": "GBRG pattern",
+      "output_path": "max-externals/tests/reference/bayer_003.png",
+      "params_path": "max-externals/tests/reference/bayer_003.json"
+    }
+  ],
+  "bandswap": [
+    {
+      "case_id": 0,
+      "description": "BGR swap",
+      "output_path": "max-externals/tests/reference/bandswap_000.png",
+      "params_path": "max-externals/tests/reference/bandswap_000.json"
+    },
+    {
+      "case_id": 1,
+      "description": "GRB swap",
+      "output_path": "max-externals/tests/reference/bandswap_001.png",
+      "params_path": "max-externals/tests/reference/bandswap_001.json"
+    },
+    {
+      "case_id": 2,
+      "description": "RBG swap",
+      "output_path": "max-externals/tests/reference/bandswap_002.png",
+      "params_path": "max-externals/tests/reference/bandswap_002.json"
+    }
+  ],
+  "corruption": [],
+  "downscale": [
+    {
+      "case_id": 0,
+      "description": "Half resolution pixelated",
+      "output_path": "max-externals/tests/reference/downscale_000.png",
+      "params_path": "max-externals/tests/reference/downscale_000.json"
+    },
+    {
+      "case_id": 1,
+      "description": "Quarter resolution pixelated",
+      "output_path": "max-externals/tests/reference/downscale_001.png",
+      "params_path": "max-externals/tests/reference/downscale_001.json"
+    },
+    {
+      "case_id": 2,
+      "description": "Heavy pixelation",
+      "output_path": "max-externals/tests/reference/downscale_002.png",
+      "params_path": "max-externals/tests/reference/downscale_002.json"
+    }
+  ],
+  "slcoff": [
+    {
+      "case_id": 0,
+      "description": "Black fill",
+      "output_path": "max-externals/tests/reference/slcoff_000.png",
+      "params_path": "max-externals/tests/reference/slcoff_000.json"
+    },
+    {
+      "case_id": 1,
+      "description": "White fill",
+      "output_path": "max-externals/tests/reference/slcoff_001.png",
+      "params_path": "max-externals/tests/reference/slcoff_001.json"
+    }
+  ]
+}
