@@ -309,14 +309,21 @@ void main() {
 
 ## Demo System
 
+> **Video-First Demos**: All demos apply effects to video content to showcase real-time performance and temporal behavior. This ensures effects are validated for motion artifacts, flickering, and frame-to-frame consistency.
+
 ### Per-Operator Demo
 
-Each .tox includes built-in demo functionality:
+Each .tox includes built-in demo functionality with **video input**:
+
+**Video Source**:
+- Built-in sample video clip (looping, ~10 seconds)
+- Demonstrates effect on moving content
+- Shows temporal stability (no flickering/swimming)
 
 **Compare Modes**:
-- Side-by-side (50/50 split)
-- Wipe (draggable divider)
-- Toggle (A/B flip)
+- Side-by-side (50/50 split, synced playback)
+- Wipe (draggable divider over video)
+- Toggle (A/B flip between original/processed)
 
 **Presets**:
 | Preset | Purpose |
@@ -368,10 +375,12 @@ sr_demo.toe/
 │   ├── help_viewer            # Rendered markdown help
 │   └── preset_selector        # Load/save effect chains
 ├── sources/
-│   ├── sample_video           # Built-in test footage
-│   ├── sample_image           # Static test images
-│   ├── color_bars             # Technical test pattern
-│   └── webcam                 # Live input option
+│   ├── sample_videos/         # Primary demo content (all demos use video)
+│   │   ├── nature_loop.mov    # Organic motion, foliage, water
+│   │   ├── urban_loop.mov     # High contrast, sharp edges
+│   │   └── abstract_loop.mov  # Gradients, slow motion
+│   ├── webcam                 # Live video input option
+│   └── video_in               # External video input (Movie File In TOP)
 ├── effects/
 │   └── [all sr_*.tox files]   # Loaded on demand
 ├── chain/
@@ -489,6 +498,35 @@ vec4 color = texture(sTD2DInputs[0], vUV.st);
 color.rgb = processed_rgb;
 fragColor = TDOutputSwizzle(color);  // Preserves alpha
 ```
+
+### Video/Temporal Considerations
+
+Effects must handle video input correctly:
+
+**Seed Handling for Noise Effects**:
+```glsl
+// Option 1: Static seed (same noise pattern every frame)
+uniform int uSeed;  // User-controlled, constant
+
+// Option 2: Animated seed (different noise per frame)
+uniform int uSeed;
+uniform int uFrameIndex;  // From TD's absTime.frame
+int effectiveSeed = uSeed + uFrameIndex;
+
+// Option 3: Temporal toggle parameter
+uniform int uAnimateNoise;  // 0 = static, 1 = per-frame
+int effectiveSeed = uAnimateNoise > 0 ? uSeed + uFrameIndex : uSeed;
+```
+
+**Frame Rate Independence**:
+- Blur effects: No temporal dependencies, naturally frame-rate independent
+- Noise effects: Provide "Animate" toggle for static vs. per-frame noise
+- Motion effects: Use `uTimeDelta` for consistent speed across frame rates
+
+**Avoiding Temporal Artifacts**:
+- No dithering patterns that cause flickering
+- Consistent random patterns when seed is static
+- Smooth parameter interpolation (TD handles via parameter ramp)
 
 ---
 
