@@ -48,9 +48,9 @@ class MaxhelpLinter(
     ConnectionValidatorMixin,
     SignalFlowValidatorMixin,
     OverlapValidatorMixin,
-    DialValidatorMixin,
-    ParamUIValidatorMixin,
-    GenExprValidatorMixin,
+    GenExprValidatorMixin,  # Provides _find_genjit_file, _extract_gen_shader
+    ParamUIValidatorMixin,  # Provides _find_param_messages
+    DialValidatorMixin,  # Depends on GenExpr and ParamUI mixins
     FlowValidatorMixin,
     DeadCodeValidatorMixin,
     FeedbackValidatorMixin,
