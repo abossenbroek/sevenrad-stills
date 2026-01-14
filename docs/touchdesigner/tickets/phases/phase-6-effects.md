@@ -64,6 +64,16 @@ TD-015 (tdCommon.glsl)
 - Run local TD tests before PR (CI is SPIRV-only)
 - **Effect Independence (RF-013 fix)**: Effects within the same tier (Simple, Medium Fragment, etc.) are independent and can be developed in parallel. Each effect only depends on TD-015 (tdCommon.glsl), not on other effects.
 
+## Definition of Done
+
+**Convention (TR-011 fix)**: The Acceptance Criteria listed in each ticket serve as the Definition of Done. A ticket is complete when ALL acceptance criteria checkboxes are checked.
+
+Standard DoD applies to all tickets:
+- All acceptance criteria met
+- Code reviewed (if applicable)
+- Tests passing (if applicable)
+- Documentation updated (if applicable)
+
 ## Completion Checklist
 
 - [ ] All gates G1-G7 verified

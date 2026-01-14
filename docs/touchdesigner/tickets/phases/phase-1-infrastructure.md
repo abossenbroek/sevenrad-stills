@@ -40,6 +40,16 @@ TD-003 ──────────────┘
 - TD-002a added as smoke test gate (RF-003 fix)
 - TD-003 includes stock footage sourcing (RF-005 fix)
 
+## Definition of Done
+
+**Convention (TR-011 fix)**: The Acceptance Criteria listed in each ticket serve as the Definition of Done. A ticket is complete when ALL acceptance criteria checkboxes are checked.
+
+Standard DoD applies to all tickets:
+- All acceptance criteria met
+- Code reviewed (if applicable)
+- Tests passing (if applicable)
+- Documentation updated (if applicable)
+
 ## Completion Checklist
 
 - [ ] TD-001 complete

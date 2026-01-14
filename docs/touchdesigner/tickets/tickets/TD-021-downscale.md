@@ -16,6 +16,10 @@ passes: 1
 
 Implement resolution reduction with box filter.
 
+## Taichi Reference
+
+`src/sevenrad_stills/operations/downscale_taichi.py`
+
 ## Acceptance Criteria
 
 - [ ] `downscale.frag` shader created
@@ -29,6 +33,35 @@ Implement resolution reduction with box filter.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | Factor | Int | 2 | Downscale factor |
+
+## Implementation
+
+```glsl
+uniform int uFactor;  // Downscale factor (2, 4, 8, etc.)
+
+void main() {
+    vec2 uv = vUV.st;
+    ivec2 inputSize = textureSize(sTD2DInputs[0], 0);
+
+    // Calculate the block of pixels to average
+    vec2 blockStart = floor(uv * vec2(inputSize) / float(uFactor)) * float(uFactor);
+
+    vec4 color = vec4(0.0);
+    float count = 0.0;
+
+    // Box filter: average all pixels in the block
+    for (int y = 0; y < uFactor; y++) {
+        for (int x = 0; x < uFactor; x++) {
+            vec2 samplePos = (blockStart + vec2(x, y) + 0.5) / vec2(inputSize);
+            color += texture(sTD2DInputs[0], samplePos);
+            count += 1.0;
+        }
+    }
+
+    color /= count;
+    fragColor = TDOutputSwizzle(color);
+}
+```
 
 ## Files
 

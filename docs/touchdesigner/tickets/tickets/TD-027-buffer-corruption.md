@@ -19,6 +19,7 @@ Implement multi-mode buffer corruption (shift, swap, zero, XOR) for glitch effec
 ## Acceptance Criteria
 
 - [ ] `buffer_corruption.comp` compute shader created
+- [ ] Shader uses #version 430 core
 - [ ] All modes: xor, invert, channel_shuffle (matches Taichi - RF-002 fix)
 - [ ] .tox operator packaged with help
 - [ ] Video-first demo included
@@ -53,6 +54,25 @@ Configurable via `Animateglitch` parameter.
 
 ## Notes
 
+- Requires GLSL 430+ for compute shader support
 - Most complex effect
 - XOR mode requires bitwise float manipulation
 - C++ fallback pre-approved if needed
+
+## XOR Mode Implementation (TR-013 fix)
+
+GLSL can perform bitwise operations on floats using reinterpretation:
+
+```glsl
+// XOR mode implementation using floatBitsToUint/uintBitsToFloat
+vec4 applyXorCorruption(vec4 color, uint mask) {
+    return vec4(
+        uintBitsToFloat(floatBitsToUint(color.r) ^ mask),
+        uintBitsToFloat(floatBitsToUint(color.g) ^ mask),
+        uintBitsToFloat(floatBitsToUint(color.b) ^ mask),
+        color.a  // preserve alpha
+    );
+}
+```
+
+**Note**: Results may produce NaN/Inf values. Clamp output or use `isinf()`/`isnan()` checks. If GLSL XOR produces unacceptable artifacts, activate TD-027a C++ fallback.

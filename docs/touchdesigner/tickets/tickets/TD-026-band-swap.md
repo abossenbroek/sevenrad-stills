@@ -19,6 +19,7 @@ Implement tile-based band permutation effect.
 ## Acceptance Criteria
 
 - [ ] `band_swap.comp` compute shader created
+- [ ] Shader uses #version 430 core
 - [ ] Random band permutation
 - [ ] .tox operator packaged with help
 - [ ] Video-first demo included

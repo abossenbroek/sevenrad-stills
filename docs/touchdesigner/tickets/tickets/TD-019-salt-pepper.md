@@ -16,6 +16,12 @@ passes: 1
 
 Implement dedicated salt and pepper noise effect with dual threshold.
 
+## Taichi Reference
+
+`src/sevenrad_stills/operations/salt_pepper_taichi.py`
+
+**Note**: Also consult Max/MSP implementation for additional clarity on algorithm behavior.
+
 ## Acceptance Criteria
 
 - [ ] `salt_pepper.frag` shader created
@@ -29,6 +35,7 @@ Implement dedicated salt and pepper noise effect with dual threshold.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | Amount | Float | 0.05 | Overall noise probability |
+| Saltvspepperratio | Float | 0.5 | Ratio of salt (white) to pepper (black), 0=all pepper, 1=all salt |
 | Seed | Int | 42 | Random seed |
 | Animatenoise | Toggle | Off | Per-frame variation |
 

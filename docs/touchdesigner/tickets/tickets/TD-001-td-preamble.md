@@ -46,6 +46,19 @@ The current preamble is hand-crafted and may not match actual TD runtime, causin
    - `vUV` - Texture coordinates
    - Others as discovered
 
+## Extraction Procedure
+
+1. Open TouchDesigner 2022.20000+
+2. Create a new GLSL TOP
+3. Enter minimal shader: `void main() { fragColor = vec4(1.0); }`
+4. Create an Info DAT and connect it to the GLSL TOP
+5. In Info DAT parameters, set "Operator" to point to your GLSL TOP
+6. The Info DAT will show all injected uniforms and preamble code
+7. Copy the uniform declarations section
+8. Also check: GLSL TOP → Right-click → View → GLSL Info for additional details
+
+**Note:** Also consult Max/MSP jit.gl.pix implementation for cross-reference if available.
+
 ## References
 
 - [03-REMEDIATION-PLAN.md](../../03-REMEDIATION-PLAN.md) - Phase 1.1
