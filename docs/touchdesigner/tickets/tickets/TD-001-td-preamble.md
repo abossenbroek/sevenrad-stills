@@ -1,0 +1,52 @@
+# TD-001: Extract TouchDesigner GLSL Preamble
+
+---
+id: TD-001
+status: pending
+priority: critical
+phase: 1
+depends_on: []
+blocks: [TD-002a, TD-004, TD-005, TD-006]
+---
+
+## Description
+
+Extract the actual GLSL preamble that TouchDesigner injects into shaders, replacing the synthetic/guessed version in `validate_glsl.py`.
+
+The current preamble is hand-crafted and may not match actual TD runtime, causing validation to pass for shaders that fail in TD (or vice versa).
+
+## Acceptance Criteria
+
+- [ ] Minimal passthrough shader created in TD 2022.20000+
+- [ ] All injected uniforms documented (names, types, purposes)
+- [ ] `touchdesigner/reference/td_preamble_2022.glsl` created
+- [ ] `touchdesigner/scripts/validate_glsl.py` TD_PREAMBLE updated
+- [ ] Shader that passes validation compiles in actual TD
+- [ ] Version differences documented if TD 2023.x/2024.x differ
+
+## Files
+
+- `touchdesigner/reference/td_preamble_2022.glsl` (create)
+- `touchdesigner/scripts/validate_glsl.py` (modify)
+
+## Implementation Notes
+
+1. Create minimal passthrough shader in TD:
+   ```glsl
+   void main() {
+       fragColor = texture(sTD2DInputs[0], vUV.st);
+   }
+   ```
+
+2. Use TD's shader inspection tools or SPIR-V analysis to extract injected code
+
+3. Document all uniforms:
+   - `sTD2DInputs[]` - Input textures
+   - `uTDOutputInfo` - Output resolution info
+   - `vUV` - Texture coordinates
+   - Others as discovered
+
+## References
+
+- [03-REMEDIATION-PLAN.md](../../03-REMEDIATION-PLAN.md) - Phase 1.1
+- [TouchDesigner GLSL TOP docs](https://docs.derivative.ca/GLSL_TOP)
