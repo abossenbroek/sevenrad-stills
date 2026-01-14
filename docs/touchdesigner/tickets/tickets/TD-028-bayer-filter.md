@@ -45,3 +45,14 @@ Implement CFA (Color Filter Array) mosaic and demosaic simulation.
 
 - Two-pass effect: mosaic then demosaic
 - Tests interaction of 2x2 Bayer pattern with video compression artifacts
+
+## Multi-Pass Specification (RF-003 fix)
+
+| Pass | Shader | Input | Output Format |
+|------|--------|-------|---------------|
+| 1 (Mosaic) | bayer_mosaic.frag | Source texture | RGBA32F |
+| 2 (Demosaic) | bayer_demosaic.frag | Pass 1 output | RGBA32F |
+
+- **Intermediate texture**: Same resolution as input, RGBA32F format
+- **Uniform sharing**: Both passes share `Pattern` parameter (RGGB/BGGR/GRBG/GBRG)
+- **.tox structure**: glsl_mosaic → Render TOP (cache) → glsl_demosaic

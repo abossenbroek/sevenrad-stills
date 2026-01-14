@@ -28,11 +28,13 @@ Implement Landsat scan line corrector failure simulation (wedge-shaped mask).
 
 Static - wedge pattern stable per seed.
 
-## Parameters
+## Parameters (RF-005 fix - matches Taichi)
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| Gap | Float | 0.1 | Gap width |
+| Gapwidth | Float | 0.1 | Gap width as fraction of image |
+| Scanperiod | Int | 14 | Stripe frequency (Landsat-7 default) |
+| Fillmode | Menu | black | black, white, mean |
 | Seed | Int | 42 | Random seed |
 
 ## Files

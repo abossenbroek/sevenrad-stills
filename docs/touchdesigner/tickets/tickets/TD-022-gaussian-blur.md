@@ -46,3 +46,14 @@ Implement separable Gaussian blur with two passes (horizontal + vertical).
 
 - Multi-pass effect requires chained GLSL TOPs in .tox
 - Separable convolution for performance
+
+## Multi-Pass Specification (RF-003 fix)
+
+| Pass | Shader | Input | Output Format |
+|------|--------|-------|---------------|
+| 1 (H) | gaussian_blur_h.frag | Source texture | RGBA32F |
+| 2 (V) | gaussian_blur_v.frag | Pass 1 output | RGBA32F |
+
+- **Intermediate texture**: Same resolution as input, RGBA32F format
+- **Uniform sharing**: Both passes share `Kernelsize` and `Sigma` parameters
+- **.tox structure**: glsl_blur_h → Render TOP (cache) → glsl_blur_v

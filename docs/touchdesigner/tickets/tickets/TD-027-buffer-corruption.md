@@ -19,14 +19,19 @@ Implement multi-mode buffer corruption (shift, swap, zero, XOR) for glitch effec
 ## Acceptance Criteria
 
 - [ ] `buffer_corruption.comp` compute shader created
-- [ ] All modes: shift, swap, zero (XOR may need C++)
+- [ ] All modes: xor, invert, channel_shuffle (matches Taichi - RF-002 fix)
 - [ ] .tox operator packaged with help
 - [ ] Video-first demo included
 - [ ] Unit render tests passing
 
 ## Fallback
 
-XOR mode may require C++ implementation. If GLSL compute fails for XOR, activate [TD-027a](TD-027a-buffer-corruption-cpp.md).
+XOR mode requires bitwise float manipulation which GLSL cannot do natively. If GLSL compute fails for XOR, activate [TD-027a](TD-027a-buffer-corruption-cpp.md).
+
+**Fallback Trigger Criteria (RF-009 fix)**: Activate TD-027a if ANY of:
+1. SPIRV-Cross Metal compilation fails for buffer_corruption.comp
+2. Perceptual diff SSIM < 0.95 vs Taichi reference
+3. Frame time > 8ms at 1080p (2x the 4ms target)
 
 ## Temporal Behavior
 
@@ -36,7 +41,7 @@ Configurable via `Animateglitch` parameter.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| Mode | Menu | shift | shift, swap, zero, xor |
+| Mode | Menu | xor | xor, invert, channel_shuffle |
 | Amount | Float | 0.1 | Corruption intensity |
 | Seed | Int | 42 | Random seed |
 | Animateglitch | Toggle | Off | Per-frame variation |

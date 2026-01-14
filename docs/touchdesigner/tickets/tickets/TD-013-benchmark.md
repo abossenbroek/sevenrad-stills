@@ -28,8 +28,15 @@ Create benchmarking script to measure effect performance and establish baselines
 | saturation | <2ms | Simple |
 | chromatic_aberration | <2ms | Simple |
 | noise | <2ms | PCG is fast |
+| salt_pepper | <2ms | Simple |
+| corduroy | <2ms | Simple |
+| downscale | <2ms | Simple |
 | gaussian_blur | <8ms | Two passes |
 | circular_blur | <8ms | Many samples |
+| motion_blur | <4ms | Line kernel |
+| bayer_filter | <8ms | Two passes |
+| slc_off | <4ms | Compute (RF-006 fix) |
+| band_swap | <4ms | Compute (RF-006 fix) |
 | buffer_corruption | <4ms | Compute |
 
 **60fps Budget**: 16.67ms per frame
@@ -68,6 +75,37 @@ def benchmark_effect(effect: str, params: dict,
         "fps": round(1000 / avg, 1),
         "meets_60fps": avg < 16.67
     }
+```
+
+## Baseline JSON Schema (RF-012 fix)
+
+Example `perf_baseline.json` output:
+
+```json
+{
+  "version": "1.0",
+  "hardware": "Apple M1 Max",
+  "td_version": "2022.20000",
+  "captured_at": "2024-01-15T10:30:00Z",
+  "baselines": {
+    "saturation": {
+      "resolution": "1920x1080",
+      "avg_ms": 1.2,
+      "min_ms": 1.0,
+      "max_ms": 1.8,
+      "fps": 833.3,
+      "meets_60fps": true
+    },
+    "gaussian_blur": {
+      "resolution": "1920x1080",
+      "avg_ms": 6.5,
+      "min_ms": 5.8,
+      "max_ms": 7.2,
+      "fps": 153.8,
+      "meets_60fps": true
+    }
+  }
+}
 ```
 
 ## References

@@ -65,10 +65,10 @@ Phase 4: Demo System                [See 02-EFFECTS-AND-DEMOS.md]
 |--------|--------|--------|------------|
 | saturation | Fragment | 1 | Simple |
 | chromatic_aberration | Fragment | 1 | Simple |
-| noise (3 modes) | Fragment | 1 | Simple |
+| noise (2 modes) | Fragment | 1 | Simple |
 | salt_pepper | Fragment | 1 | Simple |
 | corduroy | Fragment | 1 | Medium |
-| downscale | Fragment | 1-2 | Medium |
+| downscale | Fragment | 1 | Medium |
 | gaussian_blur | Fragment | 2 (H+V) | Medium |
 | circular_blur | Fragment | 1 | Medium |
 | motion_blur | Fragment | 1 | Medium |
@@ -131,6 +131,16 @@ Before attempting pure GLSL for any effect, verify:
 - **Compute Shaders**: Fully supported on Apple Silicon
 - **Geometry Shaders**: NOT supported (Metal limitation)
 - **Avoid**: `GL_TEXTURE_RECTANGLE`, implicit LOD functions, non-constant loops >1024 iterations
+
+### MoltenVK-Specific Validation Checklist (RF-008 fix)
+
+Before deploying compute shaders via MoltenVK, verify:
+
+- [ ] **Texture array indexing**: Non-constant indices may require `MTLGPUFamily.apple5` or higher
+- [ ] **Integer atomics**: `atomicAdd`, `atomicMin`, `atomicMax` supported; `atomicXor` may have issues
+- [ ] **Workgroup size**: `gl_WorkGroupSize` must match local_size declaration exactly
+- [ ] **Buffer alignment**: Ensure 16-byte alignment for buffer structs
+- [ ] **SPIRV-Cross compilation**: Test Metal output for each compute shader in CI
 
 ---
 

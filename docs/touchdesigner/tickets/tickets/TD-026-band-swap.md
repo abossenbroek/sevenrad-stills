@@ -28,16 +28,23 @@ Implement tile-based band permutation effect.
 
 If GLSL compute fails, activate [TD-026a](TD-026a-band-swap-cpp.md) for C++ implementation.
 
+**Fallback Trigger Criteria (RF-009 fix)**: Activate TD-026a if ANY of:
+1. SPIRV-Cross Metal compilation fails for band_swap.comp
+2. Perceptual diff SSIM < 0.95 vs Taichi reference
+3. Frame time > 8ms at 1080p (2x the 4ms target)
+
 ## Temporal Behavior
 
 Static - band order stable per seed.
 
-## Parameters
+## Parameters (RF-004 fix - matches Taichi)
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| Bandheight | Int | 16 | Band height in pixels |
-| Swapcount | Int | 5 | Number of swaps |
+| Tilecount | Int | 8 | Number of tiles to create |
+| Permutation | Menu | RGB | RGB, BGR, GRB, GBR, BRG, RBG |
+| Tilesizemin | Float | 0.05 | Min tile size as fraction of height |
+| Tilesizemax | Float | 0.15 | Max tile size as fraction of height |
 | Seed | Int | 42 | Random seed |
 
 ## Files

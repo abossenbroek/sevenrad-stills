@@ -63,6 +63,14 @@ with open("perf_baseline.json", "w") as f:
 - `tests/test_compute_limits.py` (create)
 - `touchdesigner/fixtures/perf_baseline.json` (create)
 
+## Workgroup Size Note (RF-007 fix)
+
+The resolution matrix assumes 16x16 workgroups. During compute effect implementation (TD-025, TD-026, TD-027), measure actual Metal performance with different workgroup sizes:
+
+- Test 8x8, 16x16, 32x32 workgroups
+- Document optimal size for Apple Silicon in implementation notes
+- Update compute shaders to use optimal size if significantly different
+
 ## References
 
 - [03-REMEDIATION-PLAN.md](../../03-REMEDIATION-PLAN.md) - Phase 5.1

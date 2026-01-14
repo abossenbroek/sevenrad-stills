@@ -6,7 +6,9 @@ complete: false
 
 ## Overview
 
-Implement all 14 Taichi effects as GLSL shaders and package as .tox operators. This phase is BLOCKED until all gates G1-G7 pass.
+Implement all 14 Taichi effects as GLSL shaders and package as .tox operators. This phase is BLOCKED until all gates G1-G7 pass AND Phase 5 is complete.
+
+**Phase Dependency (RF-001 fix)**: Phase 5 must be complete before starting Phase 6. Compute limits and performance baselines from TD-012/TD-013 are required for effects TD-025, TD-026, and TD-027.
 
 ## Gate Criteria
 
@@ -60,6 +62,7 @@ TD-015 (tdCommon.glsl)
 - Each effect requires .tox packaging with help and demo
 - Video-first demos for all effects
 - Run local TD tests before PR (CI is SPIRV-only)
+- **Effect Independence (RF-013 fix)**: Effects within the same tier (Simple, Medium Fragment, etc.) are independent and can be developed in parallel. Each effect only depends on TD-015 (tdCommon.glsl), not on other effects.
 
 ## Completion Checklist
 

@@ -9,7 +9,7 @@ depends_on: [TD-015]
 blocks: []
 complexity: medium
 shader_type: fragment
-passes: 1-2
+passes: 1
 ---
 
 ## Description
@@ -34,3 +34,7 @@ Implement resolution reduction with box filter.
 
 - `touchdesigner/glsl/effects/downscale.frag` (create)
 - `touchdesigner/tox/operators/sr_downscale.tox` (create)
+
+## Notes (RF-010 fix)
+
+Single-pass box filter implementation matching Taichi reference. For extreme downscale factors (8x+), consider using TD's built-in Resolution TOP followed by this effect for quality, but the shader itself is single-pass.

@@ -19,7 +19,7 @@ Implement noise effect with uniform, gaussian, and salt-pepper modes.
 ## Acceptance Criteria
 
 - [ ] `noise.frag` shader created
-- [ ] Supports modes: uniform, gaussian, salt_pepper
+- [ ] Supports modes: uniform, gaussian (RF-011 fix: salt_pepper removed, use TD-019)
 - [ ] Animate toggle for temporal variation
 - [ ] .tox operator packaged with help
 - [ ] Video-first demo included
@@ -33,7 +33,7 @@ Implement noise effect with uniform, gaussian, and salt-pepper modes.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| Mode | Menu | uniform | uniform, gaussian, salt_pepper |
+| Mode | Menu | uniform | uniform, gaussian |
 | Amount | Float | 0.1 | Noise intensity |
 | Seed | Int | 42 | Random seed |
 | Animatenoise | Toggle | Off | Per-frame variation |
@@ -71,7 +71,7 @@ void main() {
         float n = rand_gaussian(pos, seed, uAmount);
         color.rgb += n;
     }
-    // ... salt_pepper mode
+    // RF-011 fix: salt_pepper mode removed - use dedicated TD-019 effect
 
     fragColor = TDOutputSwizzle(saturate(color));
 }
