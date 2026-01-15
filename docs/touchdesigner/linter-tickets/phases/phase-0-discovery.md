@@ -1,7 +1,7 @@
 # Phase 0: Format Discovery
 
 ---
-complete: false
+complete: true
 ---
 
 ## Overview
@@ -12,19 +12,19 @@ Before building a linter, we must deeply understand the format we're linting. Th
 
 ## Gate Criteria
 
-| Gate | Requirement | Validation |
-|------|-------------|------------|
-| G0.1 | 50+ diverse .toe.dir samples collected | catalog.yaml documents each |
-| G0.2 | All parameter mode flags documented | mode_flag_discovery.toe tests each |
-| G0.3 | Operator compatibility database created | td_operators.yaml covers all families |
+| Gate | Requirement | Validation | Status |
+|------|-------------|------------|--------|
+| G0.1 | 50+ diverse .toe.dir samples collected | catalog.yaml documents each | ✅ PASS |
+| G0.2 | All parameter mode flags documented | mode_flag_discovery.toe tests each | ✅ PASS |
+| G0.3 | Operator compatibility database created | td_operators.yaml covers all families | ✅ PASS |
 
 ## Tickets
 
 | Ticket | Title | Priority | Status |
 |--------|-------|----------|--------|
-| [TDL-001](../tickets/TDL-001-sample-collection.md) | Sample Collection Campaign | Critical | pending |
-| [TDL-002](../tickets/TDL-002-mode-flag-discovery.md) | Mode Flag Discovery | Critical | pending |
-| [TDL-003](../tickets/TDL-003-operator-catalog.md) | Operator Type Catalog | High | pending |
+| [TDL-001](../tickets/TDL-001-sample-collection.md) | Sample Collection Campaign | Critical | ✅ done |
+| [TDL-002](../tickets/TDL-002-mode-flag-discovery.md) | Mode Flag Discovery | Critical | ✅ done |
+| [TDL-003](../tickets/TDL-003-operator-catalog.md) | Operator Type Catalog | High | ✅ done |
 
 ## Dependencies
 
@@ -45,8 +45,8 @@ Skipping this phase means building a linter on quicksand.
 
 ## Completion Checklist
 
-- [ ] TDL-001 complete: 50+ samples with catalog
-- [ ] TDL-002 complete: All modes documented
-- [ ] TDL-003 complete: td_operators.yaml created
-- [ ] G0.1-G0.3 verified
-- [ ] Phase marked complete: true
+- [x] TDL-001 complete: 50+ samples with catalog
+- [x] TDL-002 complete: All modes documented
+- [x] TDL-003 complete: td_operators.yaml created
+- [x] G0.1-G0.3 verified
+- [x] Phase marked complete: true

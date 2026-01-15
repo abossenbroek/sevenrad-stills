@@ -12,32 +12,32 @@ Engineering tickets for building `td-linter`, a validation tool for TouchDesigne
 
 ## Phase Overview
 
-| Phase | Focus | Tickets | Description |
-|-------|-------|---------|-------------|
-| [Phase 0](phases/phase-0-discovery.md) | Discovery | TDL-001 to TDL-003 | Sample collection, format documentation |
-| [Phase 1](phases/phase-1-infrastructure.md) | Infrastructure | TDL-010 to TDL-014 | Tree-sitter grammars, CLI skeleton |
-| [Phase 2](phases/phase-2-graph.md) | Graph | TDL-020 to TDL-024 | NetworkX model, structural validation |
-| [Phase 3](phases/phase-3-embedded.md) | Embedded Code | TDL-030 to TDL-034 | GLSL/Python validation |
-| [Phase 4](phases/phase-4-rules.md) | Rules | TDL-040 to TDL-043 | YAML configuration, rule system |
-| [Phase 5](phases/phase-5-integration.md) | Integration | TDL-050 to TDL-054 | CI/CD, packaging, distribution |
+| Phase | Focus | Tickets | Description | Status |
+|-------|-------|---------|-------------|--------|
+| [Phase 0](phases/phase-0-discovery.md) | Discovery | TDL-001 to TDL-003 | Sample collection, format documentation | ✅ Complete |
+| [Phase 1](phases/phase-1-infrastructure.md) | Infrastructure | TDL-010 to TDL-014 | Lark grammars, CLI skeleton | ✅ Complete |
+| [Phase 2](phases/phase-2-graph.md) | Graph | TDL-020 to TDL-024 | NetworkX model, structural validation | Pending |
+| [Phase 3](phases/phase-3-embedded.md) | Embedded Code | TDL-030 to TDL-034 | GLSL/Python validation | Pending |
+| [Phase 4](phases/phase-4-rules.md) | Rules | TDL-040 to TDL-043 | YAML configuration, rule system | Pending |
+| [Phase 5](phases/phase-5-integration.md) | Integration | TDL-050 to TDL-054 | CI/CD, packaging, distribution | Pending |
 
 ## Ticket Index
 
-### Phase 0: Format Discovery
-| ID | Title | Priority |
-|----|-------|----------|
-| [TDL-001](tickets/TDL-001-sample-collection.md) | Sample Collection Campaign | Critical |
-| [TDL-002](tickets/TDL-002-mode-flag-discovery.md) | Mode Flag Discovery | Critical |
-| [TDL-003](tickets/TDL-003-operator-catalog.md) | Operator Type Catalog | High |
+### Phase 0: Format Discovery ✅
+| ID | Title | Priority | Status |
+|----|-------|----------|--------|
+| [TDL-001](tickets/TDL-001-sample-collection.md) | Sample Collection Campaign | Critical | ✅ Done |
+| [TDL-002](tickets/TDL-002-mode-flag-discovery.md) | Mode Flag Discovery | Critical | ✅ Done |
+| [TDL-003](tickets/TDL-003-operator-catalog.md) | Operator Type Catalog | High | ✅ Done |
 
-### Phase 1: Core Infrastructure
-| ID | Title | Priority |
-|----|-------|----------|
-| [TDL-010](tickets/TDL-010-grammar-n-files.md) | Tree-sitter Grammar for .n Files | Critical |
-| [TDL-011](tickets/TDL-011-grammar-parm-files.md) | Tree-sitter Grammar for .parm Files | Critical |
-| [TDL-012](tickets/TDL-012-toc-parser.md) | TOC Manifest Parser | High |
-| [TDL-013](tickets/TDL-013-python-bindings.md) | Python Bindings Integration | High |
-| [TDL-014](tickets/TDL-014-cli-skeleton.md) | CLI Skeleton with Typer | High |
+### Phase 1: Core Infrastructure ✅
+| ID | Title | Priority | Status |
+|----|-------|----------|--------|
+| [TDL-010](tickets/TDL-010-grammar-n-files.md) | Lark Grammar for .n Files | Critical | ✅ Done |
+| [TDL-011](tickets/TDL-011-grammar-parm-files.md) | Lark Grammar for .parm Files | Critical | ✅ Done |
+| [TDL-012](tickets/TDL-012-toc-parser.md) | TOC Manifest Parser | High | ✅ Done |
+| [TDL-013](tickets/TDL-013-python-bindings.md) | Python Parser Integration | High | ✅ Done |
+| [TDL-014](tickets/TDL-014-cli-skeleton.md) | CLI Skeleton with Typer | High | ✅ Done |
 
 ### Phase 2: Graph Validation
 | ID | Title | Priority |
@@ -124,7 +124,6 @@ TDL-054 (package) <── TDL-014
 
 ## Key Decisions Left to Engineers
 
-- Tree-sitter grammar style (single vs multiple entry points)
 - Graph node ID conventions
 - Error message formatting details
 - Config file discovery order
@@ -134,7 +133,7 @@ TDL-054 (package) <── TDL-014
 ## External Resources
 
 All linked in individual tickets, but key ones:
-- [Tree-sitter Docs](https://tree-sitter.github.io/tree-sitter/)
+- [Lark Parser Docs](https://lark-parser.readthedocs.io/)
 - [NetworkX Documentation](https://networkx.org/)
 - [TouchDesigner Python API](https://docs.derivative.ca/Python)
 - [SARIF Specification](https://docs.oasis-open.org/sarif/sarif/v2.1.0/)
