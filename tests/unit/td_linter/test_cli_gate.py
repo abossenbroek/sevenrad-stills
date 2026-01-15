@@ -152,13 +152,13 @@ class TestRulesOutput:
     """Tests for rules command output format."""
 
     def test_rules_shows_table_headers(self) -> None:
-        """Rules output should show table with ID, Description, Severity columns."""
+        """Rules output should show table with ID, Name, Severity columns."""
         result = runner.invoke(app, ["rules"])
         assert result.exit_code == 0
         output_lower = result.output.lower()
         # Check for table headers (may be styled/formatted)
         assert "id" in output_lower or "rule" in output_lower
-        assert "description" in output_lower or "desc" in output_lower
+        assert "name" in output_lower or "desc" in output_lower
         assert "severity" in output_lower
 
     def test_rules_shows_registered_rules(self) -> None:

@@ -16,9 +16,9 @@ Engineering tickets for building `td-linter`, a validation tool for TouchDesigne
 |-------|-------|---------|-------------|--------|
 | [Phase 0](phases/phase-0-discovery.md) | Discovery | TDL-001 to TDL-003 | Sample collection, format documentation | ✅ Complete |
 | [Phase 1](phases/phase-1-infrastructure.md) | Infrastructure | TDL-010 to TDL-014 | Lark grammars, CLI skeleton | ✅ Complete |
-| [Phase 2](phases/phase-2-graph.md) | Graph | TDL-020 to TDL-024 | NetworkX model, structural validation | Pending |
-| [Phase 3](phases/phase-3-embedded.md) | Embedded Code | TDL-030 to TDL-034 | GLSL/Python validation | Pending |
-| [Phase 4](phases/phase-4-rules.md) | Rules | TDL-040 to TDL-043 | YAML configuration, rule system | Pending |
+| [Phase 2](phases/phase-2-graph.md) | Graph | TDL-020 to TDL-024 | NetworkX model, structural validation | ✅ Complete |
+| [Phase 3](phases/phase-3-embedded.md) | Embedded Code | TDL-030 to TDL-034 | GLSL/Python validation | ✅ Complete |
+| [Phase 4](phases/phase-4-rules.md) | Rules | TDL-040 to TDL-043 | YAML configuration, rule system | ✅ Complete |
 | [Phase 5](phases/phase-5-integration.md) | Integration | TDL-050 to TDL-054 | CI/CD, packaging, distribution | Pending |
 
 ## Ticket Index
@@ -57,13 +57,13 @@ Engineering tickets for building `td-linter`, a validation tool for TouchDesigne
 | [TDL-033](tickets/TDL-033-td-stubs.md) | TouchDesigner Python Stubs | Medium |
 | [TDL-034](tickets/TDL-034-expression-validator.md) | Parameter Expression Validator | Medium |
 
-### Phase 4: Rule System
-| ID | Title | Priority |
-|----|-------|----------|
-| [TDL-040](tickets/TDL-040-rule-schema.md) | YAML Rule Schema | High |
-| [TDL-041](tickets/TDL-041-rule-loader.md) | Rule Loader Implementation | High |
-| [TDL-042](tickets/TDL-042-builtin-rules.md) | Built-in Rule Set | High |
-| [TDL-043](tickets/TDL-043-rule-api.md) | Rule Configuration API | Medium |
+### Phase 4: Rule System ✅
+| ID | Title | Priority | Status |
+|----|-------|----------|--------|
+| [TDL-040](tickets/TDL-040-rule-schema.md) | YAML Rule Schema | High | ✅ Done |
+| [TDL-041](tickets/TDL-041-rule-loader.md) | Rule Loader Implementation | High | ✅ Done |
+| [TDL-042](tickets/TDL-042-builtin-rules.md) | Built-in Rule Set | High | ✅ Done |
+| [TDL-043](tickets/TDL-043-rule-api.md) | Rule Configuration API | Medium | ✅ Done |
 
 ### Phase 5: Integration & Polish
 | ID | Title | Priority |

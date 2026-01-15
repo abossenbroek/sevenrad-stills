@@ -1,0 +1,71 @@
+# Recommended preset - sensible defaults for most projects
+# Enables critical rules with balanced severities
+
+version: "1.0.0"
+
+rules:
+  # Syntax rules (S) - enabled, error severity
+  S001:
+    enabled: true
+    severity: error
+  S002:
+    enabled: true
+    severity: error
+  S003:
+    enabled: true
+    severity: error
+
+  # Connection rules (C) - enabled
+  C001:
+    enabled: true
+    severity: error
+  C002:
+    enabled: true
+    severity: warning
+
+  # Type rules (T) - enabled
+  T001:
+    enabled: true
+    severity: error
+
+  # Reference rules (R) - enabled
+  R001:
+    enabled: true
+    severity: error
+  R002:
+    enabled: true
+    severity: warning
+
+  # GLSL rules (G) - enabled
+  G001:
+    enabled: true
+    severity: error
+  G002:
+    enabled: false
+    severity: warning
+  G003:
+    enabled: false
+    severity: warning
+
+  # Python rules (P) - enabled
+  P001:
+    enabled: true
+    severity: error
+  P002:
+    enabled: true
+    severity: warning
+  P003:
+    enabled: false
+    severity: info
+
+  # Performance rules (F) - disabled by default
+  F001:
+    enabled: false
+    severity: warning
+    options:
+      max_depth: 10
+  F002:
+    enabled: false
+    severity: warning
+    options:
+      max_inputs: 16

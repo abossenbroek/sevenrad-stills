@@ -1,7 +1,7 @@
 # Phase 4: Rule System
 
 ---
-complete: false
+complete: true
 ---
 
 ## Overview
@@ -22,10 +22,10 @@ Transform hardcoded checks into a configurable rule system. Users should be able
 
 | Ticket | Title | Priority | Status |
 |--------|-------|----------|--------|
-| [TDL-040](../tickets/TDL-040-rule-schema.md) | YAML Rule Schema | High | pending |
-| [TDL-041](../tickets/TDL-041-rule-loader.md) | Rule Loader Implementation | High | pending |
-| [TDL-042](../tickets/TDL-042-builtin-rules.md) | Built-in Rule Set | High | pending |
-| [TDL-043](../tickets/TDL-043-rule-api.md) | Rule Configuration API | Medium | pending |
+| [TDL-040](../tickets/TDL-040-rule-schema.md) | YAML Rule Schema | High | ✅ Done |
+| [TDL-041](../tickets/TDL-041-rule-loader.md) | Rule Loader Implementation | High | ✅ Done |
+| [TDL-042](../tickets/TDL-042-builtin-rules.md) | Built-in Rule Set | High | ✅ Done |
+| [TDL-043](../tickets/TDL-043-rule-api.md) | Rule Configuration API | Medium | ✅ Done |
 
 ## Dependencies
 
@@ -60,9 +60,9 @@ TDL-040 ──> TDL-041 ──> TDL-042
 
 ## Completion Checklist
 
-- [ ] TDL-040 complete: JSON Schema validates configs
-- [ ] TDL-041 complete: Loader parses YAML, handles extends
-- [ ] TDL-042 complete: 15+ rules in recommended preset
-- [ ] TDL-043 complete: API allows runtime rule queries
-- [ ] G4.1-G4.3 verified
-- [ ] Phase marked complete: true
+- [x] TDL-040 complete: JSON Schema validates configs
+- [x] TDL-041 complete: Loader parses YAML, handles extends
+- [x] TDL-042 complete: 16 rules in recommended preset (S001-S003, C001-C002, T001, R001-R002, G001-G003, P001-P003, F001-F002)
+- [x] TDL-043 complete: API allows runtime rule queries
+- [x] G4.1-G4.3 verified
+- [x] Phase marked complete: true

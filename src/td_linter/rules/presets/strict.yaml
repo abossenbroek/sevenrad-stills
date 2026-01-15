@@ -1,0 +1,71 @@
+# Strict preset - all rules enabled at default severity
+# For projects requiring comprehensive validation
+
+version: "1.0.0"
+
+rules:
+  # Syntax rules (S)
+  S001:
+    enabled: true
+    severity: error
+  S002:
+    enabled: true
+    severity: error
+  S003:
+    enabled: true
+    severity: error
+
+  # Connection rules (C)
+  C001:
+    enabled: true
+    severity: error
+  C002:
+    enabled: true
+    severity: warning
+
+  # Type rules (T)
+  T001:
+    enabled: true
+    severity: error
+
+  # Reference rules (R)
+  R001:
+    enabled: true
+    severity: error
+  R002:
+    enabled: true
+    severity: warning
+
+  # GLSL rules (G)
+  G001:
+    enabled: true
+    severity: error
+  G002:
+    enabled: true
+    severity: warning
+  G003:
+    enabled: true
+    severity: warning
+
+  # Python rules (P)
+  P001:
+    enabled: true
+    severity: error
+  P002:
+    enabled: true
+    severity: warning
+  P003:
+    enabled: true
+    severity: info
+
+  # Performance rules (F)
+  F001:
+    enabled: true
+    severity: warning
+    options:
+      max_depth: 10
+  F002:
+    enabled: true
+    severity: warning
+    options:
+      max_inputs: 16

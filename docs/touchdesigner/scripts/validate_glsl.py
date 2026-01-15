@@ -109,7 +109,8 @@ def validate_shader(shader_path: Path) -> tuple[bool, str]:
         Path(temp_path).unlink()
 
 
-def main():
+def main() -> None:
+    """Run GLSL validation on provided shader files."""
     if len(sys.argv) < 2:
         print("Usage: validate_glsl.py <shader_file> [shader_file...]")
         sys.exit(1)

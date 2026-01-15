@@ -1,0 +1,71 @@
+# Pedantic preset - all rules enabled with stricter thresholds (gcc -pedantic style)
+# For maximum strictness and catching all potential issues
+
+version: "1.0.0"
+
+rules:
+  # Syntax rules (S) - all error
+  S001:
+    enabled: true
+    severity: error
+  S002:
+    enabled: true
+    severity: error
+  S003:
+    enabled: true
+    severity: error
+
+  # Connection rules (C) - all error
+  C001:
+    enabled: true
+    severity: error
+  C002:
+    enabled: true
+    severity: error  # Upgraded from warning
+
+  # Type rules (T)
+  T001:
+    enabled: true
+    severity: error
+
+  # Reference rules (R) - all error
+  R001:
+    enabled: true
+    severity: error
+  R002:
+    enabled: true
+    severity: error  # Upgraded from warning
+
+  # GLSL rules (G) - all error
+  G001:
+    enabled: true
+    severity: error
+  G002:
+    enabled: true
+    severity: error  # Upgraded from warning
+  G003:
+    enabled: true
+    severity: error  # Upgraded from warning
+
+  # Python rules (P) - all error/warning
+  P001:
+    enabled: true
+    severity: error
+  P002:
+    enabled: true
+    severity: error  # Upgraded from warning
+  P003:
+    enabled: true
+    severity: warning  # Upgraded from info
+
+  # Performance rules (F) - enabled with stricter thresholds
+  F001:
+    enabled: true
+    severity: warning
+    options:
+      max_depth: 5  # Stricter than default 10
+  F002:
+    enabled: true
+    severity: warning
+    options:
+      max_inputs: 8  # Stricter than default 16
