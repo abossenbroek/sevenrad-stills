@@ -1,7 +1,7 @@
 # Phase 2: Graph Validation
 
 ---
-complete: false
+complete: true
 ---
 
 ## Overview
@@ -22,11 +22,11 @@ TouchDesigner networks are directed graphs. This phase builds the graph model an
 
 | Ticket | Title | Priority | Status |
 |--------|-------|----------|--------|
-| [TDL-020](../tickets/TDL-020-graph-model.md) | NetworkX Graph Model | Critical | pending |
-| [TDL-021](../tickets/TDL-021-cycle-detection.md) | Cycle Detection Algorithm | Critical | pending |
-| [TDL-022](../tickets/TDL-022-type-compatibility.md) | Type Compatibility Checker | High | pending |
-| [TDL-023](../tickets/TDL-023-dangling-inputs.md) | Dangling Input Detector | High | pending |
-| [TDL-024](../tickets/TDL-024-reference-resolver.md) | Operator Reference Resolver | High | pending |
+| [TDL-020](../tickets/TDL-020-graph-model.md) | NetworkX Graph Model | Critical | done |
+| [TDL-021](../tickets/TDL-021-cycle-detection.md) | Cycle Detection Algorithm | Critical | done |
+| [TDL-022](../tickets/TDL-022-type-compatibility.md) | Type Compatibility Checker | High | done |
+| [TDL-023](../tickets/TDL-023-dangling-inputs.md) | Dangling Input Detector | High | done |
+| [TDL-024](../tickets/TDL-024-reference-resolver.md) | Operator Reference Resolver | High | done |
 
 ## Dependencies
 
@@ -52,10 +52,10 @@ TDL-003 (operator catalog) ──> TDL-022
 
 ## Completion Checklist
 
-- [ ] TDL-020 complete: Graph builds from parsed ASTs
-- [ ] TDL-021 complete: Cycles detected, feedback allowed
-- [ ] TDL-022 complete: Type mismatches flagged
-- [ ] TDL-023 complete: Missing operators reported
-- [ ] TDL-024 complete: ./path and /path resolved
-- [ ] G2.1-G2.3 verified
-- [ ] Phase marked complete: true
+- [x] TDL-020 complete: Graph builds from parsed ASTs
+- [x] TDL-021 complete: Cycles detected, feedback allowed
+- [x] TDL-022 complete: Type mismatches flagged
+- [x] TDL-023 complete: Missing operators reported
+- [x] TDL-024 complete: ./path and /path resolved
+- [x] G2.1-G2.3 verified
+- [x] Phase marked complete: true
