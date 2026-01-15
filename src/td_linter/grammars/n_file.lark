@@ -1,0 +1,55 @@
+// Lark grammar for TouchDesigner .n (node definition) files
+//
+// Example:
+//   TOP:displace
+//   tile 260 200 130 72
+//   flags =  viewer 1 parlanguage 0
+//   inputs
+//   {
+//   0 	moviefilein1
+//   1 	chopto1
+//   }
+//   color 0.67 0.67 0.67
+//   view -1 3 0 0 1 1 0 0
+//   end
+
+start: type_header tile_directive flags_directive body* END
+
+type_header: FAMILY ":" OP_TYPE
+tile_directive: "tile" INT INT INT INT
+flags_directive: "flags" "=" flag_pair*
+flag_pair: IDENTIFIER flag_value
+flag_value: INT | IDENTIFIER
+
+body: inputs_block
+    | color_directive
+    | dock_directive
+    | view_directive
+
+inputs_block: "inputs" "{" input_entry* "}"
+input_entry: INT OPERATOR_REF
+
+color_directive: "color" NUMBER NUMBER NUMBER NUMBER?
+
+dock_directive: "dock" IDENTIFIER
+
+view_directive: "view" view_value*
+view_value: SIGNED_NUMBER | ESCAPED_STRING | STAR
+
+// Terminals
+FAMILY: "TOP" | "CHOP" | "SOP" | "DAT" | "COMP" | "MAT" | "POP"
+OP_TYPE: /[a-zA-Z_][a-zA-Z0-9_]*/
+OPERATOR_REF: /[a-zA-Z_][a-zA-Z0-9_]*/
+IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_]*/
+STAR: "*"
+END: "end"
+
+%import common.INT
+%import common.NUMBER
+%import common.SIGNED_NUMBER
+%import common.ESCAPED_STRING
+%import common.WS
+%import common.NEWLINE
+
+%ignore WS
+%ignore NEWLINE

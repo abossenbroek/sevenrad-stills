@@ -1,0 +1,38 @@
+// Lark grammar for TouchDesigner .parm (parameter) files
+//
+// Example:
+//   ?
+//   type 0 hermite
+//   rough 0 0.25
+//   tx 49 6531 absTime.frame*.6
+//   ty 32 0
+//   autoexportroot 17 "" me.parent()
+//   ?
+
+start: DELIMITER param_line* DELIMITER
+
+param_line: PARAM_NAME MODE param_value expression?
+
+param_value: SIGNED_NUMBER
+           | ESCAPED_STRING
+           | PATH_REF
+           | IDENTIFIER
+
+expression: EXPRESSION_TEXT
+
+// Terminals
+DELIMITER: "?"
+PARAM_NAME: /[a-zA-Z_][a-zA-Z0-9_]*/
+MODE: /[0-9]+/
+PATH_REF: /\.\/[a-zA-Z0-9_\/.-]+/
+IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_]*/
+EXPRESSION_TEXT: /[^\n?]+/
+
+%import common.SIGNED_NUMBER
+%import common.ESCAPED_STRING
+%import common.WS
+%import common.NEWLINE
+
+// Only ignore spaces/tabs, not newlines (they separate param lines)
+%ignore / +/
+%ignore /\t+/

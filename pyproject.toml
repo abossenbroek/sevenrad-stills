@@ -23,6 +23,10 @@ dependencies = [
     "click~=8.1",
     "taichi~=1.7",
     "scipy>=1.16.2",
+    # TouchDesigner Linter dependencies
+    "lark>=1.1.0",
+    "networkx>=3.2",
+    "typer[all]>=0.12.0",
 ]
 
 [project.optional-dependencies]
@@ -38,11 +42,12 @@ dev = [
 
 [project.scripts]
 sevenrad = "sevenrad_stills.cli.commands:cli"
+td-linter = "td_linter.cli:app"
 
 [tool.ruff]
 target-version = "py312"
 line-length = 88
-src = ["src/sevenrad_stills", "tests"]
+src = ["src/sevenrad_stills", "src/td_linter", "tests"]
 
 [tool.ruff.lint]
 select = [
@@ -90,6 +95,13 @@ ignore = [
 "src/sevenrad_stills/operations/*_metal.py" = ["ANN201", "PLR0913"]  # Metal operations have special signatures
 "src/sevenrad_stills/operations/*_mlx.py" = ["ANN201", "PLR0913"]  # MLX operations have special signatures
 "src/sevenrad_stills/operations/buffer_corruption_metal.py" = ["PLR0915", "PLR2004", "T201", "RUF001", "RUF002", "RUF003", "E501", "ANN401"]  # Metal GPU implementation uses debug prints, unicode chars, and PyObjC Any types
+# td-linter package ignores
+"src/td_linter/cli.py" = ["B008", "ARG001"]  # Typer uses function calls in defaults, unused config/format args for future use
+"src/td_linter/parsers/n_parser.py" = ["ANN401", "ARG002"]  # Lark transformers use Any types, unused items param in start()
+"src/td_linter/parsers/parm_parser.py" = ["ANN401", "ARG002", "PLR2004", "SIM105"]  # Lark transformers use Any, magic values for param indices
+"src/td_linter/rules/no_invalid_cycles.py" = ["SIM110"]  # Keep explicit loop for readability
+"src/td_linter/rules/type_compatibility.py" = ["B007", "SIM103"]  # Loop var for future use, explicit return for clarity
+"src/td_linter/graph/builder.py" = ["SIM108"]  # Keep explicit if/else for readability
 
 [tool.pytest.ini_options]
 markers = [
@@ -126,6 +138,8 @@ module = [
     "skimage.*",
     "colour_demosaicing.*",
     "taichi.*",
+    "networkx.*",
+    "lark.*",
 ]
 ignore_missing_imports = true
 follow_imports = "skip"
