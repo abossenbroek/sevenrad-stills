@@ -2,7 +2,7 @@
 
 ---
 id: TD-021
-status: pending
+status: will_not_do
 priority: medium
 phase: 6
 depends_on: [TD-015]
@@ -10,9 +10,21 @@ blocks: []
 complexity: medium
 shader_type: fragment
 passes: 1
+resolution: native_td_operator
 ---
 
-## Description
+## Status: WILL NOT DO
+
+**Reason**: TouchDesigner provides native resolution scaling via:
+- [Resolution TOP](https://docs.derivative.ca/Resolution_TOP) - Direct resolution control
+- [Fit TOP](https://docs.derivative.ca/Fit_TOP) - Scaling with fit modes
+- Built-in Box filter option in Blur TOP for quality downscaling
+
+**Recommendation**: Use TD's built-in Resolution TOP or Fit TOP for downscaling. For high-quality box filter averaging, chain Resolution TOP with Blur TOP (Box filter).
+
+---
+
+## Original Description (Archived)
 
 Implement resolution reduction with box filter.
 
@@ -20,13 +32,13 @@ Implement resolution reduction with box filter.
 
 `src/sevenrad_stills/operations/downscale_taichi.py`
 
-## Acceptance Criteria
+## Original Acceptance Criteria (Archived)
 
-- [ ] `downscale.frag` shader created
-- [ ] Box filter averaging
-- [ ] .tox operator packaged with help
-- [ ] Video-first demo included
-- [ ] Unit render tests passing
+- [ ] ~~`downscale.frag` shader created~~
+- [ ] ~~Box filter averaging~~
+- [ ] ~~.tox operator packaged with help~~
+- [ ] ~~Video-first demo included~~
+- [ ] ~~Unit render tests passing~~
 
 ## Parameters
 

@@ -2,7 +2,7 @@
 
 ---
 id: TD-016
-status: pending
+status: will_not_do
 priority: medium
 phase: 6
 depends_on: [TD-015]
@@ -10,19 +10,32 @@ blocks: []
 complexity: simple
 shader_type: fragment
 passes: 1
+resolution: native_td_operator
 ---
 
-## Description
+## Status: WILL NOT DO
+
+**Reason**: TouchDesigner provides native [HSV Adjust TOP](https://docs.derivative.ca/HSV_Adjust_TOP) which offers superior functionality:
+- Selective saturation control via Saturation Range and Falloff
+- Saturation Multiplier (0 = desaturate, 1 = unchanged, 2 = double)
+- Hue-based targeting for precise color adjustments
+- GPU-accelerated native implementation
+
+**Recommendation**: Use TD's built-in HSV Adjust TOP instead. It provides more control than our simple multiply/add/set modes.
+
+---
+
+## Original Description (Archived)
 
 Implement saturation adjustment effect using HSV color space.
 
-## Acceptance Criteria
+## Original Acceptance Criteria (Archived)
 
-- [ ] `saturation.frag` shader created
-- [ ] Supports modes: multiply, add, set
-- [ ] .tox operator packaged with help
-- [ ] Video-first demo included
-- [ ] Unit render tests passing
+- [ ] ~~`saturation.frag` shader created~~
+- [ ] ~~Supports modes: multiply, add, set~~
+- [ ] ~~.tox operator packaged with help~~
+- [ ] ~~Video-first demo included~~
+- [ ] ~~Unit render tests passing~~
 
 ## Taichi Reference
 

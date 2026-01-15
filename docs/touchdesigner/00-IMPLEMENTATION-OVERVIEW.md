@@ -7,6 +7,7 @@ Migrate 14 Taichi GPU effects to TouchDesigner operators using **GLSL 330 core**
 - [01-LINTING-INFRASTRUCTURE.md](01-LINTING-INFRASTRUCTURE.md) - Linting tools, CI/CD, editor integration
 - [02-EFFECTS-AND-DEMOS.md](02-EFFECTS-AND-DEMOS.md) - GLSL effects, .tox structure, demo system
 - [03-REMEDIATION-PLAN.md](03-REMEDIATION-PLAN.md) - Pre-implementation validation and infrastructure hardening
+- [04-SHADER-DEVELOPMENT-GUIDE.md](04-SHADER-DEVELOPMENT-GUIDE.md) - Shader development workflow and automated testing
 
 ---
 
@@ -31,6 +32,7 @@ Robust linting infrastructure provides fast feedback before TouchDesigner testin
 4. **Prototype Before C++**: Test tile effects (band_swap, buffer_corruption) in pure GLSL before committing to C++ TOPs
 5. **Unit Renders**: Store expected 64×64 PNG outputs for deterministic regression testing
 6. **GPL-3.0 Isolation**: Run glsl_analyzer only in CI containers to avoid license contamination
+7. **.tox Along the Way**: Create operator .tox files incrementally with each effect (not deferred to Phase 4)
 
 ---
 
@@ -38,56 +40,81 @@ Robust linting infrastructure provides fast feedback before TouchDesigner testin
 
 ```
 Phase 1: Linting Infrastructure     [See 01-LINTING-INFRASTRUCTURE.md]
-   ├── glsl_analyzer, glslangValidator, clang-tidy
-   ├── Pre-commit hooks, CI/CD workflow
-   └── Test fixtures (valid/invalid shaders)
+   ├── glslangValidator, clang-tidy setup
+   ├── validate_glsl.py wrapper script
+   ├── Test fixtures (valid/invalid shaders)
+   └── Extract real TD preamble (manual step)
 
-Phase 2: Common GLSL Utilities      [See 02-EFFECTS-AND-DEMOS.md]
+Phase 2: Common Utilities + Template [See 02-EFFECTS-AND-DEMOS.md]
    ├── tdCommon.glsl (random, sampling, color)
-   └── Versioned shader headers
+   ├── sr_template.tox (base operator template)
+   └── Sample demo videos
 
-Phase 3: Effect Migration           [See 02-EFFECTS-AND-DEMOS.md]
+Phase 3: Effect Migration + .tox    [See 02-EFFECTS-AND-DEMOS.md]
+   │
+   │  For EACH effect, deliver together:
+   │  ├── .frag/.comp shader file
+   │  ├── sr_[effect].tox operator
+   │  └── Demo video recording
+   │
    ├── Simple effects (saturation, noise, chromatic_aberration)
    ├── Multi-pass effects (gaussian_blur, bayer_filter)
    └── Compute shaders (band_swap, buffer_corruption, slc_off)
 
-Phase 4: Demo System                [See 02-EFFECTS-AND-DEMOS.md]
-   ├── Per-operator .tox with help
-   ├── Master demo project (sr_demo.toe)
-   └── Effect chain presets
+Phase 4: Master Demo Project        [See 02-EFFECTS-AND-DEMOS.md]
+   ├── sr_demo.toe (loads all .tox operators)
+   ├── Effect browser and chain builder
+   └── Preset effect chains
 ```
+
+### Per-Effect Workflow
+
+Each effect implementation follows this workflow:
+
+1. **Write shader** → validate with `validate_glsl.py`
+2. **Create .tox** from `sr_template.tox` → wire shader
+3. **Test with video** in TD → verify no flickering
+4. **Record demo video** showing effect presets
+5. **Commit together**: shader + .tox + demo video
 
 ---
 
 ## Effect Summary
 
-| Effect | Shader | Passes | Complexity |
-|--------|--------|--------|------------|
-| saturation | Fragment | 1 | Simple |
-| chromatic_aberration | Fragment | 1 | Simple |
-| noise (2 modes) | Fragment | 1 | Simple |
-| salt_pepper | Fragment | 1 | Simple |
-| corduroy | Fragment | 1 | Medium |
-| downscale | Fragment | 1 | Medium |
-| gaussian_blur | Fragment | 2 (H+V) | Medium |
-| circular_blur | Fragment | 1 | Medium |
-| motion_blur | Fragment | 1 | Medium |
-| slc_off | Compute | 1 | Medium |
-| band_swap | Compute | 1 | Medium |
-| buffer_corruption | Compute | 1 | Complex |
-| bayer_filter | Fragment | 2 | Complex |
+| Effect | Shader | Passes | .tox Operator | Complexity |
+|--------|--------|--------|---------------|------------|
+| chromatic_aberration | Fragment | 1 | sr_chromatic_aberration.tox | Simple |
+| noise (2 modes) | Fragment | 1 | sr_noise.tox | Simple |
+| salt_pepper | Fragment | 1 | sr_salt_pepper.tox | Simple |
+| corduroy | Fragment | 1 | sr_corduroy.tox | Medium |
+| circular_blur | Fragment | 1 | sr_circular_blur.tox | Medium |
+| motion_blur | Fragment | 1 | sr_motion_blur.tox | Medium |
+| slc_off | Compute | 1 | sr_slc_off.tox | Medium |
+| band_swap | Compute | 1 | sr_band_swap.tox | Medium |
+| buffer_corruption | Compute | 1 | sr_buffer_corruption.tox | Complex |
+| bayer_filter | Fragment | 2 | sr_bayer_filter.tox | Complex |
+
+### Effects Using Native TD Operators (Not Implemented)
+
+| Effect | Native TD Alternative | Notes |
+|--------|----------------------|-------|
+| saturation | [HSV Adjust TOP](https://docs.derivative.ca/HSV_Adjust_TOP) | Superior selective saturation control |
+| gaussian_blur | [Blur TOP](https://docs.derivative.ca/Blur_TOP) (Gaussian filter) | Built-in separable Gaussian |
+| downscale | [Resolution TOP](https://docs.derivative.ca/Resolution_TOP) / [Fit TOP](https://docs.derivative.ca/Fit_TOP) | Native resolution scaling |
 
 ---
 
 ## Success Criteria
 
-1. All 14 effects working in TouchDesigner on macOS Apple Silicon
+1. All 10 custom effects working in TouchDesigner on macOS Apple Silicon
 2. Linting catches syntax/semantic errors before TD testing
-3. Each operator has comprehensive demo with help (video-first)
-4. CI validates all shaders on every PR (including macOS Metal validation)
-5. Master demo project showcases all effects with chain builder
-6. Pure GLSL implementation for all effects (C++ only if absolutely necessary)
-7. Unit render tests pass with perceptual diff comparison (SSIM >= 0.99)
+3. Each effect has matching .tox operator with video demo
+4. Each operator has comprehensive demo with help (video-first)
+5. CI validates all shaders on every PR (including macOS Metal validation)
+6. Master demo project showcases all effects with chain builder
+7. Pure GLSL implementation for all effects (C++ only if absolutely necessary)
+8. Unit render tests pass with perceptual diff comparison (SSIM >= 0.99)
+9. Documentation references native TD alternatives for saturation, gaussian_blur, downscale
 
 ---
 
@@ -147,22 +174,50 @@ Before deploying compute shaders via MoltenVK, verify:
 ## Directory Structure
 
 ```
-touchdesigner/
+docs/touchdesigner/
+├── scripts/
+│   └── validate_glsl.py           # GLSL validation wrapper
+├── reference/
+│   └── td_preamble_2022.glsl      # Extracted TD preamble
 ├── glsl/
 │   ├── common/
-│   │   └── tdCommon.glsl          # Shared utilities
+│   │   └── tdCommon.glsl          # Shared utilities (random, sampling, color)
 │   ├── effects/
-│   │   └── ... (14 effects)
+│   │   ├── chromatic_aberration.frag
+│   │   ├── noise.frag
+│   │   └── ... (10 effects)
 │   └── test_fixtures/
-│       ├── valid/
-│       └── invalid/
-├── cpp/                           # C++ TOPs (only if needed)
+│       ├── valid/                 # Should pass validation
+│       └── invalid/               # Should fail validation
 ├── tox/
-│   ├── operators/                 # Individual .tox files
+│   ├── templates/
+│   │   └── sr_template.tox        # Base operator template
+│   ├── operators/
+│   │   ├── sr_chromatic_aberration.tox
+│   │   ├── sr_noise.tox
+│   │   └── ... (10 operators)
 │   └── demo/
-│       └── sr_demo.toe            # Master demo project
-└── scripts/
-    └── validate_glsl.py           # GLSL validation wrapper
+│       ├── sr_demo.toe            # Master demo project
+│       └── sample_videos/         # Demo video clips
+│           ├── nature_loop.mov
+│           ├── urban_loop.mov
+│           └── abstract_loop.mov
+├── demos/                         # Rendered effect demo videos
+│   ├── chromatic_aberration_demo.mp4
+│   └── ... (10 demos)
+└── cpp/                           # C++ TOPs (only if GLSL insufficient)
+```
+
+### toeexpand Tool
+
+TouchDesigner includes `toeexpand` for command-line .toe/.tox manipulation:
+
+```bash
+# Find toeexpand on macOS
+find /Applications/TouchDesigner.app -name toeexpand
+
+# Typical location
+/Applications/TouchDesigner.app/Contents/MacOS/toeexpand
 ```
 
 ---

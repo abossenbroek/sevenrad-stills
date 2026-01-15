@@ -1,0 +1,104 @@
+2
+# execute_autotest - Automated Shader Test Runner
+# Entry point: onStart() when SHADER_TEST_MODE=1
+
+import os
+import json
+
+def onStart():
+    """Called when project opens. Runs tests if SHADER_TEST_MODE=1."""
+    if os.environ.get('SHADER_TEST_MODE') != '1':
+        return
+
+    project.realTime = False  # CRITICAL for deterministic tests
+
+    config_path = os.environ.get('TEST_CONFIG', '')
+    output_dir = os.environ.get('OUTPUT_DIR', '/tmp/td_output')
+
+    if not config_path:
+        print("ERROR: TEST_CONFIG not set")
+        run('project.quit()', delayFrames=30)
+        return
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    with open(config_path) as f:
+        config = json.load(f)
+
+    results = []
+    for test in config.get('tests', []):
+        result = run_single_test(test, output_dir)
+        results.append(result)
+
+    write_results(results, output_dir)
+    run('project.quit()', delayFrames=60)
+
+
+def run_single_test(test, output_dir):
+    """Execute a single shader test case."""
+    name = test.get('name', 'unnamed')
+    shader_path = test.get('shader', '')
+    params = test.get('params', {})
+
+    # Load shader into Text DAT
+    shader_dat = op('text_shader')
+    shader_dat.par.file = shader_path
+    shader_dat.par.loadonstartpulse.pulse()
+
+    # Configure GLSL TOP uniform bindings
+    glsl = op('glsl_under_test')
+    vec_idx = 0
+    for param_name, value in params.items():
+        setattr(glsl.par, f'uniformname{vec_idx}', param_name)
+        setattr(glsl.par, f'value0x{vec_idx}', value)
+        vec_idx += 1
+
+    # Force cook and check errors
+    glsl.cook(force=True)
+    op('null_output').cook(force=True)
+
+    # Check compilation via info DAT
+    info_dat = op('glsl1_info')
+    if info_dat:
+        info_text = info_dat.text
+        if 'error' in info_text.lower():
+            return {'name': name, 'status': 'failed', 'error': info_text}
+
+    # Capture output
+    output_path = f"{output_dir}/{name}.png"
+    op('null_output').save(output_path)
+
+    return {'name': name, 'status': 'passed', 'output': output_path, 'params': params}
+
+
+def write_results(results, output_dir):
+    """Write results JSON and completion marker."""
+    with open(f"{output_dir}/results.json", 'w') as f:
+        json.dump({'tests': results, 'total': len(results), 'status': 'complete'}, f, indent=2)
+    with open(f"{output_dir}/complete.marker", 'w') as f:
+        f.write('done')
+
+
+def onCreate():
+    return
+
+def onExit():
+    return
+
+def onFrameStart(frame):
+    return
+
+def onFrameEnd(frame):
+    return
+
+def onPlayStateChange(state):
+    return
+
+def onDeviceChange():
+    return
+
+def onProjectPreSave():
+    return
+
+def onProjectPostSave():
+    return

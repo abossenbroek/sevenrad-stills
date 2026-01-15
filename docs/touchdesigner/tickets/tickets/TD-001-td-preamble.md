@@ -19,15 +19,18 @@ The current preamble is hand-crafted and may not match actual TD runtime, causin
 
 - [ ] Minimal passthrough shader created in TD 2022.20000+
 - [ ] All injected uniforms documented (names, types, purposes)
-- [ ] `touchdesigner/reference/td_preamble_2022.glsl` created
-- [ ] `touchdesigner/scripts/validate_glsl.py` TD_PREAMBLE updated
+- [x] `touchdesigner/reference/td_preamble_2022.glsl` created (synthetic - needs real values)
+- [x] `touchdesigner/scripts/validate_glsl.py` created (with synthetic TD_PREAMBLE)
+- [ ] TD_PREAMBLE updated with real extracted values
 - [ ] Shader that passes validation compiles in actual TD
 - [ ] Version differences documented if TD 2023.x/2024.x differ
 
 ## Files
 
-- `touchdesigner/reference/td_preamble_2022.glsl` (create)
-- `touchdesigner/scripts/validate_glsl.py` (modify)
+- `docs/touchdesigner/reference/td_preamble_2022.glsl` (created)
+- `docs/touchdesigner/scripts/validate_glsl.py` (created)
+- `docs/touchdesigner/glsl/test_fixtures/valid/` (created - 2 fixtures)
+- `docs/touchdesigner/glsl/test_fixtures/invalid/` (created - 2 fixtures)
 
 ## Implementation Notes
 

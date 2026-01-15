@@ -144,19 +144,24 @@ vec4 saturate(vec4 x) {
 
 | Effect | Shader Type | Passes | Complexity | Notes |
 |--------|-------------|--------|------------|-------|
-| saturation | Fragment | 1 | Simple | RGB↔HSV conversion |
 | chromatic_aberration | Fragment | 1 | Simple | Per-channel UV offset |
 | noise (3 modes) | Fragment | 1 | Simple | PCG hash, uniform/gaussian/salt-pepper |
 | salt_pepper | Fragment | 1 | Simple | Dual RNG threshold |
 | corduroy | Fragment | 1 | Medium | Per-scanline brightness multiplier |
-| downscale | Fragment | 1-2 | Medium | Box filter resize |
-| gaussian_blur | Fragment | 2 (H+V) | Medium | Separable convolution |
 | circular_blur | Fragment | 1 | Medium | 2D disk kernel sampling |
 | motion_blur | Fragment | 1 | Medium | Linear kernel along angle |
 | slc_off | Compute | 1 | Medium | Wedge-shaped mask application |
 | band_swap | Compute | 1 | Medium | Tile-based band permutation |
 | buffer_corruption | Compute | 1 | Complex | 3 corruption modes (shift/swap/zero) |
 | bayer_filter | Fragment | 2 | Complex | Mosaic + demosaic passes |
+
+### Effects Using Native TD Operators (Not Implemented)
+
+| Effect | Native TD Alternative | Notes |
+|--------|----------------------|-------|
+| saturation | [HSV Adjust TOP](https://docs.derivative.ca/HSV_Adjust_TOP) | Superior selective saturation control |
+| gaussian_blur | [Blur TOP](https://docs.derivative.ca/Blur_TOP) (Gaussian filter) | Built-in separable Gaussian |
+| downscale | [Resolution TOP](https://docs.derivative.ca/Resolution_TOP) / [Fit TOP](https://docs.derivative.ca/Fit_TOP) | Native resolution scaling |
 
 ---
 
@@ -167,25 +172,22 @@ vec4 saturate(vec4 x) {
 - Test all utility functions with minimal shaders
 
 ### Phase 3a: Simple Effects
-1. **saturation** - Direct HSV manipulation
-2. **chromatic_aberration** - UV offset per channel
-3. **noise** - 3 modes using PCG hash
-4. **salt_pepper** - Binary threshold noise
+1. **chromatic_aberration** - UV offset per channel
+2. **noise** - 3 modes using PCG hash
+3. **salt_pepper** - Binary threshold noise
 
 ### Phase 3b: Medium Effects
-5. **corduroy** - Scanline-based brightness
-6. **downscale** - Resolution reduction
-7. **gaussian_blur** - Two-pass separable (requires chained GLSL TOPs)
+4. **corduroy** - Scanline-based brightness
+5. **circular_blur** - Disk kernel accumulation
+6. **motion_blur** - Directional blur
 
 ### Phase 3c: Multi-pass Effects
-8. **circular_blur** - Disk kernel accumulation
-9. **motion_blur** - Directional blur
-10. **bayer_filter** - Mosaic (pass 1) + demosaic (pass 2)
+7. **bayer_filter** - Mosaic (pass 1) + demosaic (pass 2)
 
 ### Phase 3d: Compute Shaders
-11. **slc_off** - Wedge mask (GLSL 430 compute)
-12. **band_swap** - Tile permutation (GLSL 430 compute)
-13. **buffer_corruption** - Multi-mode corruption (GLSL 430 compute)
+8. **slc_off** - Wedge mask (GLSL 430 compute)
+9. **band_swap** - Tile permutation (GLSL 430 compute)
+10. **buffer_corruption** - Multi-mode corruption (GLSL 430 compute)
 
 ---
 
@@ -233,31 +235,25 @@ sr_[effect].tox/
 
 ---
 
-## Example Shader: saturation.frag
+## Example Shader: chromatic_aberration.frag
 
 ```glsl
-// saturation.frag - Saturation adjustment effect
-// Requires: tdCommon.glsl (included via TD preamble)
+// chromatic_aberration.frag - Per-channel UV offset effect
+// Creates color fringing similar to lens distortion
 
-uniform float uSaturation;  // 0 = grayscale, 1 = original, >1 = boosted
-uniform int uMode;          // 0 = multiply, 1 = add, 2 = set
+uniform float uAmount;      // Aberration strength (0.0 - 0.1 typical)
+uniform float uAngle;       // Direction in radians
 
 void main() {
-    vec4 color = texture(sTD2DInputs[0], vUV.st);
-    vec3 hsv = rgb_to_hsv(color.rgb);
+    vec2 direction = vec2(cos(uAngle), sin(uAngle)) * uAmount;
 
-    if (uMode == 0) {
-        hsv.y *= uSaturation;      // Multiply
-    } else if (uMode == 1) {
-        hsv.y += uSaturation - 1.0; // Add (1.0 = no change)
-    } else {
-        hsv.y = uSaturation;       // Set absolute
-    }
+    // Sample each channel at slightly different UV positions
+    float r = texture(sTD2DInputs[0], vUV.st + direction).r;
+    float g = texture(sTD2DInputs[0], vUV.st).g;
+    float b = texture(sTD2DInputs[0], vUV.st - direction).b;
+    float a = texture(sTD2DInputs[0], vUV.st).a;
 
-    hsv.y = clamp(hsv.y, 0.0, 1.0);
-    color.rgb = hsv_to_rgb(hsv);
-
-    fragColor = TDOutputSwizzle(color);
+    fragColor = TDOutputSwizzle(vec4(r, g, b, a));
 }
 ```
 
@@ -334,28 +330,28 @@ Each .tox includes built-in demo functionality with **video input**:
 
 **Help DAT Content**:
 ```markdown
-# sr_saturation
+# sr_chromatic_aberration
 
-Adjusts color saturation using HSV color space.
+Creates color fringing effect similar to lens distortion.
 
 ## Parameters
 
-- **Mode**: multiply, add, or set
-- **Value**: Saturation amount (0=gray, 1=original, 2=double)
-- **Seed**: Random seed (unused for this effect)
+- **Amount**: Aberration strength (0.0 - 0.1 typical range)
+- **Angle**: Direction of the chromatic shift in degrees (0-360)
 
 ## Taichi Equivalent
 
 ```yaml
-- operation: saturation
-  mode: multiply
-  value: 0.5
+- operation: chromatic_aberration
+  amount: 0.02
+  angle: 0
 ```
 
 ## Tips
 
-- Use multiply mode for natural-looking adjustments
-- Set mode is useful for forcing specific saturation levels
+- Small values (0.01-0.03) create subtle, realistic lens effects
+- Higher values (0.05+) create artistic/glitch aesthetics
+- Angle 0 shifts horizontally, 90 shifts vertically
 ```
 
 ---

@@ -229,3 +229,7 @@ docs/_site/
 
 # Tutorial pipeline outputs (regenerate locally using YAML configs)
 tutorials/
+
+# TouchDesigner binaries (generated from .toe.dir via toecollapse)
+docs/touchdesigner/fixtures/projects/*.toe
+*.toc
