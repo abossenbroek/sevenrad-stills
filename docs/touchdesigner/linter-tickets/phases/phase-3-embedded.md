@@ -1,7 +1,7 @@
 # Phase 3: Embedded Code Validation
 
 ---
-complete: false
+complete: true
 ---
 
 ## Overview
@@ -60,10 +60,10 @@ TD Python has special globals (`op`, `me`, `parent`, `absTime`). They don't exis
 
 ## Completion Checklist
 
-- [ ] TDL-030 complete: GLSL vs Python detected accurately
-- [ ] TDL-031 complete: GLSL syntax validated
-- [ ] TDL-032 complete: Python syntax validated
-- [ ] TDL-033 complete: TD stubs reduce false positives
-- [ ] TDL-034 complete: Expressions extracted and checked
-- [ ] G3.1-G3.3 verified
-- [ ] Phase marked complete: true
+- [x] TDL-030 complete: GLSL vs Python detected accurately
+- [x] TDL-031 complete: GLSL syntax validated
+- [x] TDL-032 complete: Python syntax validated
+- [x] TDL-033 complete: TD stubs reduce false positives
+- [x] TDL-034 complete: Expressions extracted and checked
+- [x] G3.1-G3.3 verified
+- [x] Phase marked complete: true
