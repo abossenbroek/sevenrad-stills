@@ -1,4 +1,4 @@
-# TDL-010: Tree-sitter Grammar for .n Files
+# TDL-010: Lark Grammar for .n Files
 
 ---
 id: TDL-010
@@ -15,35 +15,35 @@ blocks: [TDL-013, TDL-020]
 
 ## Acceptance Criteria
 
-- [ ] Tree-sitter grammar parses all .n files in sample corpus
+- [ ] Lark grammar parses all .n files in sample corpus
 - [ ] Grammar handles all operator families (TOP, CHOP, SOP, DAT, COMP, MAT, POP)
 - [ ] Grammar handles optional elements in any order (inputs, color, dock, view)
 - [ ] Grammar uses semantic node types (tile_coord, input_index, mode_flag)
 - [ ] Error recovery produces partial AST for malformed files
 - [ ] Unit tests cover happy path and edge cases
-- [ ] `tree-sitter parse` succeeds on corpus with no errors
+- [ ] Lark parse succeeds on corpus with no errors
 
 ## Files to Create
 
 ```
-tree-sitter-toedir/
-├── grammar.js              # The grammar definition
-├── package.json            # npm package config
-├── binding.gyp             # Native binding config
-├── src/                    # Generated (by tree-sitter generate)
-├── corpus/                 # Test corpus
-│   ├── valid/              # Files that should parse
-│   └── invalid/            # Files that should fail gracefully
+td_linter/
+├── grammars/
+│   └── node.lark           # The Lark grammar definition
+├── parser.py               # Python parser wrapper
+├── tests/
+│   └── corpus/             # Test corpus
+│       ├── valid/          # Files that should parse
+│       └── invalid/        # Files that should fail gracefully
 └── README.md
 ```
 
 ## Research Pointers
 
-### Tree-sitter Learning Path
+### Lark Learning Path
 
-1. **Official tutorial**: https://tree-sitter.github.io/tree-sitter/creating-parsers/
-2. **Grammar writing guide**: https://tree-sitter.github.io/tree-sitter/creating-parsers/3-writing-the-grammar.html
-3. **First grammar gist**: https://gist.github.com/Aerijo/df27228d70c633e088b0591b8857eeef
+1. **Official tutorial**: https://lark-parser.readthedocs.io/en/latest/grammar.html
+2. **Grammar reference**: https://lark-parser.readthedocs.io/en/latest/grammar.html
+3. **Examples**: https://github.com/lark-parser/lark/tree/master/examples
 
 ### .n File Structure (from spec)
 
@@ -89,7 +89,7 @@ Key observations:
 
 ### Common Grammar Pitfalls
 
-- **Left recursion**: Tree-sitter handles it, but be aware
+- **Left recursion**: Lark handles it with Earley parser, but be aware
 - **Ambiguity**: Multiple parse trees for same input
 - **Greedy matching**: `repeat` can consume too much
 - **Whitespace in wrong places**: Check `extras`

@@ -13,7 +13,7 @@ Comprehensive validation framework for expanded TouchDesigner projects (`.toe.di
 1. [Executive Summary](#1-executive-summary)
 2. [Architecture Overview](#2-architecture-overview)
 3. [File Format Analysis](#3-file-format-analysis)
-4. [Tree-sitter Grammar Specification](#4-tree-sitter-grammar-specification)
+4. [Lark Grammar Specification](#4-lark-grammar-specification)
 5. [Graph Validation with NetworkX](#5-graph-validation-with-networkx)
 6. [LSP Integration for Embedded Code](#6-lsp-integration-for-embedded-code)
 7. [Rule Schema Definition](#7-rule-schema-definition)
@@ -39,7 +39,7 @@ Manual creation and editing of `.toe.dir` directories is error-prone:
 ### Solution
 
 A comprehensive linting framework providing:
-- **Syntax validation** via tree-sitter grammars for `.n` and `.parm` files
+- **Syntax validation** via Lark grammars for `.n` and `.parm` files
 - **Graph validation** via NetworkX for connection integrity
 - **LSP integration** for embedded GLSL and Python code
 - **Extensible rule system** via YAML configuration
@@ -71,12 +71,12 @@ A comprehensive linting framework providing:
               v                              v                              v
 +---------------------------+  +---------------------------+  +---------------------------+
 |    Syntax Validator       |  |    Graph Validator        |  |   Embedded Code Validator |
-|    (tree-sitter)          |  |    (NetworkX)             |  |   (LSP Clients)           |
+|    (Lark)                 |  |    (NetworkX)             |  |   (LSP Clients)           |
 +---------------------------+  +---------------------------+  +---------------------------+
               |                              |                              |
               v                              v                              v
 +---------------------------+  +---------------------------+  +---------------------------+
-| tree-sitter-toedir        |  | DiGraph construction      |  | glslangValidator          |
+| Lark grammars             |  | DiGraph construction      |  | glslangValidator          |
 | - grammar.js (.n files)   |  | - Cycle detection         |  | (GLSL shaders)            |
 | - grammar.js (.parm files)|  | - Type compatibility      |  +---------------------------+
 +---------------------------+  | - Dangling inputs         |  | Python AST + pylint       |
@@ -103,11 +103,11 @@ A comprehensive linting framework providing:
     |
     +-- .toc (manifest) -----> TOC Parser -----> File existence validation
     |
-    +-- *.n (nodes) ---------> tree-sitter -----> Syntax validation
+    +-- *.n (nodes) ---------> Lark parser -----> Syntax validation
     |                                    |
     |                                    +-----> NetworkX graph builder
     |                                                    |
-    +-- *.parm (params) -----> tree-sitter -----> Syntax validation
+    +-- *.parm (params) -----> Lark parser -----> Syntax validation
     |                                    |
     |                                    +-----> Parameter type validation
     |
@@ -337,14 +337,14 @@ project1/geo1.parm
 
 ---
 
-## 4. Tree-sitter Grammar Specification
+## 4. Lark Grammar Specification
 
 ### 4.1 Grammar for `.n` Files
 
-**File**: `tree-sitter-toedir/grammar-node.js`
+**File**: `td_linter/grammars/node.lark`
 
 ```javascript
-// tree-sitter grammar for TouchDesigner .n (node definition) files
+// Lark grammar for TouchDesigner .n (node definition) files
 //
 // RF-001: Flexible ordering for optional middle elements
 // TouchDesigner .n files have a fixed header (type, tile, flags) and footer (end),
@@ -486,10 +486,10 @@ module.exports = grammar({
 
 ### 4.2 Grammar for `.parm` Files
 
-**File**: `tree-sitter-toedir/grammar-parm.js`
+**File**: `td_linter/grammars/parm.lark`
 
 ```javascript
-// tree-sitter grammar for TouchDesigner .parm (parameter) files
+// Lark grammar for TouchDesigner .parm (parameter) files
 //
 // RF-004: Uses semantic number types for mode flags
 // This allows validation of mode values against known TD modes
@@ -560,36 +560,31 @@ These semantic types enable:
 - Range validation during semantic analysis
 - Documentation of expected value ranges
 
-### 4.3 Building the Tree-sitter Parser
+### 4.3 Using the Lark Parser
 
 ```bash
-# Install tree-sitter CLI
-npm install -g tree-sitter-cli
+# Install Lark
+pip install lark
 
-# Initialize grammar project
-mkdir tree-sitter-toedir && cd tree-sitter-toedir
-tree-sitter init
-
-# Generate parser from grammar
-tree-sitter generate
-
-# Build native bindings
-tree-sitter build
-
-# Test grammar
-tree-sitter parse test_file.n
+# Test grammar in Python
+python -c "
+from lark import Lark
+grammar = open('td_linter/grammars/node.lark').read()
+parser = Lark(grammar, start='source_file')
+tree = parser.parse(open('test_file.n').read())
+print(tree.pretty())
+"
 ```
 
 ### 4.4 Python Bindings Usage
 
 ```python
-from tree_sitter import Language, Parser
+from lark import Lark
+from pathlib import Path
 
-# Load the compiled grammar
-TOEDIR_LANGUAGE = Language('build/toedir.so', 'toedir_node')
-
-parser = Parser()
-parser.set_language(TOEDIR_LANGUAGE)
+# Load the grammar
+grammar_path = Path(__file__).parent / "grammars" / "node.lark"
+parser = Lark(grammar_path.read_text(), start="source_file", parser="lalr")
 
 def parse_node_file(path: str) -> dict:
     """Parse a .n file and return structured data."""
@@ -2924,8 +2919,8 @@ jobs:
 **Goal**: Basic syntax validation and CLI
 
 - [ ] Project structure setup
-- [ ] Tree-sitter grammar for `.n` files
-- [ ] Tree-sitter grammar for `.parm` files
+- [ ] Lark grammar for `.n` files
+- [ ] Lark grammar for `.parm` files
 - [ ] Basic CLI with `lint` command
 - [ ] Text output format
 - [ ] Unit tests for parsers
@@ -3006,11 +3001,11 @@ jobs:
 
 ## 12. Research Sources
 
-### Tree-sitter
-- [Official Documentation - Creating Parsers](https://tree-sitter.github.io/tree-sitter/creating-parsers/)
-- [Writing the Grammar](https://tree-sitter.github.io/tree-sitter/creating-parsers/3-writing-the-grammar.html)
-- [GitHub Gist - First Tree-sitter Grammar](https://gist.github.com/Aerijo/df27228d70c633e088b0591b8857eeef)
-- [Modular Moose - Creating a Parser based on Tree-Sitter](https://modularmoose.org/blog/2025-03-25-tree-sitter/)
+### Lark Parser
+- [Official Documentation](https://lark-parser.readthedocs.io/en/latest/)
+- [Grammar Reference](https://lark-parser.readthedocs.io/en/latest/grammar.html)
+- [Lark Examples](https://github.com/lark-parser/lark/tree/master/examples)
+- [Lark Cheat Sheet](https://lark-parser.readthedocs.io/en/latest/grammar.html#cheatsheet)
 
 ### Visual Programming Linters
 - [Visual Programming: From Unreal Engine Blueprints to Node-RED](https://domaindrivendesign.org/visual-programming-from-unreal-engine-blueprints-to-node-red/)
@@ -3117,7 +3112,7 @@ This version incorporates fixes from red team review to improve robustness and c
 
 | Fix ID | Category | Description |
 |--------|----------|-------------|
-| RF-001 | Grammar | Tree-sitter grammar uses permutation rules for flexible ordering of optional .n file elements |
+| RF-001 | Grammar | Lark grammar uses permutation rules for flexible ordering of optional .n file elements |
 | RF-002 | Discovery | Parameter mode flags marked as requiring systematic verification; added mode_flag_discovery.toe task |
 | RF-003 | Validation | Comprehensive TD builtins set expanded to include all modules, callbacks, and special objects |
 | RF-004 | Grammar | Semantic number types (tile_coord, input_index, mode_flag) replace generic integer for better validation |
@@ -3146,7 +3141,7 @@ This version incorporates fixes from red team review to improve robustness and c
 ### Version 1.0.0-draft (2026-01-14)
 
 - Initial specification document
-- Tree-sitter grammar for .n and .parm files
+- Lark grammar for .n and .parm files
 - NetworkX graph validation
 - GLSL and Python embedded code validation
 - YAML rule schema

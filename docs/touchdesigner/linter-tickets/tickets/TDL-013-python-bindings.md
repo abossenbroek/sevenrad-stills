@@ -1,4 +1,4 @@
-# TDL-013: Python Bindings Integration
+# TDL-013: Python Parser Integration
 
 ---
 id: TDL-013
@@ -11,15 +11,15 @@ blocks: [TDL-020, TDL-030]
 
 ## Problem Statement
 
-The tree-sitter grammars produce native parsers. To use them in our Python-based linter, we need Python bindings. This involves building the grammar, generating shared libraries, and integrating with the `tree-sitter` Python package.
+The Lark grammars produce Python-native parsers. We need to integrate these parsers into the linter codebase, providing a clean API for parsing .n and .parm files and traversing the resulting parse trees.
 
 ## Acceptance Criteria
 
-- [ ] Grammars compile to shared library (.so/.dylib/.dll)
-- [ ] Python can load compiled grammars
-- [ ] Parse function returns AST nodes
+- [ ] Lark grammars integrated into td_linter package
+- [ ] Python can load and use both grammars
+- [ ] Parse function returns traversable parse trees
 - [ ] AST traversal helpers work
-- [ ] Memory management is correct (no leaks)
+- [ ] Error handling provides clear messages for parse failures
 - [ ] Works on macOS, Linux, and Windows
 
 ## Files to Create
@@ -35,86 +35,88 @@ td_linter/
 
 ## Research Pointers
 
-### Tree-sitter Python Package
+### Lark Python Package
 
-- https://github.com/tree-sitter/py-tree-sitter
-- `pip install tree-sitter`
+- https://lark-parser.readthedocs.io/en/latest/
+- `pip install lark`
 
 Key classes:
-- `Language` - Loads a compiled grammar
-- `Parser` - Creates a parser instance
-- `Tree` - The parse result
-- `Node` - AST nodes
+- `Lark` - Creates a parser from a grammar
+- `Tree` - The parse result (tree of nodes)
+- `Token` - Terminal tokens in the tree
+- `Transformer` - For tree transformation
 
-### Building the Grammar
-
-```bash
-# In tree-sitter-toedir/
-npm install
-npx tree-sitter generate
-npx tree-sitter build
-```
-
-This produces `build/toedir.so` (or platform equivalent).
-
-### Loading in Python
+### Loading the Grammar
 
 ```python
-from tree_sitter import Language, Parser
+from lark import Lark
+from pathlib import Path
 
-# Load compiled grammar
-LANGUAGE = Language('path/to/toedir.so', 'toedir_node')
-
-# Create parser
-parser = Parser()
-parser.set_language(LANGUAGE)
+# Load grammar from file
+grammar_path = Path(__file__).parent / "grammars" / "node.lark"
+node_parser = Lark(
+    grammar_path.read_text(),
+    start="source_file",
+    parser="lalr",  # Fast parser for unambiguous grammars
+)
 
 # Parse a file
-tree = parser.parse(source_bytes)
+tree = node_parser.parse(source_text)
 ```
 
 ### AST Traversal
 
-Study tree-sitter's node API:
-- `node.type` - Node type string
-- `node.children` - Child nodes
-- `node.text` - Source text as bytes
-- `node.start_point`, `node.end_point` - Location
+Study Lark's tree API:
+- `tree.data` - Rule name that matched
+- `tree.children` - Child nodes (Tree or Token)
+- `tree.find_data(name)` - Find all subtrees with given rule
+- `tree.find_pred(pred)` - Find subtrees matching predicate
 
-Consider: Should you use tree-sitter's cursor API or write recursive traversal?
+Consider: Should you use Lark's Transformer or write recursive traversal?
 
 ### Two Grammars, One Package
 
-You have two grammars (node and parm). Options:
-1. Single .so with multiple languages
-2. Two separate .so files
+You have two grammars (node and parm). Simply create two Lark parser instances:
 
-Research how tree-sitter handles multiple languages in one project.
+```python
+node_parser = Lark(node_grammar, start="source_file")
+parm_parser = Lark(parm_grammar, start="source_file")
+```
 
 ### Platform Considerations
 
-| Platform | Extension | Build System |
-|----------|-----------|--------------|
-| macOS | .dylib | clang |
-| Linux | .so | gcc |
-| Windows | .dll | MSVC |
+Lark is pure Python, so it works on all platforms without compilation:
 
-Consider using `tree-sitter build` which handles cross-platform automatically.
+| Platform | Notes |
+|----------|-------|
+| macOS | Works out of the box |
+| Linux | Works out of the box |
+| Windows | Works out of the box |
+
+No native compilation needed - simpler distribution than native parsers.
 
 ### Error Handling
 
-Tree-sitter provides error recovery:
-- `node.has_error` - Did this subtree have errors?
-- `node.is_missing` - Is this a missing node?
-- `ERROR` node type for unparseable regions
+Lark provides excellent error messages:
 
-Design how to surface these to users.
+```python
+try:
+    tree = parser.parse(source)
+except lark.exceptions.UnexpectedToken as e:
+    print(f"Parse error at line {e.line}, column {e.column}")
+    print(f"Expected: {e.expected}")
+except lark.exceptions.UnexpectedCharacters as e:
+    print(f"Unexpected character at line {e.line}, column {e.column}")
+```
+
+Design how to surface these to users with context.
 
 ## Performance Considerations
 
 - Parse on demand, not eagerly
 - Consider caching parsed ASTs
-- tree-sitter is incremental - can re-parse on edit
+- Use LALR parser for speed (if grammar is unambiguous)
+- Earley parser handles ambiguous grammars but is slower
 
 ## Definition of Done
 

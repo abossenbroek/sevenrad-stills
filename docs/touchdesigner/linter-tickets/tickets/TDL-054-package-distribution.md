@@ -16,7 +16,7 @@ The linter needs to be installable via pip. This requires proper packaging with 
 ## Acceptance Criteria
 
 - [ ] pyproject.toml properly configured
-- [ ] Dependencies specified (typer, networkx, tree-sitter, etc.)
+- [ ] Dependencies specified (typer, networkx, lark, etc.)
 - [ ] Entry point creates `td-linter` command
 - [ ] Package installs cleanly: `pip install td-linter`
 - [ ] Package works after install (not just editable mode)
@@ -61,7 +61,7 @@ authors = [
 dependencies = [
     "typer[all]>=0.9.0",
     "networkx>=3.0",
-    "tree-sitter>=0.20.0",
+    "lark>=1.1.0",
     "pyyaml>=6.0",
     "rich>=13.0",
 ]
@@ -90,14 +90,14 @@ td-linter = "td_linter.cli:app"
 
 This makes `td-linter` available after install.
 
-### Tree-sitter Distribution
+### Lark Distribution
 
-Challenge: Tree-sitter grammars compile to native code. Options:
-1. Ship pre-compiled binaries for common platforms
-2. Compile on install (requires toolchain)
-3. Use tree-sitter's wheel distribution
+Lark is pure Python with no native dependencies, making distribution straightforward:
+- No compilation required on any platform
+- Grammars are plain text files included in the package
+- Works on Python 3.8+ without additional setup
 
-Research how other tree-sitter-based Python tools handle this.
+Simply include grammar files in the package data.
 
 ### Building and Publishing
 

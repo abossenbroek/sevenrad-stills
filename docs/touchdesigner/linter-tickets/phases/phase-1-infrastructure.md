@@ -10,7 +10,7 @@ Build the syntactic foundation: Lark grammars that parse .n and .parm files into
 
 **Philosophy**: A grammar is a contract. Get it wrong, and everything downstream fails. Get it right, and everything becomes trivial.
 
-**Implementation Note**: We chose Lark (Python EBNF parser) over tree-sitter for simpler Python integration and faster iteration.
+**Implementation Note**: We chose Lark (Python EBNF parser) for simpler Python integration, excellent error messages, and faster iteration.
 
 ## Gate Criteria
 
@@ -46,7 +46,7 @@ TDL-014 (parallel, no deps)
 
 ## Key Decisions
 
-1. **Why Lark?** Pure Python, excellent error messages, EBNF syntax familiar to most developers. Simpler than tree-sitter for this use case.
+1. **Why Lark?** Pure Python, excellent error messages, EBNF syntax familiar to most developers, and no native compilation required.
 
 2. **Why two grammars?** .n and .parm have different structures. Separate grammars are cleaner than one complex grammar with multiple entry points.
 

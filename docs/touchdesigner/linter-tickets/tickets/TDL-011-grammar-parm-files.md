@@ -1,4 +1,4 @@
-# TDL-011: Tree-sitter Grammar for .parm Files
+# TDL-011: Lark Grammar for .parm Files
 
 ---
 id: TDL-011
@@ -15,7 +15,7 @@ blocks: [TDL-013, TDL-034]
 
 ## Acceptance Criteria
 
-- [ ] Tree-sitter grammar parses all .parm files in sample corpus
+- [ ] Lark grammar parses all .parm files in sample corpus
 - [ ] Grammar correctly identifies mode flags (from TDL-002 discovery)
 - [ ] Grammar extracts expression content for mode 49/17 parameters
 - [ ] Grammar handles all value types (numbers, strings, paths, identifiers)
@@ -26,11 +26,13 @@ blocks: [TDL-013, TDL-034]
 ## Files to Create
 
 ```
-tree-sitter-toedir/
-├── grammar-parm.js         # Separate grammar for .parm
-├── corpus/
-│   ├── valid-parm/         # Valid .parm files
-│   └── invalid-parm/       # Malformed .parm files
+td_linter/
+├── grammars/
+│   └── parm.lark           # Separate Lark grammar for .parm
+├── tests/
+│   └── corpus/
+│       ├── valid-parm/     # Valid .parm files
+│       └── invalid-parm/   # Malformed .parm files
 └── ...
 ```
 
