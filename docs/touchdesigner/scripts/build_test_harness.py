@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-TouchDesigner Test Harness Build Script
+TouchDesigner Test Harness Build Script.
 
 Collapses shader_test_harness.toe.dir to shader_test_harness.toe using
 TouchDesigner's toecollapse utility. Includes rebuild detection to skip

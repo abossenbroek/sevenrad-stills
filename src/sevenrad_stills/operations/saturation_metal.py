@@ -42,7 +42,7 @@ HUE_SECTORS = 6.0
 
 
 @ti.kernel  # type: ignore[misc]
-def apply_saturation_adjustment(  # type: ignore[no-untyped-def]  # noqa: C901, PLR0915, ANN201
+def apply_saturation_adjustment(  # type: ignore[no-untyped-def]  # noqa: C901, PLR0915
     input_img: ti.template(),  # type: ignore[valid-type]
     output_img: ti.template(),  # type: ignore[valid-type]
     factor: ti.f32,

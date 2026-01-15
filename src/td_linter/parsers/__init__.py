@@ -6,9 +6,9 @@ from td_linter.parsers.toc_parser import ParsedToc, TocParser
 
 __all__ = [
     "NFileParser",
-    "ParsedNFile",
     "ParmFileParser",
+    "ParsedNFile",
     "ParsedParmFile",
-    "TocParser",
     "ParsedToc",
+    "TocParser",
 ]

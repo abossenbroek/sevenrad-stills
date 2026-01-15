@@ -5,11 +5,11 @@ from td_linter.graph.types import OperatorFamily
 
 # NetworkGraphBuilder imported lazily to avoid circular imports
 __all__ = [
+    "Connection",
+    "NetworkGraphBuilder",
     "OperatorFamily",
     "OperatorNode",
-    "Connection",
     "TilePosition",
-    "NetworkGraphBuilder",
 ]
 
 

@@ -13,18 +13,27 @@
 //   view -1 3 0 0 1 1 0 0
 //   end
 
-start: type_header tile_directive flags_directive body* END
+// Allow directives in any order after type header
+start: type_header directive* END
 
 type_header: FAMILY ":" OP_TYPE
-tile_directive: "tile" INT INT INT INT
-flags_directive: "flags" "=" flag_pair*
-flag_pair: IDENTIFIER flag_value
-flag_value: INT | IDENTIFIER
 
-body: inputs_block
-    | color_directive
-    | dock_directive
-    | view_directive
+directive: tile_directive
+         | flags_directive
+         | inputs_block
+         | color_directive
+         | dock_directive
+         | view_directive
+         | comment_directive
+         | v_directive
+
+v_directive: "v" SIGNED_NUMBER SIGNED_NUMBER SIGNED_NUMBER
+
+tile_directive: "tile" SIGNED_INT SIGNED_INT SIGNED_INT SIGNED_INT
+flags_directive: "flags" "=" flag_pair*
+flag_pair: IDENTIFIER flag_value?
+flag_value: SIGNED_INT | IDENTIFIER
+comment_directive: "comment" ESCAPED_STRING
 
 inputs_block: "inputs" "{" input_entry* "}"
 input_entry: INT OPERATOR_REF
@@ -39,8 +48,9 @@ view_value: SIGNED_NUMBER | ESCAPED_STRING | STAR
 // Terminals
 FAMILY: "TOP" | "CHOP" | "SOP" | "DAT" | "COMP" | "MAT" | "POP"
 OP_TYPE: /[a-zA-Z_][a-zA-Z0-9_]*/
-OPERATOR_REF: /[a-zA-Z_][a-zA-Z0-9_]*/
+OPERATOR_REF: /[a-zA-Z_][a-zA-Z0-9_\/]*/
 IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_]*/
+SIGNED_INT: /-?[0-9]+/
 STAR: "*"
 END: "end"
 

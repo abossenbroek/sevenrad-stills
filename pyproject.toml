@@ -80,10 +80,14 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "ANN", "PLR2004", "S108"]  # Allow assert, annotations, magic values, and /tmp in tests
+"tests/*" = ["S101", "ANN", "PLR2004", "S108", "PT004"]  # Allow assert, annotations, magic values, /tmp, and fixtures without return
 "tests/unit/operations/test_*_performance.py" = ["S101", "ANN", "PLR2004", "S108", "T201"]  # Allow print in performance tests
 "tests/unit/operations/test_downscale_metal.py" = ["ARG002"]  # Fixtures used for side effects (skip checks)
 "tests/unit/operations/test_adapters.py" = ["ARG002"]  # Mock methods may have unused params
+"tests/unit/operations/test_chromatic_aberration_gpu.py" = ["T201"]  # Allow print in performance tests
+"tests/unit/operations/test_compression_artifact_gpu.py" = ["T201"]  # Allow print in performance tests
+"tests/unit/operations/test_slc_off_gpu.py" = ["T201", "E501"]  # Allow print and long lines in performance tests
+"tests/unit/operations/test_blur_gaussian_mlx_performance.py" = ["E501"]  # Allow long lines in performance output
 "src/sevenrad_stills/cli/commands.py" = ["PLR0913"]  # Click commands have many options
 "src/sevenrad_stills/pipeline/executor.py" = ["PLR0913"]  # Multiprocessing worker function needs many arguments
 "src/sevenrad_stills/pipeline/protocols.py" = ["ANN401", "PLR0913", "E501"]  # Protocols use Any for Taichi fields, many args for apply_to_field
@@ -92,7 +96,7 @@ ignore = [
 "src/sevenrad_stills/operations/*_taichi.py" = ["ANN201", "ANN401", "PLR0913", "PLR0915", "C901", "PLR0912", "PLR2004", "SIM114", "PLR5501", "E501"]  # Taichi kernels have complex logic, magic values for pattern codes, long lines
 "tests/unit/pipeline/test_buffer_pool.py" = ["ARG001", "ARG002"]  # Fixtures used for side effects
 "tests/unit/pipeline/test_taichi_executor.py" = ["ARG001", "ARG002", "SIM117"]  # Fixtures used for side effects, nested with for mock contexts
-"src/sevenrad_stills/operations/*_metal.py" = ["ANN201", "PLR0913"]  # Metal operations have special signatures
+"src/sevenrad_stills/operations/*_metal.py" = ["ANN201", "PLR0913", "PLR0912"]  # Metal operations have special signatures and branches
 "src/sevenrad_stills/operations/*_mlx.py" = ["ANN201", "PLR0913"]  # MLX operations have special signatures
 "src/sevenrad_stills/operations/buffer_corruption_metal.py" = ["PLR0915", "PLR2004", "T201", "RUF001", "RUF002", "RUF003", "E501", "ANN401"]  # Metal GPU implementation uses debug prints, unicode chars, and PyObjC Any types
 # td-linter package ignores
@@ -102,6 +106,11 @@ ignore = [
 "src/td_linter/rules/no_invalid_cycles.py" = ["SIM110"]  # Keep explicit loop for readability
 "src/td_linter/rules/type_compatibility.py" = ["B007", "SIM103"]  # Loop var for future use, explicit return for clarity
 "src/td_linter/graph/builder.py" = ["SIM108"]  # Keep explicit if/else for readability
+"tests/unit/td_linter/parsers/test_n_parser_gate.py" = ["E501"]  # Test data contains real TD file content with long view directives
+# TouchDesigner scripts - CLI scripts that legitimately use print, subprocess, and temp paths
+"docs/touchdesigner/scripts/build_test_harness.py" = ["T201", "S603"]  # CLI script uses print output and trusted subprocess calls
+"docs/touchdesigner/scripts/td_test_runner.py" = ["T201", "S603", "S108", "E501", "PLR0912", "PLR0915", "PLR0913", "C901", "SIM102", "ARG001"]  # CLI orchestrator script
+"docs/touchdesigner/scripts/validate_glsl.py" = ["T201", "S603", "S607", "E501", "ANN201", "D103", "PLR2004"]  # CLI script for GLSL validation
 
 [tool.pytest.ini_options]
 markers = [
@@ -143,6 +152,14 @@ module = [
 ]
 ignore_missing_imports = true
 follow_imports = "skip"
+
+# Skip mypy for td_linter parsers (Lark's type system is incompatible with mypy strict mode)
+[[tool.mypy.overrides]]
+module = [
+    "td_linter.parsers.n_parser",
+    "td_linter.parsers.parm_parser",
+]
+ignore_errors = true
 
 # Skip mypy for Taichi GPU code (Taichi's type system is incompatible with mypy)
 [[tool.mypy.overrides]]

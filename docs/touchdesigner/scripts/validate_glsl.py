@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""GLSL shader validation for TouchDesigner compatibility.
+"""
+GLSL shader validation for TouchDesigner compatibility.
 
 This script validates GLSL shaders by prepending the TouchDesigner preamble
 and running them through glslangValidator. This catches syntax and semantic
@@ -60,19 +61,24 @@ layout(rgba32f) uniform image2D sTD2DOutputs[8];
 
 
 def validate_shader(shader_path: Path) -> tuple[bool, str]:
-    """Validate a GLSL shader file.
+    """
+    Validate a GLSL shader file.
 
     Args:
         shader_path: Path to the shader file to validate
 
     Returns:
         Tuple of (passed, message) where passed is True if validation succeeded
+
     """
     content = shader_path.read_text()
 
     # Check for forbidden #version directive
     if "#version" in content:
-        return False, f"ERROR: {shader_path}: Contains #version directive (TouchDesigner auto-injects this)"
+        return (
+            False,
+            f"ERROR: {shader_path}: Contains #version directive (TouchDesigner auto-injects this)",
+        )
 
     # Determine shader type
     suffix = shader_path.suffix.lower()
@@ -84,16 +90,14 @@ def validate_shader(shader_path: Path) -> tuple[bool, str]:
         stage = "frag"
 
     # Create temp file with preamble
-    with tempfile.NamedTemporaryFile(mode='w', suffix=suffix, delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=suffix, delete=False) as f:
         f.write(preamble)
         f.write(content)
         temp_path = f.name
 
     try:
         result = subprocess.run(
-            ['glslangValidator', '-S', stage, temp_path],
-            capture_output=True,
-            text=True
+            ["glslangValidator", "-S", stage, temp_path], capture_output=True, text=True
         )
 
         if result.returncode == 0:

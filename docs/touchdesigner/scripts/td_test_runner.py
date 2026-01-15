@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-TouchDesigner Shader Test Orchestrator
+TouchDesigner Shader Test Orchestrator.
 
 External orchestrator for automated TouchDesigner shader testing.
 Launches TouchDesigner with environment variables, waits for test completion,
@@ -63,7 +63,12 @@ def find_touchdesigner() -> Path | None:
 
     # Try common alternative locations
     alternatives = [
-        Path.home() / "Applications" / "TouchDesigner.app" / "Contents" / "MacOS" / "TouchDesigner",
+        Path.home()
+        / "Applications"
+        / "TouchDesigner.app"
+        / "Contents"
+        / "MacOS"
+        / "TouchDesigner",
         Path("/Applications/TouchDesigner099.app/Contents/MacOS/TouchDesigner"),
     ]
 
@@ -124,6 +129,7 @@ def ensure_toe_built(project_path: Path, verbose: bool = False) -> Path:
 
     Returns:
         The project_path (unchanged)
+
     """
     toe_dir = project_path.with_suffix(".toe.dir")
 
@@ -134,9 +140,8 @@ def ensure_toe_built(project_path: Path, verbose: bool = False) -> Path:
             if _run_toecollapse(toe_dir, project_path):
                 if verbose:
                     print(f"  Built: {project_path}")
-            else:
-                if verbose:
-                    print(f"  Warning: Auto-rebuild failed, using existing .toe")
+            elif verbose:
+                print(f"  Warning: Auto-rebuild failed, using existing .toe")
 
     return project_path
 
@@ -167,6 +172,7 @@ def run_td_tests(
         FileNotFoundError: If TouchDesigner or project not found
         TimeoutError: If tests don't complete within timeout
         RuntimeError: If TouchDesigner crashes
+
     """
     # Resolve paths
     config_path = Path(config_path).resolve()

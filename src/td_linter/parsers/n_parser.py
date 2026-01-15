@@ -22,6 +22,8 @@ class ParsedNFile:
     color: tuple[float, ...] | None = None
     dock: str | None = None
     view: list[Any] | None = None
+    comment: str | None = None
+    v: tuple[float, float, float] | None = None
     has_errors: bool = False
     source: Path | None = None
 
@@ -40,6 +42,8 @@ class NFileTransformer(Transformer[Any, ParsedNFile]):
         self._color: tuple[float, ...] | None = None
         self._dock: str | None = None
         self._view: list[Any] | None = None
+        self._comment: str | None = None
+        self._v: tuple[float, float, float] | None = None
 
     @v_args(inline=True)
     def type_header(self, family: Any, op_type: Any) -> None:
@@ -89,6 +93,20 @@ class NFileTransformer(Transformer[Any, ParsedNFile]):
         """Extract dock reference."""
         self._dock = str(name)
 
+    @v_args(inline=True)
+    def comment_directive(self, text: Any) -> None:
+        """Extract comment text."""
+        # Strip surrounding quotes from escaped string
+        raw = str(text)
+        if raw.startswith('"') and raw.endswith('"'):
+            raw = raw[1:-1]
+        self._comment = raw
+
+    @v_args(inline=True)
+    def v_directive(self, x: Any, y: Any, z: Any) -> None:
+        """Extract v (viewport position) values."""
+        self._v = (float(x), float(y), float(z))
+
     def view_directive(self, items: list[Any]) -> None:
         """Extract view values."""
         self._view = [
@@ -100,12 +118,11 @@ class NFileTransformer(Transformer[Any, ParsedNFile]):
         """Extract single view value."""
         return items[0] if items else None
 
-    def body(self, items: list[Any]) -> None:
-        """Process body items (inputs, color, dock, view)."""
-        # Body items are already processed by their specific handlers
+    def directive(self, _items: list[Any]) -> None:
+        """Process directive items (already handled by specific handlers)."""
         pass
 
-    def start(self, items: list[Any]) -> ParsedNFile:
+    def start(self, _items: list[Any]) -> ParsedNFile:
         """Build final ParsedNFile."""
         return ParsedNFile(
             family=self._family,
@@ -116,6 +133,8 @@ class NFileTransformer(Transformer[Any, ParsedNFile]):
             color=self._color,
             dock=self._dock,
             view=self._view,
+            comment=self._comment,
+            v=self._v,
         )
 
 
