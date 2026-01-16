@@ -245,9 +245,10 @@ class PythonValidator:
 
     def strip_text_header(self, content: str) -> tuple[str, int]:
         """
-        Remove .text file header (version line).
+        Remove .text file header (version line and binary metadata).
 
-        Same format as language detector.
+        Same format as language detector. See LanguageDetector.strip_text_header
+        for detailed format documentation.
 
         Args:
             content: Raw file content.
@@ -259,6 +260,17 @@ class PythonValidator:
         if not content:
             return content, 0
 
+        # Handle binary content after the '*' marker
+        # Binary format: "2\n*" + 24 bytes binary + actual content
+        if len(content) >= 27 and content.startswith("2\n*"):
+            header_region = content[3:25]
+            if any(ord(c) < 32 and ord(c) != ord('\t') for c in header_region):
+                # Binary format - skip exactly 27 bytes
+                stripped = content[27:]
+                lines_stripped = content[:27].count("\n")
+                return stripped, lines_stripped
+
+        # Fallback: line-based stripping
         lines = content.split("\n")
 
         if len(lines) < 1:

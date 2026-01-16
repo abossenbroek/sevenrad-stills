@@ -84,6 +84,14 @@ class NFileTransformer(Transformer[Any, ParsedNFile]):
         """Extract a single input entry."""
         return (int(index), str(ref))
 
+    def exports_block(self, _items: list[Any]) -> None:
+        """Handle exports block (ignored for now, just needs to parse)."""
+        pass
+
+    def export_entry(self, items: list[Any]) -> str:
+        """Extract a single export entry."""
+        return str(items[0]) if items else ""
+
     def color_directive(self, items: list[Any]) -> None:
         """Extract color values."""
         self._color = tuple(float(x) for x in items)

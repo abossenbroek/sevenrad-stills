@@ -43,14 +43,28 @@ class GLSLError:
 
 # TouchDesigner fragment shader preamble
 # Provides minimal declarations for syntax validation
+# Uses GLSL 460 with extensions to match TouchDesigner's runtime environment
 TD_FRAGMENT_PREAMBLE = """\
-#version 330 core
+#version 460 core
+
+// Enable extensions that TouchDesigner supports at runtime
+#extension GL_GOOGLE_include_directive : enable
+#extension GL_ARB_gpu_shader5 : enable
+#extension GL_ARB_shading_language_420pack : enable
 
 // TouchDesigner built-in uniforms (synthetic - for syntax validation)
 uniform sampler2D sTD2DInputs[8];
 uniform sampler3D sTD3DInputs[8];
 uniform vec4 uTDOutputInfo;
 uniform int uTDPass;
+
+// TouchDesigner input info struct (see docs.derivative.ca/Write_a_GLSL_TOP)
+struct TDTexInfo {
+    vec4 res;    // (1/width, 1/height, width, height)
+    vec4 depth;  // (1/depth, depth, depthOffset, undefined)
+};
+uniform TDTexInfo uTD2DInfos[8];
+uniform TDTexInfo uTD3DInfos[8];
 
 // Input from vertex shader
 in vec2 vUV;
@@ -65,9 +79,14 @@ float TDAlphaOfOutput(vec4 c) { return c.a; }
 // --- USER SHADER BEGINS BELOW ---
 """
 
-# TouchDesigner compute shader preamble (GLSL 430+)
+# TouchDesigner compute shader preamble (GLSL 460+ with extensions)
 TD_COMPUTE_PREAMBLE = """\
-#version 430 core
+#version 460 core
+
+// Enable extensions that TouchDesigner supports at runtime
+#extension GL_GOOGLE_include_directive : enable
+#extension GL_ARB_gpu_shader5 : enable
+#extension GL_ARB_shading_language_420pack : enable
 
 layout(local_size_x = 16, local_size_y = 16) in;
 
@@ -75,6 +94,16 @@ layout(local_size_x = 16, local_size_y = 16) in;
 uniform sampler2D sTD2DInputs[8];
 uniform sampler3D sTD3DInputs[8];
 layout(rgba32f) uniform image2D sTD2DOutputs[8];
+layout(rgba32f) uniform image2D mTDComputeOutputs[16];
+
+// TouchDesigner input info struct (see docs.derivative.ca/Write_a_GLSL_TOP)
+struct TDTexInfo {
+    vec4 res;    // (1/width, 1/height, width, height)
+    vec4 depth;  // (1/depth, depth, depthOffset, undefined)
+};
+uniform TDTexInfo uTD2DInfos[8];
+uniform TDTexInfo uTD3DInfos[8];
+uniform vec4 uTDOutputInfo;
 
 // --- USER SHADER BEGINS BELOW ---
 """
@@ -90,6 +119,12 @@ FILTERED_PATTERNS = [
     re.compile(r"local_size", re.IGNORECASE),  # Layout qualifier conflict
     re.compile(r"cannot change previously set", re.IGNORECASE),  # Preamble conflict
     re.compile(r"compilation terminated", re.IGNORECASE),  # Follow-on error
+    # TD-specific: #include directives resolve at runtime to other DATs
+    re.compile(r"Could not process include directive", re.IGNORECASE),
+    re.compile(r"#include.*must be followed by", re.IGNORECASE),
+    # Shader snippets may reference globals/structs defined elsewhere
+    re.compile(r"unknown swizzle selection", re.IGNORECASE),
+    re.compile(r"vector swizzle selection out of range", re.IGNORECASE),
 ]
 
 # Patterns that indicate compute shader

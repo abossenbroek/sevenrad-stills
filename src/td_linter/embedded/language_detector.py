@@ -109,6 +109,17 @@ class LanguageDetector:
         glsl_score = self._score_glsl(stripped_content)
         python_score = self._score_python(stripped_content)
 
+        # Check for documentation/plain text indicators
+        # If content looks like prose (long lines without code structure), skip
+        if self._looks_like_documentation(stripped_content):
+            return DetectionResult(
+                language=Language.UNKNOWN,
+                confidence=0.8,
+                glsl_score=glsl_score,
+                python_score=python_score,
+                detection_method="content",
+            )
+
         # Determine language based on score difference
         score_diff = abs(glsl_score - python_score)
 
@@ -147,12 +158,16 @@ class LanguageDetector:
 
     def strip_text_header(self, content: str) -> tuple[str, int]:
         """
-        Remove .text file header (version line).
+        Remove .text file header (version line and binary metadata).
 
-        TouchDesigner .text files have a header format:
-            2                  (version number)
-            *                  [optional metadata line]
-            [actual content]
+        TouchDesigner .text files have a binary header format:
+            Bytes 0-1:   "2\\n" (version)
+            Byte 2:      "*" (metadata marker)
+            Bytes 3-24:  Fixed binary header (22 bytes of flags/config)
+            Bytes 25-26: Content length (big-endian 16-bit integer)
+            Bytes 27+:   Actual content
+
+        The total header size is 27 bytes when the binary format is used.
 
         Args:
             content: Raw file content.
@@ -164,6 +179,20 @@ class LanguageDetector:
         if not content:
             return content, 0
 
+        # Handle binary content after the '*' marker
+        # The format is: "2\n*" + 24 bytes binary + actual content
+        if len(content) >= 27 and content.startswith("2\n*"):
+            # Check if this is the binary format by looking for null bytes
+            # in the expected header region (bytes 3-24)
+            header_region = content[3:25]
+            if any(ord(c) < 32 and ord(c) != ord('\t') for c in header_region):
+                # Binary format detected - skip exactly 27 bytes
+                stripped = content[27:]
+                # Count lines in header for line number adjustment
+                lines_stripped = content[:27].count("\n")
+                return stripped, lines_stripped
+
+        # Fallback: line-based stripping for simpler/text-only headers
         lines = content.split("\n")
 
         if len(lines) < 1:
@@ -214,3 +243,69 @@ class LanguageDetector:
             matches = pattern.findall(content)
             score += len(matches) * weight
         return score
+
+    def _looks_like_documentation(self, content: str) -> bool:
+        """
+        Check if content appears to be documentation/prose rather than code.
+
+        Documentation files often mention code keywords but lack actual
+        code structure (braces, semicolons, function definitions).
+
+        Args:
+            content: Content to analyze.
+
+        Returns:
+            True if content appears to be documentation.
+
+        """
+        if not content.strip():
+            return False
+
+        lines = content.strip().split("\n")
+        if not lines:
+            return False
+
+        # Documentation indicators
+        doc_indicators = 0
+
+        # Check for prose-like content: sentences, natural language patterns
+        first_line = lines[0].strip()
+        if first_line and first_line[0].isupper():
+            # Starts with capital letter (like a sentence)
+            words = first_line.split()
+            if len(words) > 5:  # Long opening line
+                doc_indicators += 1
+
+        # Check for common documentation patterns
+        content_lower = content.lower()
+        if "how to" in content_lower:
+            doc_indicators += 2
+        if "example:" in content_lower:
+            doc_indicators += 1
+        if "instructions" in content_lower:
+            doc_indicators += 1
+        if "readme" in content_lower:
+            doc_indicators += 2
+
+        # Code indicators (absence suggests documentation)
+        code_indicators = 0
+
+        # Check for function definitions/declarations
+        if "void " in content and "(" in content and ")" in content:
+            code_indicators += 2
+        if "def " in content and ":" in content:
+            code_indicators += 2
+        if "class " in content and ":" in content:
+            code_indicators += 2
+
+        # Check for code structure
+        if "{" in content and "}" in content:
+            code_indicators += 1
+        if ";" in content:
+            # Count semicolons as percentage of lines
+            semicolon_lines = sum(1 for line in lines if ";" in line)
+            if semicolon_lines > len(lines) * 0.3:
+                code_indicators += 2
+
+        # If high documentation indicators and low code indicators, it's docs
+        return doc_indicators >= 2 and code_indicators < 2

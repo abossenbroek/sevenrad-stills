@@ -101,6 +101,7 @@ TD_BUILTINS: set[str] = {
     "parent",
     "iop",
     "ipar",
+    "OP",  # Operator class for type checking/isinstance
     # Extension and module access
     "mod",
     "ext",
@@ -135,6 +136,37 @@ TD_BUILTINS: set[str] = {
     "TDJSON",
     "TDStoreTools",
     "TDFunctions",
+    # Standard library (commonly used without explicit import in TD)
+    "math",
+    # Operator type classes (for isinstance checks, create() calls)
+    "textDAT",
+    "tableDAT",
+    "scriptDAT",
+    "executeDAT",
+    "chopexecDAT",
+    "datexecDAT",
+    "panelexecDAT",
+    "parameterexecDAT",
+    "opexecDAT",
+    "keyboardinDAT",
+    "mouseinDAT",
+    "midiinDAT",
+    "oscoutDAT",
+    "oscinDAT",
+    "udpinDAT",
+    "udpoutDAT",
+    "tcpipDAT",
+    "serialDAT",
+    "filewatcherDAT",
+    "replicatorCOMP",
+    "baseCOMP",
+    "containerCOMP",
+    "geometryCOMP",
+    "lightCOMP",
+    "cameraCOMP",
+    "nullCHOP",
+    "constantCHOP",
+    "mathCHOP",
 }
 
 # Expression-specific globals (subset for ast.parse(mode='eval'))

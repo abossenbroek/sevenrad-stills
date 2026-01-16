@@ -21,6 +21,7 @@ type_header: FAMILY ":" OP_TYPE
 directive: tile_directive
          | flags_directive
          | inputs_block
+         | exports_block
          | color_directive
          | dock_directive
          | view_directive
@@ -37,6 +38,9 @@ comment_directive: "comment" ESCAPED_STRING
 
 inputs_block: "inputs" "{" input_entry* "}"
 input_entry: INT OPERATOR_REF
+
+exports_block: "exports" "{" export_entry* "}"
+export_entry: OPERATOR_REF
 
 color_directive: "color" NUMBER NUMBER NUMBER NUMBER?
 
