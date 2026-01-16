@@ -1,0 +1,85 @@
+name: TouchDesigner Lint
+
+on:
+  push:
+    paths:
+      - '**/*.toe.dir/**'
+    branches: [main, develop, feature/*]
+  pull_request:
+    paths:
+      - '**/*.toe.dir/**'
+    branches: [main, develop]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  lint:
+    name: Lint TouchDesigner Projects
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - name: Install td-linter
+        run: |
+          uv venv
+          uv pip install -e ".[dev]"
+
+      - name: Install glslang
+        run: sudo apt-get install -y glslang-tools
+
+      - name: Find and lint .toe.dir projects
+        id: lint
+        run: |
+          source .venv/bin/activate
+
+          # Initialize SARIF output
+          echo '{"$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json", "version": "2.1.0", "runs": []}' > results.sarif
+
+          EXIT_CODE=0
+
+          # Find all .toe.dir directories and lint each
+          for dir in $(find . -name '*.toe.dir' -type d 2>/dev/null); do
+            echo "Linting: $dir"
+
+            # Run linter and capture output
+            if OUTPUT=$(td-linter lint "$dir" --format sarif 2>&1); then
+              echo "  OK"
+            else
+              echo "  Found violations"
+              EXIT_CODE=1
+            fi
+
+            # Append run to results if output is valid SARIF
+            if echo "$OUTPUT" | jq -e '.runs[0]' > /dev/null 2>&1; then
+              RUN=$(echo "$OUTPUT" | jq '.runs[0]')
+              jq --argjson run "$RUN" '.runs += [$run]' results.sarif > results.sarif.tmp
+              mv results.sarif.tmp results.sarif
+            fi
+          done
+
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Upload SARIF to GitHub
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: results.sarif
+          category: td-linter
+
+      - name: Fail if lint errors
+        if: steps.lint.outputs.exit_code == '1'
+        run: |
+          echo "Linting failed with errors"
+          exit 1

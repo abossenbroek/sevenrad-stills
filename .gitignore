@@ -224,6 +224,8 @@ __marimo__/
 *.png
 *.gif
 output/
+!src/td_linter/output/
+!tests/unit/td_linter/output/
 temp/
 docs/_site/
 

@@ -75,11 +75,54 @@ def regenerate_toc() -> None:
     toc_path.write_text("\n".join(files) + "\n")
 
 
-def collapse(verbose: bool = False) -> int:
+def lint_before_collapse(harness_dir: Path, verbose: bool = False) -> bool:
+    """Run linter on .toe.dir before collapsing.
+
+    Returns True if lint passes (no errors), False otherwise.
+    Warnings are logged but don't block.
+    """
+    try:
+        from td_linter import Severity, lint
+    except ImportError:
+        if verbose:
+            print("WARNING: td_linter not installed, skipping lint")
+        return True
+
+    if verbose:
+        print(f"Linting: {harness_dir}")
+
+    violations = lint(harness_dir)
+
+    errors = [v for v in violations if v.severity == Severity.ERROR]
+    warnings = [v for v in violations if v.severity == Severity.WARNING]
+
+    if errors:
+        print(f"ERROR: {len(errors)} linting errors found:")
+        for v in errors:
+            loc = f":{v.line}" if v.line else ""
+            print(f"  {v.rule}{loc}: {v.message}")
+        print("\nFix errors or use --skip-lint to bypass")
+        return False
+
+    if warnings and verbose:
+        print(f"WARNING: {len(warnings)} warnings (continuing)")
+
+    if verbose and not errors and not warnings:
+        print("Lint passed")
+
+    return True
+
+
+def collapse(verbose: bool = False, skip_lint: bool = False) -> int:
     """Collapse .toe.dir to .toe binary format."""
     if not HARNESS_DIR.exists():
         print(f"ERROR: Source directory not found: {HARNESS_DIR}")
         return 1
+
+    # Run lint check unless skipped
+    if not skip_lint:
+        if not lint_before_collapse(HARNESS_DIR, verbose):
+            return 1
 
     if not check_td_tools():
         return 1
@@ -178,13 +221,19 @@ Examples:
         help="Verbose output",
     )
 
+    parser.add_argument(
+        "--skip-lint",
+        action="store_true",
+        help="Skip linting before collapse",
+    )
+
     args = parser.parse_args()
 
     if args.expand:
         return expand(args.verbose)
 
     if args.force or needs_rebuild():
-        return collapse(args.verbose)
+        return collapse(args.verbose, skip_lint=args.skip_lint)
     else:
         print(f"Up to date: {HARNESS_TOE}")
         print("Use --force to rebuild anyway")

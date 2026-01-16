@@ -8,6 +8,7 @@ from rich.console import Console
 from rich.table import Table
 
 from td_linter import __version__
+from td_linter.output import get_formatter
 
 if TYPE_CHECKING:
     from td_linter.rules.base import LintRule, Violation
@@ -72,36 +73,6 @@ def _apply_ignore_patterns(
     return filtered
 
 
-def _output_json(violations: list["Violation"]) -> None:
-    """Output violations as JSON."""
-    import json
-
-    output = [
-        {
-            "rule": v.rule,
-            "message": v.message,
-            "path": v.path,
-            "severity": v.severity,
-            "line": v.line,
-            "source_file": str(v.source_file) if v.source_file else None,
-        }
-        for v in violations
-    ]
-    console.print(json.dumps(output, indent=2))
-
-
-def _output_text(violations: list["Violation"], verbose: bool) -> None:
-    """Output violations as formatted text."""
-    for v in violations:
-        color = "red" if v.severity == "error" else "yellow"
-        if v.severity == "info":
-            color = "blue"
-        console.print(f"[{color}]{v.rule}[/{color}]: {v.message}")
-        if v.source_file and verbose:
-            line_info = f":{v.line}" if v.line else ""
-            console.print(f"  [dim]Location: {v.source_file}{line_info}[/dim]")
-
-
 @app.command()
 def lint(
     path: Path = typer.Argument(..., help="Path to .toe.dir directory"),
@@ -121,10 +92,16 @@ def lint(
         help="Ignore categories/rules (comma-separated, e.g., F,P003)",
     ),
     output_format: str = typer.Option(
-        "text", "--format", "-f", help="Output format: text, json"
+        "text", "--format", "-f", help="Output format: text, json, sarif"
+    ),
+    no_color: bool = typer.Option(
+        False, "--no-color", help="Disable colored output"
     ),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Only show errors"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed output"),
+    fail_on_warning: bool = typer.Option(
+        False, "--fail-on-warning", help="Exit 1 on warnings (for strict CI)"
+    ),
     validate_expressions: bool = typer.Option(
         False,
         "--validate-expressions",
@@ -174,15 +151,20 @@ def lint(
         config=registry.config,
     )
 
-    if output_format == "json":
-        _output_json(violations)
-        if violations:
-            raise typer.Exit(1)
-    elif violations:
-        _output_text(violations, verbose)
+    # Format and output results
+    formatter = get_formatter(output_format, no_color=no_color)
+    project_path = str(path) if not quiet or violations else None
+    output = formatter.format(violations, project_path=project_path)
+
+    if output:
+        console.print(output, highlight=False)
+
+    # Determine exit code
+    has_errors = any(v.severity == "error" for v in violations)
+    has_warnings = any(v.severity == "warning" for v in violations)
+
+    if has_errors or (fail_on_warning and has_warnings):
         raise typer.Exit(1)
-    elif not quiet:
-        console.print(f"[green]OK:[/green] {path.name} passed validation")
 
 
 @app.command()

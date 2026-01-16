@@ -50,3 +50,14 @@ repos:
       - id: check-yaml
         name: Validate YAML files
         files: ^docs/_config\.yml$
+
+  # TouchDesigner Linter
+  - repo: local
+    hooks:
+      - id: td-linter
+        name: Lint TouchDesigner projects
+        entry: uv run td-linter lint
+        language: system
+        files: \.toe\.dir/
+        pass_filenames: false
+        types: [file]
