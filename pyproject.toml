@@ -40,6 +40,17 @@ dev = [
     "types-pyyaml~=6.0",
     "jsonschema>=4.21.0",
 ]
+# td-linter optional features
+td-linter-watch = [
+    "watchdog>=3.0.0",
+]
+td-linter-lsp = [
+    "pygls>=1.2.0",
+]
+td-linter-all = [
+    "watchdog>=3.0.0",
+    "pygls>=1.2.0",
+]
 
 [project.scripts]
 sevenrad = "sevenrad_stills.cli.commands:cli"

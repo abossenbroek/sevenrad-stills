@@ -1,10 +1,11 @@
 """GLSL rules (G): Shader code validation."""
 
+from pathlib import Path
 from typing import Iterator
 
 import networkx as nx
 
-from td_linter.rules.base import LintRule, OptionValue, Violation
+from td_linter.rules.base import Fix, LintRule, OptionValue, Replacement, Violation
 
 
 class GLSLSyntaxRule(LintRule):
@@ -55,13 +56,12 @@ class GLSLSyntaxRule(LintRule):
 
 class GLSLNoVersionRule(LintRule):
     """
-    G002: Detect missing #version directive in GLSL shaders.
+    G002: Detect #version directive in GLSL shaders for TouchDesigner.
 
-    GLSL shaders should include a #version directive to ensure
-    consistent behavior across different graphics drivers.
+    TouchDesigner automatically injects version directives, so user-supplied
+    #version lines will conflict and should be removed.
 
-    Note: TouchDesigner typically injects version directives, so
-    this rule may produce false positives.
+    This rule is fixable - it can automatically remove #version directives.
     """
 
     def __init__(self, options: dict[str, OptionValue] | None = None) -> None:
@@ -81,26 +81,50 @@ class GLSLNoVersionRule(LintRule):
     @property
     def description(self) -> str:
         """Return rule description."""
-        return "Detect missing #version directive in GLSL"
+        return "Detect #version directive that conflicts with TouchDesigner"
 
     @property
     def severity(self) -> str:
         """Return default severity."""
         return "warning"
 
+    @property
+    def fixable(self) -> bool:
+        """Return whether this rule can auto-fix violations."""
+        return True
+
     def check(self, graph: nx.DiGraph) -> Iterator[Violation]:
-        """Check for missing #version directives."""
-        # Check for version warnings stored in graph metadata
-        version_warnings = graph.graph.get("glsl_version_warnings", [])
-        for warning in version_warnings:
+        """Check for #version directives that should be removed."""
+        # Check for version issues stored in graph metadata
+        version_issues = graph.graph.get("glsl_version_issues", [])
+        for issue in version_issues:
+            source_file = issue.get("source_file")
+            line_num = issue.get("line", 1)
+
+            # Create fix to remove the version line
+            fix = None
+            if source_file:
+                fix = Fix(
+                    description=f"Remove #version directive from {Path(source_file).name}",
+                    replacements=[
+                        Replacement(
+                            file_path=Path(source_file),
+                            start_line=line_num,
+                            end_line=line_num,
+                            new_text="",  # Delete the line
+                        )
+                    ],
+                )
+
             yield Violation(
                 rule=self.rule_id,
-                message="GLSL shader missing #version directive",
-                path=warning.get("path", "unknown"),
+                message="GLSL shader contains #version directive (conflicts with TD)",
+                path=issue.get("path", "unknown"),
                 severity=self.severity,
-                source_file=warning.get("source_file"),
-                line=1,
-                context={"shader_type": warning.get("shader_type")},
+                source_file=source_file,
+                line=line_num,
+                context={"shader_type": issue.get("shader_type")},
+                fix=fix,
             )
 
 

@@ -10,6 +10,26 @@ if TYPE_CHECKING:
 
 
 @dataclass
+class Replacement:
+    """A text replacement in a file."""
+
+    file_path: Path
+    start_line: int
+    end_line: int
+    start_col: int | None = None
+    end_col: int | None = None
+    new_text: str = ""
+
+
+@dataclass
+class Fix:
+    """Represents an automatic fix for a violation."""
+
+    description: str
+    replacements: list[Replacement] = field(default_factory=list)
+
+
+@dataclass
 class Violation:
     """Represents a lint rule violation."""
 
@@ -20,6 +40,7 @@ class Violation:
     source_file: Path | None = None
     line: int | None = None
     context: dict[str, object] = field(default_factory=dict)
+    fix: Fix | None = None  # Optional auto-fix
 
 
 # Rule category codes
@@ -88,6 +109,11 @@ class LintRule(ABC):
     def severity(self) -> str:
         """Return the default severity level."""
         return "error"
+
+    @property
+    def fixable(self) -> bool:
+        """Return whether this rule can auto-fix violations."""
+        return False
 
     @property
     def options(self) -> dict[str, OptionValue]:

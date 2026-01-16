@@ -69,3 +69,14 @@ rules:
     severity: warning
     options:
       max_inputs: 16
+  F003:
+    enabled: false
+    severity: warning
+    options:
+      max_chain_length: 8
+  F004:
+    enabled: false
+    severity: warning
+  F005:
+    enabled: false
+    severity: info

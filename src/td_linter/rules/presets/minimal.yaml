@@ -65,3 +65,12 @@ rules:
   F002:
     enabled: false
     severity: warning
+  F003:
+    enabled: false
+    severity: warning
+  F004:
+    enabled: false
+    severity: warning
+  F005:
+    enabled: false
+    severity: info

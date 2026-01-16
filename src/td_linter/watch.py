@@ -1,0 +1,208 @@
+"""Watch mode for continuous linting of .toe.dir projects."""
+
+from __future__ import annotations
+
+import time
+from pathlib import Path
+from threading import Timer
+from typing import TYPE_CHECKING, Callable
+
+if TYPE_CHECKING:
+    from watchdog.events import FileSystemEvent
+
+# Relevant file extensions for TouchDesigner projects
+TD_EXTENSIONS = frozenset({".n", ".parm", ".text", ".toc"})
+
+
+class TDLintEventHandler:
+    """Handle file system events and trigger linting with debouncing."""
+
+    def __init__(
+        self,
+        toe_dir: Path,
+        callback: Callable[[], None],
+        debounce_delay: float = 0.5,
+    ) -> None:
+        """Initialize the event handler.
+
+        Args:
+            toe_dir: The .toe.dir directory being watched.
+            callback: Function to call when relevant changes are detected.
+            debounce_delay: Seconds to wait before triggering callback (debouncing).
+        """
+        self.toe_dir = toe_dir.resolve()
+        self.callback = callback
+        self.debounce_delay = debounce_delay
+        self._debounce_timer: Timer | None = None
+        self._pending_changes: set[Path] = set()
+
+    def _is_relevant(self, path: str) -> bool:
+        """Check if a file path is relevant for linting."""
+        file_path = Path(path)
+
+        # Must be within the toe_dir
+        try:
+            file_path.relative_to(self.toe_dir)
+        except ValueError:
+            return False
+
+        # Check extension
+        return file_path.suffix.lower() in TD_EXTENSIONS
+
+    def _schedule_lint(self) -> None:
+        """Schedule a lint operation, resetting the debounce timer."""
+        if self._debounce_timer is not None:
+            self._debounce_timer.cancel()
+
+        self._debounce_timer = Timer(self.debounce_delay, self._execute_callback)
+        self._debounce_timer.start()
+
+    def _execute_callback(self) -> None:
+        """Execute the callback and clear pending changes."""
+        self._pending_changes.clear()
+        self.callback()
+
+    def dispatch(self, event: FileSystemEvent) -> None:
+        """Handle a file system event.
+
+        Args:
+            event: The file system event from watchdog.
+        """
+        # Ignore directory events
+        if event.is_directory:
+            return
+
+        src_path = event.src_path
+        if self._is_relevant(src_path):
+            self._pending_changes.add(Path(src_path))
+            self._schedule_lint()
+
+        # Handle move/rename events (have dest_path)
+        if hasattr(event, "dest_path") and event.dest_path:
+            if self._is_relevant(event.dest_path):
+                self._pending_changes.add(Path(event.dest_path))
+                self._schedule_lint()
+
+    def stop(self) -> None:
+        """Stop any pending timer."""
+        if self._debounce_timer is not None:
+            self._debounce_timer.cancel()
+            self._debounce_timer = None
+
+
+class TDLintWatcher:
+    """Watch a .toe.dir directory for changes and trigger linting."""
+
+    def __init__(
+        self,
+        toe_dir: Path,
+        on_change: Callable[[], None],
+        debounce_delay: float = 0.5,
+    ) -> None:
+        """Initialize the watcher.
+
+        Args:
+            toe_dir: The .toe.dir directory to watch.
+            on_change: Callback to invoke when relevant changes are detected.
+            debounce_delay: Seconds to wait before triggering callback.
+        """
+        self.toe_dir = toe_dir.resolve()
+        self.on_change = on_change
+        self.debounce_delay = debounce_delay
+        self._observer: "Observer" = None  # type: ignore[assignment]
+        self._handler: TDLintEventHandler | None = None
+        self._running = False
+
+    def start(self) -> None:
+        """Start watching the directory."""
+        if self._running:
+            return
+
+        # Import here to handle optional dependency
+        try:
+            from watchdog.events import FileSystemEventHandler
+            from watchdog.observers import Observer
+        except ImportError as e:
+            msg = (
+                "watchdog is required for watch mode. "
+                "Install it with: pip install td-linter[watch]"
+            )
+            raise ImportError(msg) from e
+
+        # Create a wrapper class that inherits from FileSystemEventHandler
+        handler = TDLintEventHandler(
+            self.toe_dir,
+            self.on_change,
+            self.debounce_delay,
+        )
+        self._handler = handler
+
+        class WatchdogHandler(FileSystemEventHandler):
+            def on_any_event(inner_self, event: FileSystemEvent) -> None:  # noqa: N805
+                handler.dispatch(event)
+
+        self._observer = Observer()
+        self._observer.schedule(
+            WatchdogHandler(),
+            str(self.toe_dir),
+            recursive=True,
+        )
+        self._observer.start()
+        self._running = True
+
+    def stop(self) -> None:
+        """Stop watching the directory."""
+        if not self._running:
+            return
+
+        if self._handler:
+            self._handler.stop()
+
+        if self._observer:
+            self._observer.stop()
+            self._observer.join(timeout=2.0)
+
+        self._running = False
+
+    @property
+    def is_running(self) -> bool:
+        """Return whether the watcher is currently running."""
+        return self._running
+
+    def __enter__(self) -> "TDLintWatcher":
+        """Start watching on context manager entry."""
+        self.start()
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        """Stop watching on context manager exit."""
+        self.stop()
+
+
+def run_watch_loop(
+    watcher: TDLintWatcher,
+    on_start: Callable[[], None] | None = None,
+    check_interval: float = 1.0,
+) -> None:
+    """Run the watch loop until interrupted.
+
+    Args:
+        watcher: The watcher instance to run.
+        on_start: Optional callback to invoke after starting.
+        check_interval: Seconds between checking if watcher is still alive.
+
+    Raises:
+        KeyboardInterrupt: When the user interrupts the loop.
+    """
+    watcher.start()
+
+    if on_start:
+        on_start()
+
+    try:
+        while watcher.is_running:
+            time.sleep(check_interval)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        watcher.stop()

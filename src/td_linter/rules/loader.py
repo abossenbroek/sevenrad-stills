@@ -45,6 +45,7 @@ class LintConfig:
 
     version: str = "1.0.0"
     rules: dict[str, RuleConfig] = field(default_factory=dict)
+    raw_config: dict[str, Any] = field(default_factory=dict)
 
     def is_rule_enabled(self, rule_id: str) -> bool:
         """Check if a rule is enabled."""
@@ -123,8 +124,11 @@ class ConfigLoader:
 
     def _process_config(self, raw_config: dict[str, Any]) -> LintConfig:
         """Process raw config dict into LintConfig, resolving presets."""
-        # Start with empty config
-        config = LintConfig(version=raw_config.get("version", "1.0.0"))
+        # Start with empty config, storing raw config for plugin loading
+        config = LintConfig(
+            version=raw_config.get("version", "1.0.0"),
+            raw_config=raw_config,
+        )
 
         # Resolve extends (presets)
         extends = raw_config.get("extends")

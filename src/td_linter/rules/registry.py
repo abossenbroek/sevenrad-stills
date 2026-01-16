@@ -17,23 +17,49 @@ class RuleRegistry:
     Registry for managing lint rules.
 
     Handles rule registration, instantiation, and filtering based on
-    configuration.
+    configuration. Supports both built-in rules and custom plugin rules.
     """
 
-    def __init__(self, config: LintConfig | None = None) -> None:
+    def __init__(
+        self,
+        config: LintConfig | None = None,
+        load_plugins: bool = True,
+    ) -> None:
         """
         Initialize the registry with optional configuration.
 
         Args:
             config: Lint configuration. If None, uses recommended preset.
+            load_plugins: Whether to load plugin rules from config and entry points.
 
         """
         self._config = config or load_config(None)
-        self._rule_classes = get_all_builtin_rules()
+        self._rule_classes = list(get_all_builtin_rules())
         self._rules: dict[str, LintRule] = {}
+        self._plugin_errors: list[tuple[str, Exception]] = []
+
+        # Load plugin rules if enabled
+        if load_plugins:
+            self._load_plugins()
 
         # Instantiate all rules with their configuration
         self._instantiate_rules()
+
+    def _load_plugins(self) -> None:
+        """Load plugin rules from configuration and entry points."""
+        from td_linter.plugins import load_plugins
+
+        # Get plugins config from LintConfig
+        plugins_config = self._config.raw_config.get("plugins", [])
+
+        # Load plugins
+        plugin_rules, errors = load_plugins(
+            plugins_config=plugins_config,
+            load_entry_points=True,
+        )
+
+        self._rule_classes.extend(plugin_rules)
+        self._plugin_errors = errors
 
     def _instantiate_rules(self) -> None:
         """Instantiate all registered rule classes with config options."""
@@ -68,6 +94,11 @@ class RuleRegistry:
     def config(self) -> LintConfig:
         """Return the current configuration."""
         return self._config
+
+    @property
+    def plugin_errors(self) -> list[tuple[str, Exception]]:
+        """Return any errors that occurred during plugin loading."""
+        return list(self._plugin_errors)
 
     def all(self) -> list[LintRule]:
         """Return all registered rules."""

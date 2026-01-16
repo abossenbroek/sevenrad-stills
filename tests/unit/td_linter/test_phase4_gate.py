@@ -72,7 +72,7 @@ class TestG41RulesLoadFromYAML:
         registry = get_registry(config_file)
 
         # Strict preset enables all rules
-        assert len(registry.enabled()) == 16
+        assert len(registry.enabled()) == 19
 
 
 class TestG42RulesCanBeDisabled:
@@ -145,7 +145,7 @@ class TestG43PresetsWork:
     """G4.3: Presets work - extends: pedantic enables all rules."""
 
     def test_pedantic_enables_all_rules(self, tmp_path: Path) -> None:
-        """Pedantic preset should enable all 16 rules."""
+        """Pedantic preset should enable all 19 rules."""
         config_content = {
             "version": "1.0.0",
             "extends": "pedantic",
@@ -157,8 +157,8 @@ class TestG43PresetsWork:
         registry = RuleRegistry.from_config_file(config_file)
         enabled = registry.enabled()
 
-        # All 16 rules should be enabled
-        assert len(enabled) == 16
+        # All 19 rules should be enabled
+        assert len(enabled) == 19
 
     def test_pedantic_upgrades_severities(self, tmp_path: Path) -> None:
         """Pedantic preset should upgrade severities to error."""

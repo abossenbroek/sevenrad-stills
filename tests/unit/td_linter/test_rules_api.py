@@ -20,11 +20,11 @@ class TestRuleRegistryBasics:
     """Basic registry functionality tests."""
 
     def test_registry_loads_all_rules(self) -> None:
-        """Registry should load all 16 builtin rules."""
+        """Registry should load all 19 builtin rules."""
         registry = RuleRegistry()
         rules = registry.all()
 
-        assert len(rules) == 16
+        assert len(rules) == 19
 
     def test_registry_has_all_categories(self) -> None:
         """Registry should have rules in all categories."""
@@ -147,7 +147,7 @@ class TestRuleInfo:
         registry = RuleRegistry()
 
         all_info = registry.list_all_rules()
-        assert len(all_info) == 16
+        assert len(all_info) == 19
 
         # Should be sorted by rule_id
         ids = [info["rule_id"] for info in all_info]
@@ -170,7 +170,7 @@ class TestConfigIntegration:
         registry = RuleRegistry.from_config_file(config_file)
 
         # Pedantic enables all rules
-        assert len(registry.enabled()) == 16
+        assert len(registry.enabled()) == 19
 
     def test_options_passed_to_rules(self) -> None:
         """Rule options from config should be passed to rule instances."""
@@ -194,4 +194,4 @@ class TestConvenienceFunction:
         registry = get_registry()
 
         assert isinstance(registry, RuleRegistry)
-        assert len(registry.all()) == 16
+        assert len(registry.all()) == 19

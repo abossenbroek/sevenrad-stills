@@ -137,3 +137,256 @@ class ExcessiveInputsRule(LintRule):
                         "max_inputs": max_inputs,
                     },
                 )
+
+
+class HeavyTextureChainsRule(LintRule):
+    """
+    F003: Detect long chains of TOP operators without caching.
+
+    Long chains of texture operators can cause performance issues.
+    Consider using Cache TOP or render-to-texture to break up chains.
+
+    Options:
+        max_chain_length: Maximum TOP chain length before warning (default: 8)
+    """
+
+    def __init__(self, options: dict[str, OptionValue] | None = None) -> None:
+        """Initialize the rule."""
+        super().__init__(options)
+
+    @property
+    def rule_id(self) -> str:
+        """Return rule code."""
+        return "F003"
+
+    @property
+    def name(self) -> str:
+        """Return rule name."""
+        return "heavy-texture-chains"
+
+    @property
+    def description(self) -> str:
+        """Return rule description."""
+        return "Detect long chains of TOP operators"
+
+    @property
+    def severity(self) -> str:
+        """Return default severity."""
+        return "warning"
+
+    def check(self, graph: nx.DiGraph) -> Iterator[Violation]:
+        """Check for long TOP chains."""
+        max_length_opt = self.get_option("max_chain_length", 8)
+        max_length = (
+            int(max_length_opt) if isinstance(max_length_opt, (int, float, str)) else 8
+        )
+
+        # Cache operators that break chains
+        cache_ops = frozenset({"cache", "rendertop", "feedback", "feedbacktop"})
+
+        # Find TOP-only chains
+        visited: set[str] = set()
+
+        for node in graph.nodes:
+            if node in visited or node.startswith("MISSING:"):
+                continue
+
+            node_data = graph.nodes.get(node, {})
+            family = node_data.get("family", "")
+
+            if family != "TOP":
+                continue
+
+            # Measure chain length from this node
+            chain_length = self._measure_top_chain(graph, node, cache_ops, visited)
+
+            if chain_length > max_length:
+                yield Violation(
+                    rule=self.rule_id,
+                    message=f"TOP chain starting at '{node}' has {chain_length} operators (max: {max_length})",
+                    path=node,
+                    severity=self.severity,
+                    context={
+                        "chain_length": chain_length,
+                        "max_chain_length": max_length,
+                    },
+                )
+
+    def _measure_top_chain(
+        self,
+        graph: nx.DiGraph,
+        start_node: str,
+        cache_ops: frozenset[str],
+        visited: set[str],
+    ) -> int:
+        """Measure the length of a TOP-only chain from a node."""
+        chain_length = 0
+        current = start_node
+
+        while current and current not in visited:
+            visited.add(current)
+
+            node_data = graph.nodes.get(current, {})
+            family = node_data.get("family", "")
+            op_type = node_data.get("operator", "").lower()
+
+            # Stop at non-TOP nodes or cache operators
+            if family != "TOP" or op_type in cache_ops:
+                break
+
+            chain_length += 1
+
+            # Move to next node in chain (follow outputs)
+            successors = list(graph.successors(current))
+            if len(successors) == 1:
+                next_node = successors[0]
+                next_data = graph.nodes.get(next_node, {})
+                if next_data.get("family") == "TOP":
+                    current = next_node
+                else:
+                    break
+            else:
+                break
+
+        return chain_length
+
+
+class UnoptimizedFeedbackRule(LintRule):
+    """
+    F004: Detect feedback loops without cache operators.
+
+    Feedback loops should include cache operators for optimal
+    performance. Without caching, feedback can cause excessive
+    recomputation.
+
+    Note: This rule checks for cycles that don't include known
+    cache/delay operators.
+    """
+
+    def __init__(self, options: dict[str, OptionValue] | None = None) -> None:
+        """Initialize the rule."""
+        super().__init__(options)
+
+    @property
+    def rule_id(self) -> str:
+        """Return rule code."""
+        return "F004"
+
+    @property
+    def name(self) -> str:
+        """Return rule name."""
+        return "unoptimized-feedback"
+
+    @property
+    def description(self) -> str:
+        """Return rule description."""
+        return "Detect feedback loops without cache operators"
+
+    @property
+    def severity(self) -> str:
+        """Return default severity."""
+        return "warning"
+
+    def check(self, graph: nx.DiGraph) -> Iterator[Violation]:
+        """Check for feedback loops without cache operators."""
+        # Operators that properly handle feedback
+        feedback_ops = frozenset({
+            "feedback", "feedbackchop", "feedbacktop",
+            "cache", "delay", "lag", "timemachine",
+        })
+
+        try:
+            cycles = list(nx.simple_cycles(graph))
+        except nx.NetworkXNoCycle:
+            return
+
+        for cycle in cycles:
+            # Check if any node in cycle is a proper feedback operator
+            has_cache = False
+            for node in cycle:
+                if node.startswith("MISSING:"):
+                    continue
+                node_data = graph.nodes.get(node, {})
+                op_type = node_data.get("operator", "").lower()
+                if op_type in feedback_ops:
+                    has_cache = True
+                    break
+
+            if not has_cache and len(cycle) > 0:
+                first_node = cycle[0]
+                yield Violation(
+                    rule=self.rule_id,
+                    message=f"Feedback loop at '{first_node}' has no cache/delay operators",
+                    path=first_node,
+                    severity=self.severity,
+                    context={
+                        "cycle_length": len(cycle),
+                        "cycle_nodes": cycle[:5],  # First 5 nodes for context
+                    },
+                )
+
+
+class CookEveryFrameRule(LintRule):
+    """
+    F005: Detect operators unnecessarily set to cook every frame.
+
+    Some operators may be set to cook every frame when they don't
+    need to, causing unnecessary computation.
+
+    Note: This is a heuristic check based on operator metadata
+    stored in the graph.
+    """
+
+    def __init__(self, options: dict[str, OptionValue] | None = None) -> None:
+        """Initialize the rule."""
+        super().__init__(options)
+
+    @property
+    def rule_id(self) -> str:
+        """Return rule code."""
+        return "F005"
+
+    @property
+    def name(self) -> str:
+        """Return rule name."""
+        return "cook-every-frame"
+
+    @property
+    def description(self) -> str:
+        """Return rule description."""
+        return "Detect operators unnecessarily cooking every frame"
+
+    @property
+    def severity(self) -> str:
+        """Return default severity."""
+        return "info"
+
+    def check(self, graph: nx.DiGraph) -> Iterator[Violation]:
+        """Check for operators cooking every frame unnecessarily."""
+        # Operators that legitimately cook every frame
+        time_based_ops = frozenset({
+            "timer", "constant", "noise", "pattern", "ramp",
+            "moviefilein", "videodevin", "audiodevin", "audiofilein",
+            "lfo", "beat", "speed", "count", "audiospectrum",
+        })
+
+        for node in graph.nodes:
+            if node.startswith("MISSING:"):
+                continue
+
+            node_data = graph.nodes.get(node, {})
+            op_type = node_data.get("operator", "").lower()
+
+            # Check if node has cook-every-frame flag set
+            cook_flag = node_data.get("cook_every_frame", False)
+
+            if cook_flag and op_type not in time_based_ops:
+                yield Violation(
+                    rule=self.rule_id,
+                    message=f"Operator '{node}' is set to cook every frame",
+                    path=node,
+                    severity=self.severity,
+                    context={
+                        "operator_type": op_type,
+                    },
+                )

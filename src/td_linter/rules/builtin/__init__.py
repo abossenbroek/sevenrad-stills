@@ -6,7 +6,13 @@ from td_linter.rules.builtin.glsl import (
     GLSLSyntaxRule,
     GLSLTDOutputRule,
 )
-from td_linter.rules.builtin.performance import DeepNestingRule, ExcessiveInputsRule
+from td_linter.rules.builtin.performance import (
+    CookEveryFrameRule,
+    DeepNestingRule,
+    ExcessiveInputsRule,
+    HeavyTextureChainsRule,
+    UnoptimizedFeedbackRule,
+)
 from td_linter.rules.builtin.python_rules import (
     PythonSyntaxRule,
     PythonUndefinedNameRule,
@@ -24,11 +30,13 @@ from td_linter.rules.builtin.syntax import (
 from td_linter.rules.builtin.type_rules import TypeCompatibilityRule
 
 __all__ = [
+    "CookEveryFrameRule",
     "DeepNestingRule",
     "ExcessiveInputsRule",
     "GLSLNoVersionRule",
     "GLSLSyntaxRule",
     "GLSLTDOutputRule",
+    "HeavyTextureChainsRule",
     "NoDanglingInputsRule",
     "NoInvalidCyclesRule",
     "PythonSyntaxRule",
@@ -36,6 +44,7 @@ __all__ = [
     "TDExecuteDatCallbacksRule",
     "TocCompletenessRule",
     "TypeCompatibilityRule",
+    "UnoptimizedFeedbackRule",
     "ValidNFileSyntaxRule",
     "ValidOperatorReferencesRule",
     "ValidParmFileSyntaxRule",
@@ -69,4 +78,7 @@ def get_all_builtin_rules() -> list[type]:
         # Performance (F)
         DeepNestingRule,
         ExcessiveInputsRule,
+        HeavyTextureChainsRule,
+        UnoptimizedFeedbackRule,
+        CookEveryFrameRule,
     ]
