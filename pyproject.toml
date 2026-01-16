@@ -56,6 +56,12 @@ td-linter-all = [
 sevenrad = "sevenrad_stills.cli.commands:cli"
 td-linter = "td_linter.cli:app"
 
+[project.entry-points."td_linter.rules"]
+# Plugin entry point group for custom td-linter rules
+# Users can register plugins using this group in their pyproject.toml:
+#   [project.entry-points."td_linter.rules"]
+#   my_rules = "my_package.rules:MyCustomRule"
+
 [tool.ruff]
 target-version = "py312"
 line-length = 88

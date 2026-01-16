@@ -50,6 +50,13 @@
         "$ref": "#/$defs/ruleConfig"
       },
       "description": "Per-rule configuration overrides"
+    },
+    "plugins": {
+      "type": "array",
+      "description": "Plugin configurations for loading custom rules",
+      "items": {
+        "$ref": "#/$defs/pluginConfig"
+      }
     }
   },
   "$defs": {
@@ -76,6 +83,32 @@
         }
       },
       "additionalProperties": false
+    },
+    "pluginConfig": {
+      "type": "object",
+      "description": "Configuration for loading a plugin",
+      "oneOf": [
+        {
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Path to a .py file containing LintRule subclasses"
+            }
+          },
+          "required": ["path"],
+          "additionalProperties": false
+        },
+        {
+          "properties": {
+            "module": {
+              "type": "string",
+              "description": "Python module name to import (e.g., 'my_company.td_rules')"
+            }
+          },
+          "required": ["module"],
+          "additionalProperties": false
+        }
+      ]
     }
   },
   "additionalProperties": false
