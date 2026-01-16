@@ -295,3 +295,306 @@ Warning: Failed to load plugin ./broken_rules.py
 4. **Document options**: Explain what each option does
 5. **Test thoroughly**: Include edge cases in your tests
 6. **Handle missing data**: Check for None values in graph data
+
+## Security Model
+
+td-linter validates plugins before loading them using AST analysis.
+
+### What's Checked
+
+The plugin security validator scans for:
+- **Dangerous imports**: `os`, `subprocess`, `sys`, `shutil`, `importlib`
+- **Dangerous functions**: `eval`, `exec`, `compile`, `open`, `__import__`
+- **Network access**: `socket`, `urllib`, `requests`, `http`
+- **File operations**: Direct file I/O outside the validation context
+
+### Why This Matters
+
+Plugins run with full Python access. The security checks prevent:
+- Arbitrary code execution
+- File system access outside the project
+- Network requests to external services
+- System command execution
+
+### If Your Plugin is Blocked
+
+If your plugin uses a blocked construct legitimately:
+
+1. **Refactor to avoid it** - Usually possible for most use cases
+2. **Use built-in utilities** - td-linter provides safe alternatives
+3. **Request allowlisting** - For known-safe patterns
+
+```python
+# BLOCKED: Direct file read
+content = open(path).read()
+
+# SAFE: Use the operator's stored content
+content = node_data.get("operator").text_content
+```
+
+## Accessing Graph Data
+
+The NetworkX graph contains rich data about each operator.
+
+### Node Attributes
+
+```python
+def check(self, graph: nx.DiGraph) -> Iterator[Violation]:
+    for node_path in graph.nodes:
+        data = graph.nodes[node_path]
+
+        # Available attributes:
+        family = data.get("family")       # "TOP", "CHOP", "SOP", etc.
+        op_type = data.get("op_type")     # "noise", "moviefilein", etc.
+        source_file = data.get("source_file")  # Path to .n file
+        operator = data.get("operator")   # Full OperatorNode object
+
+        # From OperatorNode:
+        if operator:
+            name = operator.name
+            tile = operator.tile  # TilePosition(x, y, width, height)
+            flags = operator.flags  # dict of flag values
+            inputs = operator.inputs  # list of (index, ref_name)
+            color = operator.color  # RGB tuple or None
+```
+
+### Edge Attributes
+
+```python
+def check(self, graph: nx.DiGraph) -> Iterator[Violation]:
+    for source, target, data in graph.edges(data=True):
+        input_index = data.get("input_index")  # Which input slot
+        is_missing = data.get("missing", False)  # Reference to non-existent op
+```
+
+### Graph Traversal
+
+```python
+import networkx as nx
+
+def check(self, graph: nx.DiGraph) -> Iterator[Violation]:
+    # Get all predecessors (operators feeding into this one)
+    for node in graph.nodes:
+        inputs = list(graph.predecessors(node))
+        outputs = list(graph.successors(node))
+
+    # Find cycles
+    cycles = list(nx.simple_cycles(graph))
+
+    # Get all paths between two nodes
+    paths = list(nx.all_simple_paths(graph, source, target))
+
+    # Calculate depth (longest path from root)
+    # Note: Only works for DAGs
+    try:
+        lengths = nx.single_source_shortest_path_length(graph, root)
+    except nx.NetworkXError:
+        pass  # Has cycles
+
+    # Get strongly connected components
+    sccs = list(nx.strongly_connected_components(graph))
+```
+
+## Debugging Plugins
+
+### Print Debug Output
+
+```python
+class MyRule(LintRule):
+    def check(self, graph: nx.DiGraph) -> Iterator[Violation]:
+        import sys
+        print(f"DEBUG: Graph has {len(graph.nodes)} nodes", file=sys.stderr)
+
+        for node in graph.nodes:
+            data = graph.nodes[node]
+            print(f"DEBUG: {node} -> {data.get('family')}", file=sys.stderr)
+```
+
+Run with stderr visible:
+```bash
+td-linter lint project.toe.dir 2>&1 | grep DEBUG
+```
+
+### Test in Isolation
+
+```python
+# test_my_rule.py
+import networkx as nx
+from my_rules import MyRule
+
+def test_rule():
+    graph = nx.DiGraph()
+    graph.add_node("test/op1", family="TOP", op_type="noise")
+    graph.add_node("test/op2", family="TOP", op_type="null")
+    graph.add_edge("test/op1", "test/op2", input_index=0)
+
+    rule = MyRule()
+    violations = list(rule.check(graph))
+
+    print(f"Found {len(violations)} violations:")
+    for v in violations:
+        print(f"  {v.rule}: {v.message}")
+
+if __name__ == "__main__":
+    test_rule()
+```
+
+### Check Plugin Loading
+
+```bash
+# Verify plugin loads without errors
+python -c "
+from pathlib import Path
+exec(Path('my_rules.py').read_text())
+print('Plugin loaded successfully')
+"
+```
+
+## Publishing Your Plugin
+
+### As a Python Package
+
+1. Create package structure:
+```
+my-td-rules/
+├── pyproject.toml
+├── src/
+│   └── my_td_rules/
+│       ├── __init__.py
+│       └── rules.py
+└── README.md
+```
+
+2. Configure `pyproject.toml`:
+```toml
+[project]
+name = "my-td-rules"
+version = "1.0.0"
+
+[project.entry-points."td_linter.rules"]
+my_rules = "my_td_rules.rules"
+```
+
+3. Install and use:
+```bash
+pip install my-td-rules
+# Plugin auto-discovered via entry points
+td-linter lint project.toe.dir
+```
+
+### Sharing as a File
+
+For simpler distribution:
+
+1. Share the `.py` file
+2. Users add to their config:
+```yaml
+plugins:
+  - path: ./my_rules.py
+```
+
+### Documentation Template
+
+Include with your plugin:
+
+```markdown
+# My Custom Rules
+
+## Installation
+
+pip install my-td-rules
+
+## Rules
+
+### MYCO001: my-custom-rule
+
+**Severity**: warning
+
+**Description**: Checks for [specific condition].
+
+**Why**: Explains why this matters.
+
+**Options**:
+- `threshold` (int, default: 10): Maximum allowed value
+
+**Configuration**:
+```yaml
+rules:
+  MYCO001:
+    enabled: true
+    options:
+      threshold: 15
+```
+```
+
+## Performance Tips
+
+### Minimize Graph Traversal
+
+```python
+# SLOW: Multiple full traversals
+for node in graph.nodes:
+    if has_issue_a(node):
+        yield violation
+for node in graph.nodes:
+    if has_issue_b(node):
+        yield violation
+
+# FAST: Single traversal
+for node in graph.nodes:
+    if has_issue_a(node):
+        yield violation_a
+    if has_issue_b(node):
+        yield violation_b
+```
+
+### Cache Computed Values
+
+```python
+class MyRule(LintRule):
+    def check(self, graph: nx.DiGraph) -> Iterator[Violation]:
+        # Cache expensive computation
+        top_operators = {
+            n for n in graph.nodes
+            if graph.nodes[n].get("family") == "TOP"
+        }
+
+        for node in top_operators:
+            # Use cached set
+            ...
+```
+
+### Use NetworkX Efficiently
+
+```python
+# SLOW: Check existence by iteration
+exists = any(n == target for n in graph.nodes)
+
+# FAST: Direct lookup
+exists = target in graph.nodes
+
+# SLOW: Get all edges then filter
+edges = [(u, v) for u, v in graph.edges if u == source]
+
+# FAST: Use built-in method
+edges = list(graph.out_edges(source))
+```
+
+### Skip Unnecessary Work
+
+```python
+def check(self, graph: nx.DiGraph) -> Iterator[Violation]:
+    # Early exit if nothing to check
+    if len(graph.nodes) == 0:
+        return
+
+    # Only check relevant operators
+    relevant = [
+        n for n in graph.nodes
+        if graph.nodes[n].get("family") in ("TOP", "CHOP")
+    ]
+
+    for node in relevant:
+        # Expensive check only on filtered set
+        ...
+```

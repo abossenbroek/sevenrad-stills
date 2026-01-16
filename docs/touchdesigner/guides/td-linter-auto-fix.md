@@ -176,3 +176,227 @@ Some fixes may need follow-up:
 1. Run lint again to check
 2. Some issues require multiple passes
 3. Some violations are similar but not identical
+
+## Fix Safety
+
+### Content Hash Verification
+
+td-linter verifies files haven't changed before applying fixes:
+
+1. When a violation is created, the file's SHA-256 hash is recorded
+2. Before applying a fix, the current hash is compared
+3. If hashes differ, the fix is skipped to prevent data corruption
+
+This prevents issues when:
+- You edit a file after running lint
+- Another process modifies the file
+- Multiple lint runs overlap
+
+### Path Traversal Protection
+
+All file paths in fixes are validated:
+- Resolved to absolute paths
+- Checked against project boundary
+- Symlinks fully resolved
+
+This prevents malicious fixes from escaping the project directory.
+
+### Disable Safety Checks
+
+For automated pipelines where you're confident in the state:
+
+```python
+from td_linter.fix import FixApplier
+
+applier = FixApplier(
+    verify_hashes=False,  # Skip hash verification
+)
+```
+
+**Warning:** Only disable safety checks in controlled environments.
+
+## Creating Fixable Rules
+
+Plugin authors can create rules that provide automatic fixes.
+
+### Fix Structure
+
+```python
+from td_linter.rules.base import LintRule, Violation, Fix, Replacement
+
+class MyFixableRule(LintRule):
+    @property
+    def fixable(self) -> bool:
+        return True  # Mark as fixable
+
+    def check(self, graph):
+        for node in graph.nodes:
+            if issue_found:
+                yield Violation(
+                    rule=self.rule_id,
+                    message="Issue description",
+                    path=node,
+                    fix=Fix(
+                        description="What the fix does",
+                        replacements=[
+                            Replacement(
+                                file_path=source_file,
+                                start_line=5,  # 1-indexed
+                                end_line=6,    # Exclusive
+                                new_text="replacement content",
+                            )
+                        ]
+                    )
+                )
+```
+
+### Replacement Types
+
+**Full line replacement:**
+```python
+Replacement(
+    file_path=path,
+    start_line=5,
+    end_line=6,  # Replaces line 5
+    new_text="new line content\n",
+)
+```
+
+**Column-specific (single line):**
+```python
+Replacement(
+    file_path=path,
+    start_line=5,
+    end_line=5,
+    start_col=10,  # 0-indexed
+    end_col=20,    # Exclusive
+    new_text="replaced",
+)
+```
+
+**Delete lines:**
+```python
+Replacement(
+    file_path=path,
+    start_line=5,
+    end_line=8,  # Deletes lines 5-7
+    new_text="",
+)
+```
+
+**Insert lines:**
+```python
+Replacement(
+    file_path=path,
+    start_line=5,
+    end_line=5,  # Insert before line 5
+    new_text="new line 1\nnew line 2\n",
+)
+```
+
+### Adding Content Hash
+
+For safety, include the file's hash when creating the fix:
+
+```python
+from td_linter.fix import FixApplier
+
+content_hash = FixApplier.compute_file_hash(source_file)
+
+Replacement(
+    file_path=source_file,
+    start_line=5,
+    end_line=6,
+    new_text="fixed content",
+    content_hash=content_hash,  # Enables verification
+)
+```
+
+## Batch Fixing
+
+### Multiple Projects
+
+Fix all projects in a directory:
+
+```bash
+#!/bin/bash
+for project in *.toe.dir; do
+    echo "Fixing: $project"
+    td-linter fix "$project" --verbose
+done
+```
+
+### Python Script
+
+```python
+#!/usr/bin/env python3
+"""Batch fix multiple projects."""
+
+from pathlib import Path
+from td_linter import lint
+from td_linter.fix import FixApplier
+
+def fix_all_projects(root_dir: Path):
+    results = {}
+
+    for project in root_dir.glob("*.toe.dir"):
+        print(f"Processing: {project}")
+
+        violations = lint(project)
+        fixable = [v for v in violations if v.fix is not None]
+
+        if not fixable:
+            results[project.name] = {"fixed": 0, "skipped": 0}
+            continue
+
+        applier = FixApplier(project_root=project)
+        result = applier.apply(fixable)
+
+        results[project.name] = {
+            "fixed": result.success_count,
+            "skipped": result.skipped_count,
+            "failed": result.failure_count,
+        }
+
+    return results
+
+if __name__ == "__main__":
+    results = fix_all_projects(Path("."))
+    for project, counts in results.items():
+        print(f"{project}: {counts}")
+```
+
+### CI/CD Integration
+
+```yaml
+# .github/workflows/fix.yml
+name: Auto-Fix
+
+on:
+  push:
+    paths:
+      - '**.toe.dir/**'
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install td-linter
+        run: pip install sevenrad-stills
+
+      - name: Apply fixes
+        run: |
+          for project in *.toe.dir; do
+            td-linter fix "$project"
+          done
+
+      - name: Commit fixes
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add .
+          git diff --staged --quiet || git commit -m "Auto-fix td-linter violations"
+          git push
+```

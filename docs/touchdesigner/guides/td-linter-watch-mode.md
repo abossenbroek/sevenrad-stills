@@ -173,3 +173,171 @@ Other files are ignored by the watcher.
 ### Permission Errors
 
 On macOS, grant terminal access to the project directory if prompted.
+
+## Event-Based API
+
+For programmatic integration, use the `EventBasedWatcher` class which emits events for all actions.
+
+### Basic Usage
+
+```python
+from pathlib import Path
+from td_linter import lint
+from td_linter.watch import EventBasedWatcher
+from td_linter.events import EventType
+
+def lint_project(toe_dir: Path):
+    return lint(str(toe_dir))
+
+watcher = EventBasedWatcher(
+    Path("project.toe.dir"),
+    lint_callback=lint_project,
+    debounce_delay=0.5,
+)
+
+# Subscribe to specific events
+watcher.events.subscribe(
+    lambda e: print(f"Lint complete: {e.error_count} errors"),
+    event_types={EventType.LINT_COMPLETE}
+)
+
+watcher.events.subscribe(
+    lambda e: print(f"Error: {e.error_message}"),
+    event_types={EventType.LINT_ERROR}
+)
+
+watcher.start()
+```
+
+### Available Events
+
+| Event | When Fired | Useful Attributes |
+|-------|------------|-------------------|
+| `WatcherStartEvent` | Watcher starts | `toe_dir` |
+| `WatcherStopEvent` | Watcher stops | `toe_dir`, `reason` |
+| `FileChangeEvent` | File modified | `toe_dir`, `file_path` |
+| `LintStartEvent` | Lint begins | `toe_dir` |
+| `LintCompleteEvent` | Lint finishes | `violations`, `error_count`, `warning_count`, `duration_ms` |
+| `LintErrorEvent` | Lint fails | `error`, `error_message` |
+
+### Example: Custom Reporter
+
+```python
+import json
+from datetime import datetime
+from td_linter.watch import EventBasedWatcher
+from td_linter.events import EventType, LintCompleteEvent
+
+class JSONReporter:
+    def __init__(self, output_file):
+        self.output_file = output_file
+
+    def on_lint_complete(self, event: LintCompleteEvent):
+        report = {
+            "timestamp": datetime.now().isoformat(),
+            "project": str(event.toe_dir),
+            "errors": event.error_count,
+            "warnings": event.warning_count,
+            "duration_ms": event.duration_ms,
+            "violations": [
+                {"rule": v.rule, "message": v.message, "path": v.path}
+                for v in event.violations
+            ]
+        }
+        with open(self.output_file, "a") as f:
+            f.write(json.dumps(report) + "\n")
+
+reporter = JSONReporter("lint-results.jsonl")
+watcher.events.subscribe(
+    reporter.on_lint_complete,
+    event_types={EventType.LINT_COMPLETE}
+)
+```
+
+## Build Tool Integration
+
+### Make
+
+```makefile
+# Makefile
+
+.PHONY: lint lint-watch
+
+lint:
+	td-linter lint project.toe.dir --fail-on-warning
+
+lint-watch:
+	td-linter watch project.toe.dir --fix
+```
+
+### npm/package.json
+
+```json
+{
+  "scripts": {
+    "lint:td": "td-linter lint project.toe.dir",
+    "lint:td:watch": "td-linter watch project.toe.dir",
+    "lint:td:fix": "td-linter fix project.toe.dir"
+  }
+}
+```
+
+## Running as a Service
+
+### systemd (Linux)
+
+Create `/etc/systemd/system/td-linter-watch.service`:
+
+```ini
+[Unit]
+Description=td-linter Watch Mode
+After=network.target
+
+[Service]
+Type=simple
+User=youruser
+WorkingDirectory=/path/to/project
+ExecStart=/usr/bin/td-linter watch project.toe.dir --no-clear
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+```bash
+sudo systemctl enable td-linter-watch
+sudo systemctl start td-linter-watch
+```
+
+### launchd (macOS)
+
+Create `~/Library/LaunchAgents/com.td-linter.watch.plist`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.td-linter.watch</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/td-linter</string>
+        <string>watch</string>
+        <string>/path/to/project.toe.dir</string>
+        <string>--no-clear</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+</dict>
+</plist>
+```
+
+Load the service:
+```bash
+launchctl load ~/Library/LaunchAgents/com.td-linter.watch.plist
+```

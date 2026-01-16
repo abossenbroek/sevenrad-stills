@@ -1,6 +1,6 @@
 # td-linter Rules Catalog
 
-This document describes all available lint rules in td-linter.
+This document describes all available lint rules in td-linter, including why each rule matters and how to fix violations.
 
 ## Rule Categories
 
@@ -14,6 +14,17 @@ This document describes all available lint rules in td-linter.
 | P | Python | Embedded Python expression validation |
 | F | Performance | Performance optimization rules |
 
+## Understanding Rule Entries
+
+Each rule includes:
+- **Description**: What the rule checks
+- **Why It Matters**: Impact of violations
+- **How to Fix**: Steps to resolve
+- **Example**: Sample violation and resolution
+- **Related Rules**: Cross-references
+
+---
+
 ## Syntax Rules (S)
 
 ### S001: valid-n-syntax
@@ -24,7 +35,13 @@ This document describes all available lint rules in td-linter.
 
 **Fixable**: No
 
-**Details**: Checks that `.n` (node definition) files can be parsed according to the TouchDesigner format grammar.
+**Why It Matters**: Invalid `.n` files cannot be parsed by TouchDesigner's `toecollapse` tool, preventing project rebuild. Corrupted node files can cause data loss or prevent project loading.
+
+**How to Fix**:
+1. Check for typos in operator family names (must be `TOP`, `CHOP`, `SOP`, `DAT`, `COMP`, `MAT`)
+2. Ensure proper bracket matching in `inputs {}` and `flags {}` blocks
+3. Verify `tile` line has exactly 4 numeric values
+4. Check for stray characters or encoding issues
 
 **Example violation**:
 ```
@@ -33,6 +50,10 @@ Error S001: Syntax error in node definition
   Line: 5
   Message: Unexpected token 'invalid'
 ```
+
+**Resolution**: Open the `.n` file and fix the syntax error at the indicated line.
+
+**Related Rules**: S002, S003
 
 ---
 
@@ -44,7 +65,17 @@ Error S001: Syntax error in node definition
 
 **Fixable**: No
 
+**Why It Matters**: Invalid `.parm` files prevent parameter values from loading correctly. This can cause operators to use default values instead of your configured settings.
+
+**How to Fix**:
+1. Check that each parameter line starts with a valid mode flag (0, 17, 32, 49)
+2. Ensure parameter names don't contain special characters
+3. Verify string values are properly quoted
+4. Check for encoding issues (files should be UTF-8)
+
 **Details**: Checks that `.parm` (parameter) files follow the expected format with mode flags and values.
+
+**Related Rules**: S001, P001
 
 ---
 
@@ -56,7 +87,17 @@ Error S001: Syntax error in node definition
 
 **Fixable**: No
 
+**Why It Matters**: The `.toc` file is the project manifest. Missing or incorrect entries can cause operators to be lost when collapsing back to `.toe` format.
+
+**How to Fix**:
+1. Run `toeexpand` again to regenerate the manifest
+2. If manually edited, ensure all operator paths are correct
+3. Remove entries for deleted operators
+4. Add entries for new operators
+
 **Details**: Ensures the table of contents file lists valid operator paths.
+
+**Related Rules**: R001
 
 ## Connection Rules (C)
 
@@ -68,7 +109,16 @@ Error S001: Syntax error in node definition
 
 **Fixable**: No
 
-**Details**: Cycles in the operator graph are invalid unless they contain a feedback operator (`feedback`, `feedbackchop`, `timemachine`, `delay`, `lag`). All-CHOP cycles are also valid.
+**Why It Matters**: Invalid cycles cause infinite loops in TouchDesigner's cook process. This can freeze the application, cause crashes, or produce incorrect output. TouchDesigner may refuse to load projects with invalid cycles.
+
+**How to Fix**:
+1. **Add a feedback operator**: Insert `feedback` (TOP), `feedbackchop` (CHOP), `timemachine`, `delay`, or `lag` into the cycle
+2. **Break the cycle**: Restructure your network to remove the circular dependency
+3. **Use a Cache TOP**: Can serve as a frame delay in some cases
+
+**Valid cycle patterns**:
+- All-CHOP cycles (native feedback support)
+- Any cycle containing: `feedback`, `feedbackchop`, `timemachine`, `delay`, `lag`
 
 **Example violation**:
 ```
@@ -76,6 +126,19 @@ Error C001: Invalid cycle detected
   Path: op1 → op2 → op3 → op1
   Message: Cycle does not contain feedback operator
 ```
+
+**Resolution**:
+```
+# Before (invalid):
+noise1 → level1 → composite1 → noise1
+
+# After (valid):
+noise1 → level1 → composite1 → feedback1 → noise1
+```
+
+**Related Rules**: T001, C002
+
+**TouchDesigner Reference**: [Feedback TOP](https://docs.derivative.ca/Feedback_TOP)
 
 ---
 
@@ -87,6 +150,14 @@ Error C001: Invalid cycle detected
 
 **Fixable**: No
 
+**Why It Matters**: Dangling inputs indicate broken connections that will fail at runtime. These can occur when operators are renamed or deleted without updating references, causing visual glitches or missing data.
+
+**How to Fix**:
+1. **Reconnect the input**: Link to an existing operator
+2. **Remove the input**: If the connection is no longer needed
+3. **Create the missing operator**: If it was accidentally deleted
+4. **Fix the reference name**: Correct typos in the operator name
+
 **Details**: Checks that all input references in `.n` files point to operators that exist in the project.
 
 **Example violation**:
@@ -96,6 +167,10 @@ Warning C002: Dangling input reference
   Input: missing_operator
   Message: Referenced operator does not exist
 ```
+
+**Resolution**: Open the `.n` file and update the input reference, or reconnect in TouchDesigner and re-export.
+
+**Related Rules**: R001, C001
 
 ---
 
@@ -197,6 +272,17 @@ Error T001: Type incompatibility
 
 **Fixable**: No
 
+**Why It Matters**: GLSL syntax errors cause shaders to fail compilation at runtime, resulting in black screens or error textures. Catching these early saves debugging time.
+
+**How to Fix**:
+1. Check for missing semicolons
+2. Verify variable declarations (types, names)
+3. Fix undeclared identifiers
+4. Check function call signatures
+5. Verify uniform/varying declarations
+
+**Prerequisites**: Requires `glslangValidator` installed (see [Quickstart Guide](../guides/td-linter-quickstart.md#installing-glslangvalidator))
+
 **Details**: Uses glslangValidator to check embedded GLSL code in `.text` files.
 
 **Example violation**:
@@ -206,6 +292,10 @@ Error G001: GLSL syntax error
   Line: 15
   Message: undeclared identifier 'foo'
 ```
+
+**Related Rules**: G002, G003
+
+**TouchDesigner Reference**: [GLSL TOP](https://docs.derivative.ca/GLSL_TOP)
 
 ---
 
@@ -217,9 +307,15 @@ Error G001: GLSL syntax error
 
 **Fixable**: Yes
 
+**Why It Matters**: TouchDesigner injects its own `#version` directive based on the platform and GPU. Including your own can cause conflicts or prevent shaders from compiling on different systems.
+
+**How to Fix**:
+1. **Auto-fix**: Run `td-linter fix project.toe.dir`
+2. **Manual**: Delete the `#version` line from your shader
+
 **Details**: TouchDesigner manages GLSL versions internally. Explicit `#version` directives can cause compatibility issues.
 
-**Fix**: Removes the `#version` line.
+**Fix**: Removes the `#version` line automatically.
 
 **Example violation**:
 ```
@@ -228,6 +324,18 @@ Warning G002: GLSL version directive found
   Line: 1
   Message: Remove #version directive (managed by TouchDesigner)
 ```
+
+**Resolution**:
+```glsl
+// Before (triggers warning):
+#version 450
+void main() { ... }
+
+// After (fixed):
+void main() { ... }
+```
+
+**Related Rules**: G001, G003
 
 ---
 
