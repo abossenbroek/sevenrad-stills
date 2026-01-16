@@ -11,7 +11,18 @@ if TYPE_CHECKING:
 
 @dataclass
 class Replacement:
-    """A text replacement in a file."""
+    """A text replacement in a file.
+
+    Attributes:
+        file_path: Path to the file to modify.
+        start_line: Starting line number (1-indexed).
+        end_line: Ending line number (1-indexed, exclusive).
+        start_col: Starting column (0-indexed), None for full line.
+        end_col: Ending column (0-indexed, exclusive), None for full line.
+        new_text: Text to replace the specified range with.
+        content_hash: Optional SHA-256 hash of the file content at creation time.
+            If provided, fix application will verify the file hasn't changed.
+    """
 
     file_path: Path
     start_line: int
@@ -19,6 +30,7 @@ class Replacement:
     start_col: int | None = None
     end_col: int | None = None
     new_text: str = ""
+    content_hash: str | None = None
 
 
 @dataclass

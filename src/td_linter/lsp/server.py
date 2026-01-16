@@ -2,6 +2,11 @@
 
 Provides real-time linting feedback in editors supporting the
 Language Server Protocol.
+
+Security Note:
+    URI parsing is handled by uri_utils module which properly decodes
+    URL-encoded paths and validates URI structure. This prevents path
+    traversal attacks via encoded characters like %2F%2E%2E.
 """
 
 from __future__ import annotations
@@ -18,7 +23,9 @@ except ImportError as e:
         "LSP dependencies not installed. Install with: pip install td-linter[td-linter-lsp]"
     ) from e
 
+from td_linter.cache import BoundedLRUCache
 from td_linter.linter import run_lint
+from td_linter.lsp.uri_utils import InvalidURIError, is_file_uri, path_to_uri, uri_to_path
 from td_linter.rules.base import Violation
 from td_linter.rules.registry import RuleRegistry
 
@@ -34,11 +41,19 @@ class TDLintLanguageServer(LanguageServer):
     Provides diagnostic messages for TouchDesigner .toe.dir projects.
     """
 
+    # Cache configuration
+    TOE_DIR_CACHE_MAX_SIZE = 1000
+    TOE_DIR_CACHE_TTL_SECONDS = 300.0  # 5 minutes
+
     def __init__(self, name: str = "td-linter-lsp", version: str = "0.1.0") -> None:
         """Initialize the language server."""
         super().__init__(name, version)
         self._registry: RuleRegistry | None = None
-        self._toe_dir_cache: dict[str, Path] = {}
+        # Use bounded LRU cache with TTL instead of unbounded dict
+        self._toe_dir_cache: BoundedLRUCache[str, Path] = BoundedLRUCache(
+            max_size=self.TOE_DIR_CACHE_MAX_SIZE,
+            ttl_seconds=self.TOE_DIR_CACHE_TTL_SECONDS,
+        )
 
     @property
     def registry(self) -> RuleRegistry:
@@ -56,9 +71,10 @@ class TDLintLanguageServer(LanguageServer):
         Returns:
             Path to the .toe.dir directory, or None if not found.
         """
-        # Check cache first
-        if file_path in self._toe_dir_cache:
-            return self._toe_dir_cache[file_path]
+        # Check cache first (returns None if not found or expired)
+        cached = self._toe_dir_cache.get(file_path)
+        if cached is not None:
+            return cached
 
         path = Path(file_path)
 
@@ -66,7 +82,7 @@ class TDLintLanguageServer(LanguageServer):
         current = path.parent if path.is_file() else path
         while current != current.parent:
             if current.name.endswith(".toe.dir"):
-                self._toe_dir_cache[file_path] = current
+                self._toe_dir_cache.set(file_path, current)
                 return current
             current = current.parent
 
@@ -178,12 +194,22 @@ def _lint_document(server: TDLintLanguageServer, uri: str) -> None:
     Args:
         server: The language server instance.
         uri: The document URI to lint.
+
+    Security:
+        URIs are parsed using urllib.parse to properly handle URL encoding.
+        This prevents path traversal attacks via encoded characters.
     """
-    # Convert URI to file path
-    if uri.startswith("file://"):
-        file_path = uri[7:]
-    else:
-        file_path = uri
+    # Convert URI to file path using proper URI parsing
+    try:
+        if is_file_uri(uri):
+            file_path = str(uri_to_path(uri))
+        else:
+            # Not a file:// URI - treat as raw path (legacy support)
+            logger.warning(f"Non-file URI received: {uri}")
+            file_path = uri
+    except InvalidURIError as e:
+        logger.error(f"Invalid URI: {e}")
+        return
 
     # Find the .toe.dir containing this file
     toe_dir = server.find_toe_dir(file_path)
@@ -216,9 +242,9 @@ def _lint_document(server: TDLintLanguageServer, uri: str) -> None:
             server.violation_to_diagnostic(violation, toe_dir)
         )
 
-    # Publish diagnostics for each file
+    # Publish diagnostics for each file using proper URI encoding
     for viol_file_path, diagnostics in diagnostics_by_file.items():
-        viol_uri = f"file://{viol_file_path}"
+        viol_uri = path_to_uri(Path(viol_file_path))
         server.publish_diagnostics(viol_uri, diagnostics)
 
     # Clear diagnostics for the requested file if no violations

@@ -1,18 +1,29 @@
-"""Configuration loader for td-linter rules."""
+"""Configuration loader for td-linter rules.
+
+Security Note:
+    Configuration files are validated using Pydantic models before processing.
+    This provides type safety and rejects unexpected fields. Additionally:
+    - File size is limited to prevent DoS attacks
+    - YAML is loaded with safe_load (no arbitrary Python execution)
+    - Pydantic's extra='forbid' rejects unknown configuration keys
+"""
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
-from jsonschema import ValidationError, validate
+from pydantic import ValidationError as PydanticValidationError
+
+from td_linter.config_models import (
+    ConfigFileSizeError,
+    LintConfigModel,
+    validate_config_file_size,
+)
 
 # Package paths
-_PACKAGE_DIR = Path(__file__).parent.parent
-_SCHEMA_PATH = _PACKAGE_DIR / "schemas" / "td-linter-rules.schema.json"
 _PRESETS_DIR = Path(__file__).parent / "presets"
 
 # Available preset names
@@ -67,19 +78,16 @@ class LintConfig:
 
 
 class ConfigLoader:
-    """Loads and merges linter configuration from YAML files."""
+    """Loads and merges linter configuration from YAML files.
 
-    _schema: dict[str, object]
+    Security:
+        All configuration is validated using Pydantic models before processing.
+        This ensures type safety and rejects unexpected configuration keys.
+    """
 
     def __init__(self) -> None:
         """Initialize the config loader."""
-        self._schema = self._load_schema()
-
-    def _load_schema(self) -> dict[str, object]:
-        """Load the JSON schema for validation."""
-        with open(_SCHEMA_PATH) as f:
-            result: dict[str, object] = json.load(f)
-            return result
+        pass  # No schema loading needed - Pydantic handles validation
 
     def load(self, config_path: Path | None = None) -> LintConfig:
         """
@@ -105,22 +113,50 @@ class ConfigLoader:
         return self._load_preset("recommended")
 
     def _load_from_file(self, path: Path) -> LintConfig:
-        """Load and validate configuration from a YAML file."""
+        """Load and validate configuration from a YAML file.
+
+        Security:
+            - File size is checked before loading to prevent DoS
+            - YAML is loaded with safe_load (no arbitrary code execution)
+            - Pydantic validates structure and types before processing
+        """
+        # Security: Check file size before loading
+        try:
+            validate_config_file_size(path)
+        except ConfigFileSizeError as e:
+            raise ConfigValidationError(str(e)) from e
+
         with open(path) as f:
             raw_config = yaml.safe_load(f) or {}
 
-        # Validate against schema
-        self._validate(raw_config)
+        # Validate using Pydantic model
+        self._validate_with_pydantic(raw_config)
 
         return self._process_config(raw_config)
 
-    def _validate(self, config: dict[str, Any]) -> None:
-        """Validate configuration against JSON schema."""
+    def _validate_with_pydantic(self, config: dict[str, Any]) -> LintConfigModel:
+        """Validate configuration using Pydantic model.
+
+        Args:
+            config: Raw configuration dictionary.
+
+        Returns:
+            Validated LintConfigModel.
+
+        Raises:
+            ConfigValidationError: If validation fails.
+        """
         try:
-            validate(config, self._schema)
-        except ValidationError as e:
-            msg = f"Invalid configuration: {e.message}"
-            raise ConfigValidationError(msg) from e
+            return LintConfigModel.model_validate(config)
+        except PydanticValidationError as e:
+            # Format Pydantic errors into a readable message
+            errors = []
+            for error in e.errors():
+                loc = ".".join(str(x) for x in error["loc"])
+                msg = error["msg"]
+                errors.append(f"  - {loc}: {msg}")
+            error_msg = "Configuration validation failed:\n" + "\n".join(errors)
+            raise ConfigValidationError(error_msg) from e
 
     def _process_config(self, raw_config: dict[str, Any]) -> LintConfig:
         """Process raw config dict into LintConfig, resolving presets."""

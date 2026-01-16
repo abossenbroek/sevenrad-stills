@@ -3,11 +3,16 @@ GLSL shader validation for TouchDesigner .text files.
 
 Validates GLSL shaders using glslangValidator with TouchDesigner-specific
 preambles. Filters warnings for TD-injected uniforms and functions.
+
+Security Note:
+    The glslangValidator subprocess is run with timeout enforcement and
+    optional sandboxing. On macOS, sandbox-exec is used when available.
+    On Linux, bubblewrap is used when available. This provides defense
+    in depth against malicious shader content or compromised toolchain.
 """
 
 import re
 import shutil
-import subprocess
 import tempfile
 from dataclasses import dataclass
 from enum import Enum
@@ -15,6 +20,7 @@ from pathlib import Path
 from typing import Iterator, Optional
 
 from td_linter.rules.base import Violation
+from td_linter.sandbox import Sandbox, SandboxError, SandboxTimeoutError
 
 
 class ShaderType(Enum):
@@ -133,13 +139,14 @@ class GLSLValidator:
             return False
 
         try:
-            result = subprocess.run(
+            # Use sandbox with short timeout for version check
+            sandbox = Sandbox(timeout=5)
+            result = sandbox.run(
                 [str(path), "--version"],
-                capture_output=True,
-                timeout=5,
+                validate_binary=False,  # Don't require hash match for availability check
             )
-            return result.returncode == 0
-        except (subprocess.TimeoutExpired, OSError):
+            return result.return_code == 0
+        except (SandboxTimeoutError, SandboxError, OSError):
             return False
 
     def validate(
@@ -267,6 +274,10 @@ class GLSLValidator:
         Returns:
             Combined stdout and stderr from glslangValidator.
 
+        Security:
+            The subprocess is run in a sandbox when platform support is
+            available (macOS sandbox-exec, Linux bubblewrap). Timeout is
+            enforced to prevent DoS via malicious shaders.
         """
         glslang_path = self._get_glslang_path()
         if glslang_path is None:
@@ -283,14 +294,18 @@ class GLSLValidator:
             temp_path = Path(f.name)
 
         try:
-            result = subprocess.run(
+            # Use sandbox for security
+            sandbox = Sandbox(timeout=30)
+            result = sandbox.run(
                 [str(glslang_path), "-S", shader_type.value, str(temp_path)],
-                capture_output=True,
-                text=True,
-                timeout=30,
+                validate_binary=False,  # Don't require hash match
             )
             return result.stdout + result.stderr
-        except (subprocess.TimeoutExpired, OSError) as e:
+        except SandboxTimeoutError:
+            return "ERROR: glslangValidator timed out (possible infinite loop)"
+        except SandboxError as e:
+            return f"ERROR: glslangValidator failed: {e}"
+        except OSError as e:
             return f"ERROR: glslangValidator failed: {e}"
         finally:
             temp_path.unlink(missing_ok=True)

@@ -1,14 +1,46 @@
-"""Watch mode for continuous linting of .toe.dir projects."""
+"""Watch mode for continuous linting of .toe.dir projects.
+
+This module provides file watching with event-based architecture.
+Events are emitted for file changes, lint starts/completions, and errors.
+
+Example:
+    from td_linter.watch import EventBasedWatcher
+    from td_linter.events import LintCompleteEvent, EventType
+
+    watcher = EventBasedWatcher(toe_dir, lint_callback=run_lint)
+
+    # Subscribe to lint events
+    watcher.events.subscribe(
+        lambda e: print(f"Lint found {e.error_count} errors"),
+        event_types={EventType.LINT_COMPLETE}
+    )
+
+    watcher.start()
+"""
 
 from __future__ import annotations
 
 import time
 from pathlib import Path
 from threading import Timer
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Sequence
+
+from td_linter.events import (
+    EventStream,
+    EventType,
+    FileChangeEvent,
+    LintCompleteEvent,
+    LintErrorEvent,
+    LintStartEvent,
+    WatcherStartEvent,
+    WatcherStopEvent,
+    WatchEvent,
+)
 
 if TYPE_CHECKING:
     from watchdog.events import FileSystemEvent
+
+    from td_linter.rules.base import Violation
 
 # Relevant file extensions for TouchDesigner projects
 TD_EXTENSIONS = frozenset({".n", ".parm", ".text", ".toc"})
@@ -200,6 +232,161 @@ def run_watch_loop(
         on_start()
 
     try:
+        while watcher.is_running:
+            time.sleep(check_interval)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        watcher.stop()
+
+
+# Type alias for lint callback
+LintCallback = Callable[[Path], Sequence["Violation"]]
+
+
+class EventBasedWatcher:
+    """Watch a .toe.dir directory with event-based reporting.
+
+    This watcher emits events for all significant actions, allowing
+    consumers to handle errors, display progress, and log activity.
+
+    Example:
+        def lint_project(toe_dir: Path) -> list[Violation]:
+            return run_lint(toe_dir)
+
+        watcher = EventBasedWatcher(toe_dir, lint_callback=lint_project)
+
+        # Handle lint completion
+        watcher.events.subscribe(
+            lambda e: print(f"Found {e.error_count} errors"),
+            event_types={EventType.LINT_COMPLETE}
+        )
+
+        # Handle errors
+        watcher.events.subscribe(
+            lambda e: print(f"Error: {e.error_message}"),
+            event_types={EventType.LINT_ERROR}
+        )
+
+        watcher.start()
+    """
+
+    def __init__(
+        self,
+        toe_dir: Path,
+        lint_callback: LintCallback,
+        debounce_delay: float = 0.5,
+    ) -> None:
+        """Initialize the event-based watcher.
+
+        Args:
+            toe_dir: The .toe.dir directory to watch.
+            lint_callback: Function to call for linting. Takes toe_dir,
+                returns list of violations.
+            debounce_delay: Seconds to wait before triggering lint.
+        """
+        self.toe_dir = toe_dir.resolve()
+        self._lint_callback = lint_callback
+        self._debounce_delay = debounce_delay
+        self._events = EventStream()
+        self._watcher: TDLintWatcher | None = None
+
+    @property
+    def events(self) -> EventStream:
+        """Get the event stream for subscribing to events."""
+        return self._events
+
+    def _on_change(self) -> None:
+        """Handle file changes - run lint and emit events."""
+        # Emit lint start
+        self._events.emit(LintStartEvent(toe_dir=self.toe_dir))
+
+        start_time = time.time()
+
+        try:
+            violations = self._lint_callback(self.toe_dir)
+            duration_ms = (time.time() - start_time) * 1000
+
+            # Emit lint complete
+            self._events.emit(
+                LintCompleteEvent(
+                    toe_dir=self.toe_dir,
+                    violations=list(violations),
+                    duration_ms=duration_ms,
+                )
+            )
+        except Exception as e:
+            # Emit lint error
+            self._events.emit(
+                LintErrorEvent(
+                    toe_dir=self.toe_dir,
+                    error=e,
+                    error_message=str(e),
+                )
+            )
+
+    def start(self) -> None:
+        """Start watching and emit start event."""
+        self._watcher = TDLintWatcher(
+            self.toe_dir,
+            on_change=self._on_change,
+            debounce_delay=self._debounce_delay,
+        )
+        self._watcher.start()
+        self._events.emit(WatcherStartEvent(toe_dir=self.toe_dir))
+
+    def stop(self, reason: str = "user_interrupt") -> None:
+        """Stop watching and emit stop event."""
+        if self._watcher:
+            self._watcher.stop()
+            self._watcher = None
+        self._events.emit(WatcherStopEvent(toe_dir=self.toe_dir, reason=reason))
+
+    @property
+    def is_running(self) -> bool:
+        """Return whether the watcher is currently running."""
+        return self._watcher is not None and self._watcher.is_running
+
+    def __enter__(self) -> "EventBasedWatcher":
+        """Start watching on context manager entry."""
+        self.start()
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        """Stop watching on context manager exit."""
+        self.stop()
+
+
+def run_event_based_watch(
+    toe_dir: Path,
+    lint_callback: LintCallback,
+    on_event: Callable[[WatchEvent], None] | None = None,
+    debounce_delay: float = 0.5,
+    check_interval: float = 1.0,
+) -> None:
+    """Run an event-based watch loop.
+
+    This is a convenience function that sets up an EventBasedWatcher
+    and runs until interrupted.
+
+    Args:
+        toe_dir: The .toe.dir directory to watch.
+        lint_callback: Function to call for linting.
+        on_event: Optional callback for all events.
+        debounce_delay: Seconds to wait before triggering lint.
+        check_interval: Seconds between checking if watcher is alive.
+    """
+    watcher = EventBasedWatcher(
+        toe_dir,
+        lint_callback=lint_callback,
+        debounce_delay=debounce_delay,
+    )
+
+    if on_event:
+        watcher.events.subscribe(on_event)
+
+    try:
+        watcher.start()
         while watcher.is_running:
             time.sleep(check_interval)
     except KeyboardInterrupt:

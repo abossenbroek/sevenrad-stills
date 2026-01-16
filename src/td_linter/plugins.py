@@ -1,4 +1,11 @@
-"""Plugin loading for custom lint rules."""
+"""Plugin loading for custom lint rules.
+
+Security Note:
+    Plugins are loaded via importlib which executes arbitrary Python code.
+    To mitigate risks, all plugin code is validated using AST analysis
+    before execution. Dangerous operations like subprocess calls, file I/O,
+    and network access are blocked by default.
+"""
 
 from __future__ import annotations
 
@@ -7,6 +14,12 @@ import importlib.util
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from td_linter.plugin_security import (
+    PluginSecurityChecker,
+    PluginSecurityError,
+    validate_plugin_security,
+)
 
 if TYPE_CHECKING:
     from td_linter.rules.base import LintRule
@@ -18,13 +31,51 @@ class PluginLoadError(Exception):
     pass
 
 
-class PluginLoader:
-    """Load custom lint rules from plugins."""
+class PluginSecurityViolationError(PluginLoadError):
+    """Error raised when plugin code fails security validation."""
 
-    def __init__(self) -> None:
-        """Initialize the plugin loader."""
+    def __init__(self, path: Path, security_error: PluginSecurityError) -> None:
+        self.path = path
+        self.security_error = security_error
+        super().__init__(
+            f"Plugin '{path}' failed security validation:\n"
+            f"{security_error}"
+        )
+
+
+class PluginLoader:
+    """Load custom lint rules from plugins.
+
+    Security:
+        All plugins loaded from file paths are validated using AST analysis
+        before execution. This blocks dangerous operations like:
+        - subprocess/os calls
+        - File I/O (configurable)
+        - Network access
+        - Dynamic code execution (eval, exec)
+        - Access to dangerous dunder attributes
+
+        Plugins loaded from installed modules (via load_from_module or entry
+        points) are NOT security-validated, as they are assumed to be vetted
+        during installation.
+    """
+
+    def __init__(
+        self,
+        skip_security_check: bool = False,
+        allow_file_read: bool = False,
+    ) -> None:
+        """Initialize the plugin loader.
+
+        Args:
+            skip_security_check: If True, skip security validation (DANGEROUS).
+                Only use for trusted plugin sources.
+            allow_file_read: If True, allow plugins to read files (not write).
+        """
         self._loaded_rules: list[type[LintRule]] = []
         self._errors: list[tuple[str, Exception]] = []
+        self._skip_security_check = skip_security_check
+        self._security_checker = PluginSecurityChecker(allow_file_read=allow_file_read)
 
     @property
     def rules(self) -> list[type[LintRule]]:
@@ -47,6 +98,7 @@ class PluginLoader:
 
         Raises:
             PluginLoadError: If the file cannot be loaded.
+            PluginSecurityViolationError: If the plugin fails security validation.
         """
         path = path.resolve()
         if not path.exists():
@@ -54,6 +106,20 @@ class PluginLoader:
 
         if not path.suffix == ".py":
             raise PluginLoadError(f"Plugin must be a .py file: {path}")
+
+        # Security validation: check plugin code before execution
+        if not self._skip_security_check:
+            try:
+                source = path.read_text(encoding="utf-8")
+                validate_plugin_security(
+                    source,
+                    filename=str(path),
+                    allow_file_read=self._security_checker.allow_file_read,
+                )
+            except PluginSecurityError as e:
+                raise PluginSecurityViolationError(path, e) from e
+            except OSError as e:
+                raise PluginLoadError(f"Cannot read plugin file: {e}") from e
 
         try:
             # Create a unique module name based on path
@@ -71,6 +137,8 @@ class PluginLoader:
             self._loaded_rules.extend(rules)
             return rules
 
+        except PluginSecurityViolationError:
+            raise
         except PluginLoadError:
             raise
         except Exception as e:
@@ -208,17 +276,24 @@ class PluginLoader:
 def load_plugins(
     plugins_config: list[dict[str, str]] | None = None,
     load_entry_points: bool = True,
+    skip_security_check: bool = False,
+    allow_file_read: bool = False,
 ) -> tuple[list[type[LintRule]], list[tuple[str, Exception]]]:
     """Load all plugins and return rules.
 
     Args:
         plugins_config: Optional list of plugin configurations.
         load_entry_points: Whether to load from entry points.
+        skip_security_check: If True, skip security validation (DANGEROUS).
+        allow_file_read: If True, allow plugins to read files.
 
     Returns:
         Tuple of (loaded_rules, errors).
     """
-    loader = PluginLoader()
+    loader = PluginLoader(
+        skip_security_check=skip_security_check,
+        allow_file_read=allow_file_read,
+    )
 
     if plugins_config:
         loader.load_from_config(plugins_config)

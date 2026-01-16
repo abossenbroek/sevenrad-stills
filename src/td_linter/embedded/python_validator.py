@@ -1,8 +1,8 @@
 """
 Python AST validation for TouchDesigner .text files.
 
-Validates Python scripts using ast.parse() with a whitelist of
-TouchDesigner builtins to avoid false positives.
+Validates Python scripts using ast.parse() and pyflakes for undefined name
+detection, with a whitelist of TouchDesigner builtins to avoid false positives.
 """
 
 import ast
@@ -10,6 +10,9 @@ import builtins
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator, Optional
+
+from pyflakes import checker as pyflakes_checker
+from pyflakes import messages as pyflakes_messages
 
 from td_linter.embedded.constants import EXECUTE_CALLBACKS, TD_BUILTINS
 from td_linter.rules.base import Violation
@@ -143,14 +146,14 @@ class PythonValidator:
         known_globals: Optional[set[str]] = None,
     ) -> list[UndefinedName]:
         """
-        Find names used but not defined.
+        Find names used but not defined using pyflakes.
 
-        Uses a simplified scope analysis that tracks:
-        - Function/class definitions
-        - Assignments
-        - Imports
+        Uses pyflakes for accurate scope analysis that handles:
+        - Nested scopes and closures
         - Comprehension variables
         - Exception handlers
+        - Complex assignment patterns
+        - All Python scoping rules
 
         Args:
             tree: Parsed AST module.
@@ -166,74 +169,25 @@ class PythonValidator:
         else:
             effective_globals = known_globals
 
-        # Collect defined names
-        defined: set[str] = set(effective_globals)
+        # Run pyflakes checker
+        # Pass builtins as additional scope to avoid false positives
+        checker = pyflakes_checker.Checker(
+            tree,
+            filename="<string>",
+            builtins=list(effective_globals),
+        )
 
-        # First pass: collect all definitions
-        for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-                defined.add(node.name)
-                # Add parameters to defined names
-                for arg in node.args.args:
-                    defined.add(arg.arg)
-                for arg in node.args.posonlyargs:
-                    defined.add(arg.arg)
-                for arg in node.args.kwonlyargs:
-                    defined.add(arg.arg)
-                if node.args.vararg:
-                    defined.add(node.args.vararg.arg)
-                if node.args.kwarg:
-                    defined.add(node.args.kwarg.arg)
-            elif isinstance(node, ast.ClassDef):
-                defined.add(node.name)
-            elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
-                defined.add(node.id)
-            elif isinstance(node, ast.Import):
-                for alias in node.names:
-                    name = alias.asname if alias.asname else alias.name.split(".")[0]
-                    defined.add(name)
-            elif isinstance(node, ast.ImportFrom):
-                for alias in node.names:
-                    name = alias.asname if alias.asname else alias.name
-                    defined.add(name)
-            elif isinstance(node, ast.ExceptHandler) and node.name:
-                defined.add(node.name)
-            elif isinstance(node, ast.comprehension):
-                # Comprehension variables
-                if isinstance(node.target, ast.Name):
-                    defined.add(node.target.id)
-                elif isinstance(node.target, ast.Tuple):
-                    for elt in node.target.elts:
-                        if isinstance(elt, ast.Name):
-                            defined.add(elt.id)
-            elif isinstance(node, ast.For):
-                # For loop variables
-                if isinstance(node.target, ast.Name):
-                    defined.add(node.target.id)
-                elif isinstance(node.target, ast.Tuple):
-                    for elt in node.target.elts:
-                        if isinstance(elt, ast.Name):
-                            defined.add(elt.id)
-            elif isinstance(node, ast.With):
-                # With statement variables
-                for item in node.items:
-                    if item.optional_vars and isinstance(item.optional_vars, ast.Name):
-                        defined.add(item.optional_vars.id)
-
-        # Second pass: find undefined names (Load context)
+        # Extract undefined name messages
         undefined: list[UndefinedName] = []
-
-        for node in ast.walk(tree):
-            if (
-                isinstance(node, ast.Name)
-                and isinstance(node.ctx, ast.Load)
-                and node.id not in defined
-            ):
+        for message in checker.messages:
+            if isinstance(message, pyflakes_messages.UndefinedName):
+                # pyflakes message format: message.message_args contains the name
+                name = message.message_args[0]
                 undefined.append(
                     UndefinedName(
-                        name=node.id,
-                        line=node.lineno,
-                        column=node.col_offset,
+                        name=name,
+                        line=message.lineno,
+                        column=message.col,
                     )
                 )
 

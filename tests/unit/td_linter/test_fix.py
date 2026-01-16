@@ -1,10 +1,16 @@
 """Unit tests for auto-fix functionality."""
 
+import os
 from pathlib import Path
 
 import pytest
 
-from td_linter.fix import FixApplier, FixResult
+from td_linter.fix import (
+    ContentHashMismatchError,
+    FixApplier,
+    FixResult,
+    PathTraversalError,
+)
 from td_linter.rules.base import Fix, Replacement, Violation
 
 
@@ -658,3 +664,467 @@ class TestFixApplierEdgeCases:
 
         assert result.success_count == 1
         assert file.read_text() == ""
+
+
+class TestPathTraversalProtection:
+    """Tests for path traversal protection in FixApplier."""
+
+    def test_path_traversal_error_message(self) -> None:
+        """PathTraversalError should have informative message."""
+        error = PathTraversalError(
+            path=Path("/evil/../../../etc/passwd"),
+            boundary=Path("/project"),
+        )
+        assert "outside project boundary" in str(error)
+        assert "/etc/passwd" in str(error)
+        assert "/project" in str(error)
+
+    def test_allows_paths_within_project(self, tmp_path: Path) -> None:
+        """Should allow paths within project boundary."""
+        project = tmp_path / "project"
+        project.mkdir()
+        file = project / "subdir" / "file.txt"
+        file.parent.mkdir()
+        file.write_text("original\n")
+
+        fix = Fix(
+            description="Safe fix",
+            replacements=[
+                Replacement(file_path=file, start_line=1, end_line=1, new_text="changed\n")
+            ],
+        )
+        violation = Violation(rule="T", message="m", path="/p", fix=fix)
+
+        applier = FixApplier(project_root=project)
+        result = applier.apply([violation])
+
+        assert result.success_count == 1
+        assert result.failure_count == 0
+        assert file.read_text() == "changed\n"
+
+    def test_rejects_parent_directory_traversal(self, tmp_path: Path) -> None:
+        """Should reject paths that use .. to escape project."""
+        project = tmp_path / "project"
+        project.mkdir()
+
+        # File outside project
+        outside = tmp_path / "outside.txt"
+        outside.write_text("sensitive\n")
+
+        # Try to access it via path traversal
+        malicious_path = project / ".." / "outside.txt"
+
+        fix = Fix(
+            description="Malicious fix",
+            replacements=[
+                Replacement(
+                    file_path=malicious_path, start_line=1, end_line=1, new_text="hacked\n"
+                )
+            ],
+        )
+        violation = Violation(rule="T", message="m", path="/p", fix=fix)
+
+        applier = FixApplier(project_root=project)
+        result = applier.apply([violation])
+
+        assert result.failure_count == 1
+        assert result.success_count == 0
+        assert isinstance(result.failed[0][1], PathTraversalError)
+        # Original file should be unchanged
+        assert outside.read_text() == "sensitive\n"
+
+    def test_rejects_absolute_path_outside_project(self, tmp_path: Path) -> None:
+        """Should reject absolute paths outside project."""
+        project = tmp_path / "project"
+        project.mkdir()
+
+        outside = tmp_path / "outside.txt"
+        outside.write_text("sensitive\n")
+
+        fix = Fix(
+            description="Malicious fix",
+            replacements=[
+                Replacement(file_path=outside, start_line=1, end_line=1, new_text="hacked\n")
+            ],
+        )
+        violation = Violation(rule="T", message="m", path="/p", fix=fix)
+
+        applier = FixApplier(project_root=project)
+        result = applier.apply([violation])
+
+        assert result.failure_count == 1
+        assert result.success_count == 0
+        # Original file should be unchanged
+        assert outside.read_text() == "sensitive\n"
+
+    def test_rejects_symlink_escape(self, tmp_path: Path) -> None:
+        """Should reject symlinks that escape project boundary."""
+        project = tmp_path / "project"
+        project.mkdir()
+
+        # Create a file outside the project
+        outside = tmp_path / "outside.txt"
+        outside.write_text("sensitive\n")
+
+        # Create a symlink inside project pointing outside
+        symlink = project / "escape_link.txt"
+        symlink.symlink_to(outside)
+
+        fix = Fix(
+            description="Symlink attack",
+            replacements=[
+                Replacement(file_path=symlink, start_line=1, end_line=1, new_text="hacked\n")
+            ],
+        )
+        violation = Violation(rule="T", message="m", path="/p", fix=fix)
+
+        applier = FixApplier(project_root=project)
+        result = applier.apply([violation])
+
+        assert result.failure_count == 1
+        assert result.success_count == 0
+        # Original file should be unchanged
+        assert outside.read_text() == "sensitive\n"
+
+    def test_allows_symlink_within_project(self, tmp_path: Path) -> None:
+        """Should allow symlinks that stay within project."""
+        project = tmp_path / "project"
+        project.mkdir()
+
+        # Create real file inside project
+        real_file = project / "real.txt"
+        real_file.write_text("original\n")
+
+        # Create symlink inside project pointing to real file
+        symlink = project / "link.txt"
+        symlink.symlink_to(real_file)
+
+        fix = Fix(
+            description="Safe symlink fix",
+            replacements=[
+                Replacement(file_path=symlink, start_line=1, end_line=1, new_text="changed\n")
+            ],
+        )
+        violation = Violation(rule="T", message="m", path="/p", fix=fix)
+
+        applier = FixApplier(project_root=project)
+        result = applier.apply([violation])
+
+        assert result.success_count == 1
+        assert result.failure_count == 0
+        # Both should show the new content
+        assert real_file.read_text() == "changed\n"
+
+    def test_no_project_root_allows_any_path(self, tmp_path: Path) -> None:
+        """Without project_root, any path should be allowed."""
+        file = tmp_path / "anywhere.txt"
+        file.write_text("original\n")
+
+        fix = Fix(
+            description="Fix anywhere",
+            replacements=[
+                Replacement(file_path=file, start_line=1, end_line=1, new_text="changed\n")
+            ],
+        )
+        violation = Violation(rule="T", message="m", path="/p", fix=fix)
+
+        # No project_root specified
+        applier = FixApplier()
+        result = applier.apply([violation])
+
+        assert result.success_count == 1
+        assert file.read_text() == "changed\n"
+
+    def test_preview_skips_path_traversal(self, tmp_path: Path) -> None:
+        """Preview should silently skip path traversal attempts."""
+        project = tmp_path / "project"
+        project.mkdir()
+
+        outside = tmp_path / "outside.txt"
+        outside.write_text("sensitive\n")
+
+        malicious_path = project / ".." / "outside.txt"
+
+        fix = Fix(
+            description="Malicious preview",
+            replacements=[
+                Replacement(
+                    file_path=malicious_path, start_line=1, end_line=1, new_text="hacked\n"
+                )
+            ],
+        )
+        violation = Violation(rule="T", message="m", path="/p", fix=fix)
+
+        applier = FixApplier(project_root=project)
+        previews = applier.preview([violation])
+
+        # Should be empty - path traversal was blocked
+        assert len(previews) == 0
+        # Original file unchanged
+        assert outside.read_text() == "sensitive\n"
+
+    def test_mixed_valid_and_invalid_paths(self, tmp_path: Path) -> None:
+        """Should apply valid fixes and fail invalid ones."""
+        project = tmp_path / "project"
+        project.mkdir()
+
+        valid_file = project / "valid.txt"
+        valid_file.write_text("original\n")
+
+        outside = tmp_path / "outside.txt"
+        outside.write_text("sensitive\n")
+
+        violations = [
+            Violation(
+                rule="T",
+                message="m",
+                path="/p",
+                fix=Fix(
+                    description="Valid fix",
+                    replacements=[
+                        Replacement(
+                            file_path=valid_file,
+                            start_line=1,
+                            end_line=1,
+                            new_text="changed\n",
+                        )
+                    ],
+                ),
+            ),
+            Violation(
+                rule="T",
+                message="m",
+                path="/p",
+                fix=Fix(
+                    description="Invalid fix",
+                    replacements=[
+                        Replacement(
+                            file_path=outside, start_line=1, end_line=1, new_text="hacked\n"
+                        )
+                    ],
+                ),
+            ),
+        ]
+
+        applier = FixApplier(project_root=project)
+        result = applier.apply(violations)
+
+        assert result.success_count == 1
+        assert result.failure_count == 1
+        assert valid_file.read_text() == "changed\n"
+        assert outside.read_text() == "sensitive\n"
+
+    def test_double_dot_in_middle_of_path(self, tmp_path: Path) -> None:
+        """Should detect .. in middle of path."""
+        project = tmp_path / "project"
+        subdir = project / "subdir"
+        subdir.mkdir(parents=True)
+
+        outside = tmp_path / "outside.txt"
+        outside.write_text("sensitive\n")
+
+        # Try subdir/../../../outside.txt
+        malicious = subdir / ".." / ".." / "outside.txt"
+
+        fix = Fix(
+            description="Hidden traversal",
+            replacements=[
+                Replacement(file_path=malicious, start_line=1, end_line=1, new_text="hacked\n")
+            ],
+        )
+        violation = Violation(rule="T", message="m", path="/p", fix=fix)
+
+        applier = FixApplier(project_root=project)
+        result = applier.apply([violation])
+
+        assert result.failure_count == 1
+        assert outside.read_text() == "sensitive\n"
+
+
+class TestContentHashVerification:
+    """Tests for content hash verification during fix application."""
+
+    def test_compute_file_hash(self, tmp_path: Path) -> None:
+        """Should compute SHA-256 hash of file content."""
+        test_file = tmp_path / "test.txt"
+        test_file.write_text("hello world\n")
+
+        hasher = FixApplier.compute_file_hash(test_file)
+        assert len(hasher) == 64  # SHA-256 hex length
+
+    def test_same_content_same_hash(self, tmp_path: Path) -> None:
+        """Same content should produce same hash."""
+        file1 = tmp_path / "file1.txt"
+        file2 = tmp_path / "file2.txt"
+        content = "test content\n"
+        file1.write_text(content)
+        file2.write_text(content)
+
+        hash1 = FixApplier.compute_file_hash(file1)
+        hash2 = FixApplier.compute_file_hash(file2)
+        assert hash1 == hash2
+
+    def test_different_content_different_hash(self, tmp_path: Path) -> None:
+        """Different content should produce different hash."""
+        file1 = tmp_path / "file1.txt"
+        file2 = tmp_path / "file2.txt"
+        file1.write_text("content A\n")
+        file2.write_text("content B\n")
+
+        hash1 = FixApplier.compute_file_hash(file1)
+        hash2 = FixApplier.compute_file_hash(file2)
+        assert hash1 != hash2
+
+    def test_fix_applies_with_matching_hash(self, tmp_path: Path) -> None:
+        """Fix should apply when content hash matches."""
+        test_file = tmp_path / "test.txt"
+        test_file.write_text("line1\nline2\n")
+        content_hash = FixApplier.compute_file_hash(test_file)
+
+        fix = Fix(
+            description="Fix with hash",
+            replacements=[
+                Replacement(
+                    file_path=test_file,
+                    start_line=1,
+                    end_line=1,
+                    new_text="replaced\n",
+                    content_hash=content_hash,
+                )
+            ],
+        )
+        violation = Violation(rule="T", message="m", path="/p", fix=fix)
+
+        applier = FixApplier(verify_hashes=True)
+        result = applier.apply([violation])
+
+        assert result.success_count == 1
+        assert test_file.read_text() == "replaced\nline2\n"
+
+    def test_fix_fails_with_mismatched_hash(self, tmp_path: Path) -> None:
+        """Fix should fail when content hash doesn't match."""
+        test_file = tmp_path / "test.txt"
+        test_file.write_text("original\n")
+        old_hash = FixApplier.compute_file_hash(test_file)
+
+        # Modify file after hash was computed
+        test_file.write_text("modified\n")
+
+        fix = Fix(
+            description="Stale fix",
+            replacements=[
+                Replacement(
+                    file_path=test_file,
+                    start_line=1,
+                    end_line=1,
+                    new_text="new\n",
+                    content_hash=old_hash,
+                )
+            ],
+        )
+        violation = Violation(rule="T", message="m", path="/p", fix=fix)
+
+        applier = FixApplier(verify_hashes=True)
+        result = applier.apply([violation])
+
+        assert result.failure_count == 1
+        assert result.success_count == 0
+        # File should be unchanged
+        assert test_file.read_text() == "modified\n"
+        # Error should be ContentHashMismatchError
+        _, error = result.failed[0]
+        assert isinstance(error, ContentHashMismatchError)
+
+    def test_fix_applies_without_hash_when_verify_disabled(
+        self, tmp_path: Path
+    ) -> None:
+        """Fix without hash should apply when verification is disabled."""
+        test_file = tmp_path / "test.txt"
+        test_file.write_text("original\n")
+
+        fix = Fix(
+            description="Fix without hash",
+            replacements=[
+                Replacement(
+                    file_path=test_file,
+                    start_line=1,
+                    end_line=1,
+                    new_text="new\n",
+                    content_hash=None,  # No hash
+                )
+            ],
+        )
+        violation = Violation(rule="T", message="m", path="/p", fix=fix)
+
+        applier = FixApplier(verify_hashes=False)
+        result = applier.apply([violation])
+
+        assert result.success_count == 1
+        assert test_file.read_text() == "new\n"
+
+    def test_force_flag_bypasses_hash_check(self, tmp_path: Path) -> None:
+        """verify_hashes=False should bypass hash verification."""
+        test_file = tmp_path / "test.txt"
+        test_file.write_text("original\n")
+        wrong_hash = "0" * 64  # Invalid hash
+
+        fix = Fix(
+            description="Force fix",
+            replacements=[
+                Replacement(
+                    file_path=test_file,
+                    start_line=1,
+                    end_line=1,
+                    new_text="forced\n",
+                    content_hash=wrong_hash,
+                )
+            ],
+        )
+        violation = Violation(rule="T", message="m", path="/p", fix=fix)
+
+        # verify_hashes=False bypasses check
+        applier = FixApplier(verify_hashes=False)
+        result = applier.apply([violation])
+
+        assert result.success_count == 1
+        assert test_file.read_text() == "forced\n"
+
+    def test_replacement_without_hash_skipped_in_verification(
+        self, tmp_path: Path
+    ) -> None:
+        """Replacements without content_hash should not be verified."""
+        test_file = tmp_path / "test.txt"
+        test_file.write_text("original\n")
+
+        fix = Fix(
+            description="Fix without hash",
+            replacements=[
+                Replacement(
+                    file_path=test_file,
+                    start_line=1,
+                    end_line=1,
+                    new_text="new\n",
+                    content_hash=None,  # No hash to verify
+                )
+            ],
+        )
+        violation = Violation(rule="T", message="m", path="/p", fix=fix)
+
+        applier = FixApplier(verify_hashes=True)
+        result = applier.apply([violation])
+
+        assert result.success_count == 1
+        assert test_file.read_text() == "new\n"
+
+    def test_content_hash_mismatch_error_message(self) -> None:
+        """ContentHashMismatchError should have informative message."""
+        error = ContentHashMismatchError(
+            file_path=Path("/test/file.txt"),
+            expected_hash="a" * 64,
+            actual_hash="b" * 64,
+        )
+        msg = str(error)
+        assert "Content hash mismatch" in msg
+        assert "/test/file.txt" in msg
+        assert "aaa" in msg  # Truncated expected hash
+        assert "bbb" in msg  # Truncated actual hash

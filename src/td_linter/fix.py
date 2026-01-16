@@ -1,10 +1,39 @@
 """Auto-fix functionality for td-linter."""
 
+from __future__ import annotations
+
+import hashlib
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Sequence
 
+from td_linter.cache import BoundedLRUCache
 from td_linter.rules.base import Fix, Replacement, Violation
+
+
+class PathTraversalError(Exception):
+    """Raised when a file path attempts to escape the project boundary."""
+
+    def __init__(self, path: Path, boundary: Path) -> None:
+        self.path = path
+        self.boundary = boundary
+        super().__init__(
+            f"Path traversal detected: '{path}' is outside project boundary '{boundary}'"
+        )
+
+
+class ContentHashMismatchError(Exception):
+    """Raised when file content has changed since fix was generated."""
+
+    def __init__(self, file_path: Path, expected_hash: str, actual_hash: str) -> None:
+        self.file_path = file_path
+        self.expected_hash = expected_hash
+        self.actual_hash = actual_hash
+        super().__init__(
+            f"Content hash mismatch for '{file_path}': "
+            f"expected {expected_hash[:16]}..., got {actual_hash[:16]}..."
+        )
 
 
 @dataclass
@@ -37,16 +66,134 @@ class FixResult:
 
 
 class FixApplier:
-    """Applies fixes to files."""
+    """Applies fixes to files.
 
-    def __init__(self, dry_run: bool = False) -> None:
+    Security:
+        All file paths are validated against a project boundary to prevent
+        path traversal attacks. Paths containing '..' or symlinks that resolve
+        outside the boundary are rejected.
+
+        Content hash verification ensures fixes are only applied to files that
+        haven't changed since the fix was generated.
+    """
+
+    def __init__(
+        self,
+        dry_run: bool = False,
+        project_root: Path | None = None,
+        verify_hashes: bool = True,
+    ) -> None:
         """Initialize the fix applier.
 
         Args:
             dry_run: If True, don't modify files, just report what would change.
+            project_root: Optional project root for path validation. If provided,
+                all file operations are restricted to this directory tree.
+                This is a security measure to prevent path traversal attacks.
+            verify_hashes: If True, verify content hashes before applying fixes.
+                Disable with --force flag when you're sure you want to apply
+                fixes to potentially modified files.
         """
         self.dry_run = dry_run
-        self._file_cache: dict[Path, list[str]] = {}
+        self.verify_hashes = verify_hashes
+        self._project_root = project_root.resolve() if project_root else None
+        # Bounded cache for file contents - short TTL since files may change
+        # Max 100 files to prevent memory issues during batch operations
+        self._file_cache: BoundedLRUCache[Path, list[str]] = BoundedLRUCache(
+            max_size=100,
+            ttl_seconds=60.0,  # 1 minute TTL
+        )
+
+    def _validate_path(self, path: Path) -> Path:
+        """Validate and canonicalize a file path.
+
+        Args:
+            path: Path to validate.
+
+        Returns:
+            Canonicalized absolute path.
+
+        Raises:
+            PathTraversalError: If the path escapes the project boundary.
+        """
+        # Resolve to absolute path, following symlinks
+        # os.path.realpath follows ALL symlinks, unlike Path.resolve() which
+        # may not follow symlinks on some platforms
+        canonical = Path(os.path.realpath(path))
+
+        # If no project root, only do basic validation
+        if self._project_root is None:
+            return canonical
+
+        # Resolve project root the same way
+        canonical_root = Path(os.path.realpath(self._project_root))
+
+        # Check if path is within project root
+        # Using is_relative_to for Python 3.9+ compatibility
+        try:
+            canonical.relative_to(canonical_root)
+        except ValueError:
+            # Path is not relative to root - this is a path traversal attempt
+            raise PathTraversalError(path, self._project_root)
+
+        return canonical
+
+    @staticmethod
+    def compute_file_hash(file_path: Path) -> str:
+        """Compute SHA-256 hash of file content.
+
+        Args:
+            file_path: Path to the file.
+
+        Returns:
+            Hex-encoded SHA-256 hash string.
+        """
+        hasher = hashlib.sha256()
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(8192), b""):
+                hasher.update(chunk)
+        return hasher.hexdigest()
+
+    def _verify_content_hashes(
+        self,
+        replacements: list[Replacement],
+    ) -> list[ContentHashMismatchError]:
+        """Verify content hashes for all replacements.
+
+        Args:
+            replacements: List of replacements to verify.
+
+        Returns:
+            List of hash mismatch errors (empty if all valid).
+        """
+        errors: list[ContentHashMismatchError] = []
+        verified_files: set[Path] = set()
+
+        for replacement in replacements:
+            # Skip if no hash to verify
+            if replacement.content_hash is None:
+                continue
+
+            # Skip if already verified
+            resolved = replacement.file_path.resolve()
+            if resolved in verified_files:
+                continue
+            verified_files.add(resolved)
+
+            # Verify hash
+            try:
+                actual_hash = self.compute_file_hash(resolved)
+                if actual_hash != replacement.content_hash:
+                    errors.append(
+                        ContentHashMismatchError(
+                            resolved, replacement.content_hash, actual_hash
+                        )
+                    )
+            except OSError:
+                # File doesn't exist or can't be read - will fail later
+                pass
+
+        return errors
 
     def apply(self, violations: Sequence[Violation]) -> FixResult:
         """Apply fixes from violations.
@@ -56,6 +203,15 @@ class FixApplier:
 
         Returns:
             FixResult with applied, failed, and skipped fixes.
+
+        Note:
+            If a project_root was set, all file paths are validated to ensure
+            they stay within the project boundary. Path traversal attempts
+            (using '..' or symlinks) will result in failed fixes.
+
+            If verify_hashes is True (default), content hashes are verified
+            before applying any fixes. All fixes for a file will fail if the
+            file content has changed since the fix was generated.
         """
         result = FixResult()
 
@@ -65,17 +221,41 @@ class FixApplier:
         if not fixable:
             return result
 
-        # Group replacements by file
+        # Collect all replacements for hash verification
+        all_replacements: list[tuple[Replacement, Fix]] = []
+
+        # Group replacements by file (with path validation)
         by_file: dict[Path, list[tuple[Replacement, Fix]]] = {}
         for v in fixable:
             fix = v.fix
             if fix is None:
                 continue
             for replacement in fix.replacements:
-                path = replacement.file_path.resolve()
+                try:
+                    # Validate and canonicalize the path
+                    path = self._validate_path(replacement.file_path)
+                except PathTraversalError as e:
+                    result.failed.append((fix, e))
+                    continue
                 if path not in by_file:
                     by_file[path] = []
                 by_file[path].append((replacement, fix))
+                all_replacements.append((replacement, fix))
+
+        # Verify content hashes if enabled (all-or-nothing)
+        if self.verify_hashes:
+            replacements_only = [r for r, _ in all_replacements]
+            hash_errors = self._verify_content_hashes(replacements_only)
+            if hash_errors:
+                # Hash verification failed - mark affected fixes as failed
+                failed_files = {e.file_path for e in hash_errors}
+                for file_path in list(by_file.keys()):
+                    if file_path in failed_files:
+                        error = next(e for e in hash_errors if e.file_path == file_path)
+                        for _, fix in by_file[file_path]:
+                            if fix not in [f for f, _ in result.failed]:
+                                result.failed.append((fix, error))
+                        del by_file[file_path]
 
         # Apply fixes file by file
         for file_path, replacements_with_fixes in by_file.items():
@@ -203,9 +383,12 @@ class FixApplier:
     def _read_file(self, file_path: Path) -> list[str]:
         """Read file lines, using cache if available."""
         resolved = file_path.resolve()
-        if resolved not in self._file_cache:
-            self._file_cache[resolved] = resolved.read_text().splitlines(keepends=True)
-        return list(self._file_cache[resolved])  # Return copy
+        cached = self._file_cache.get(resolved)
+        if cached is None:
+            lines = resolved.read_text().splitlines(keepends=True)
+            self._file_cache.set(resolved, lines)
+            return list(lines)  # Return copy
+        return list(cached)  # Return copy
 
     def _write_file(self, file_path: Path, lines: list[str]) -> None:
         """Write lines back to file."""
@@ -213,8 +396,7 @@ class FixApplier:
         file_path.write_text(content)
         # Invalidate cache
         resolved = file_path.resolve()
-        if resolved in self._file_cache:
-            del self._file_cache[resolved]
+        self._file_cache.delete(resolved)
 
     def preview(self, violations: Sequence[Violation]) -> dict[Path, str]:
         """Preview fixes without applying them.
@@ -224,6 +406,7 @@ class FixApplier:
 
         Returns:
             Dict mapping file paths to their new content after fixes.
+            Paths that fail validation are silently skipped in preview.
         """
         result: dict[Path, str] = {}
 
@@ -233,14 +416,17 @@ class FixApplier:
         if not fixable:
             return result
 
-        # Group replacements by file
+        # Group replacements by file (with path validation)
         by_file: dict[Path, list[tuple[Replacement, Fix]]] = {}
         for v in fixable:
             fix = v.fix
             if fix is None:
                 continue
             for replacement in fix.replacements:
-                path = replacement.file_path.resolve()
+                try:
+                    path = self._validate_path(replacement.file_path)
+                except PathTraversalError:
+                    continue  # Skip paths that fail validation in preview
                 if path not in by_file:
                     by_file[path] = []
                 by_file[path].append((replacement, fix))
