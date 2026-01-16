@@ -4,45 +4,90 @@
 
 `td-linter` validates expanded TouchDesigner `.toe.dir` projects before they are collapsed back to binary `.toe` files. It catches structural errors, broken references, and type mismatches that would otherwise only surface at runtime.
 
+## Validation Philosophy
+
+**Ground truth**: If TouchDesigner opens a `.toe` file successfully, it's valid. Any linter errors on working TD projects are false positives in our linter—fix the linter, not the project.
+
 ## Architecture
 
+See `docs/touchdesigner/reference/linter_spec.md` for full architecture.
+
+Key directories: `grammars/`, `parsers/`, `graph/`, `rules/`, `embedded/`, `output/`
+
+## Workflow
+
+### Direct .toe File Linting (Recommended)
+
+```bash
+# Lint a .toe file directly (auto-expands, lints, cleans up)
+uv run td-linter lint project.toe
+
+# Keep expanded files for debugging
+uv run td-linter lint project.toe --keep-files-after-expand
+
+# Specify TouchDesigner path explicitly
+uv run td-linter lint project.toe --td-path /Applications/TouchDesigner.app/Contents/MacOS
 ```
-td_linter/
-├── cli.py              # Typer CLI (lint, rules, init, version)
-├── linter.py           # Main orchestration
-├── grammars/           # Lark EBNF grammars
-│   ├── n_file.lark     # .n (node definition) grammar
-│   └── parm_file.lark  # .parm (parameter) grammar
-├── parsers/            # File parsers using Lark
-│   ├── n_parser.py     # Parses .n files → ParsedNFile
-│   ├── parm_parser.py  # Parses .parm files → ParsedParmFile
-│   └── toc_parser.py   # Parses .toc manifest files
-├── graph/              # NetworkX graph model
-│   ├── types.py        # OperatorFamily enum, compatibility rules
-│   ├── model.py        # OperatorNode, Connection dataclasses
-│   └── builder.py      # Builds DiGraph from parsed files
-└── rules/              # Validation rules
-    ├── base.py         # LintRule base class, Violation dataclass
-    ├── no_invalid_cycles.py
-    ├── no_dangling_inputs.py
-    ├── valid_references.py
-    └── type_compatibility.py
+
+### Manual Workflow (Alternative)
+
+```bash
+# Expand binary .toe to .toe.dir (requires TouchDesigner installed)
+toeexpand project.toe
+
+# Lint the expanded project
+uv run td-linter lint project.toe.dir
+
+# Collapse back to binary (after fixes)
+toecollapse project.toe.dir
 ```
+
+## TouchDesigner Path Discovery
+
+td-linter automatically finds TouchDesigner in this order:
+1. `--td-path` CLI option
+2. `TOUCHDESIGNER_PATH` environment variable
+3. Common installation locations:
+   - macOS: `/Applications/TouchDesigner*.app/Contents/MacOS/`
+   - Windows: `C:\Program Files\Derivative\TouchDesigner*\bin\`
+   - Linux: `/opt/TouchDesigner*/bin/`
+4. `toeexpand`/`toecollapse` in PATH
+
+## Discovering Grammar Gaps
+
+Real-world files expose parser gaps that synthetic tests miss. When linting fails on a valid TD project:
+
+1. Read the actual file that failed to parse
+2. Find the unrecognized block/directive
+3. Add to grammar (`.lark` file)
+4. Add transformer handler (parser `.py` file)
+5. Keep the real-world file as a regression fixture
+
+## Embedded Code Validation
+
+TD injects runtime context not present in raw code. For GLSL uniforms/structs:
+
+1. **Check official docs first**: https://docs.derivative.ca/Write_a_GLSL_TOP
+2. TD preamble stubs are in `embedded/glsl_validator.py`
+3. For undocumented fields: use Info DAT in TD to inspect compiled shaders
+
+False positives about "undefined" TD builtins → check docs, then update preamble.
 
 ## TouchDesigner File Formats
 
 ### .n files (Node Definitions)
 ```
-TOP:displace
-tile 260 200 130 72
-flags =  viewer 1 parlanguage 0
+TOP:switch
+tile 1250 -420 130 72
+flags =  viewer 1
 inputs
 {
-0 	moviefilein1
-1 	chopto1
+0 	in2
 }
-color 0.67 0.67 0.67
-view -1 3 0 0 1 1 0 0
+exports
+{
+null1
+}
 end
 ```
 
@@ -61,67 +106,39 @@ Mode flags: 0=constant, 17=string expr, 32=numeric, 49=expression
 ### .toc files (Manifest)
 One path per line, special entries start with `.` (`.build`, `.start`, etc.)
 
-## Key Patterns
-
-### Lark Transformers
-Each parser creates a **fresh transformer instance per parse** to avoid state carryover:
-```python
-def parse(self, file_path: Path) -> ParsedNFile:
-    tree = self._parser.parse(content)
-    transformer = NFileTransformer()  # Fresh instance!
-    return transformer.transform(tree)
-```
-
-### NetworkX Graph
-Operators are nodes, connections are directed edges:
-```python
-graph.add_node(node.path, operator=node, family=node.family.value)
-graph.add_edge(source_path, target_path, input_index=idx)
-```
-
-Missing references create `MISSING:` placeholder nodes.
-
-### Validation Rules
-All rules inherit from `LintRule` and implement `check(graph) -> Iterator[Violation]`:
-```python
-class MyRule(LintRule):
-    @property
-    def id(self) -> str: return "my-rule-id"
-
-    def check(self, graph: nx.DiGraph) -> Iterator[Violation]:
-        # Yield violations found
-```
-
 ## Commands
 
 ```bash
-# Lint a project
-td-linter lint path/to/project.toe.dir
+# Lint a .toe file (auto-expands)
+uv run td-linter lint project.toe
+
+# Lint a .toe.dir directory
+uv run td-linter lint project.toe.dir
 
 # List available rules
-td-linter rules
+uv run td-linter rules
 
 # Create config file
-td-linter init
+uv run td-linter init
 
 # Verbose output
-td-linter lint project.toe.dir -v
+uv run td-linter lint project.toe -v
+
+# Keep expanded files for debugging
+uv run td-linter lint project.toe --keep-files-after-expand
+
+# Specify TouchDesigner path
+uv run td-linter lint project.toe --td-path /path/to/TouchDesigner/bin
 ```
 
 ## Testing
 
 ```bash
-# Run linter on fixtures
-uv run td-linter lint docs/touchdesigner/fixtures/projects/reference_toe/example.toe.dir
-uv run td-linter lint docs/touchdesigner/fixtures/projects/shader_test_harness.toe.dir
+# Run unit tests
+uv run pytest tests/unit/td_linter/ -v
 
-# Test parser directly
-uv run python -c "
-from td_linter.parsers.n_parser import NFileParser
-parser = NFileParser()
-result = parser.parse(Path('path/to/file.n'))
-print(result.inputs)
-"
+# Lint fixtures directly
+uv run td-linter lint docs/touchdesigner/fixtures/projects/reference_toe/example.toe.dir
 ```
 
 ## Operator Families
@@ -176,22 +193,7 @@ class MyNewRule(LintRule):
                 )
 ```
 
-2. Register in `linter.py`:
-```python
-from td_linter.rules.my_new_rule import MyNewRule
-
-def get_all_rules() -> list[LintRule]:
-    return [
-        # ... existing rules
-        MyNewRule(),
-    ]
-```
-
-## Ruff Configuration
-
-The package has specific ignores in `pyproject.toml`:
-- `cli.py`: B008 (Typer pattern), ARG001 (future args)
-- `parsers/*.py`: ANN401 (Lark uses Any), ARG002 (transformer methods)
+2. Register in `linter.py`
 
 ## Related Files
 

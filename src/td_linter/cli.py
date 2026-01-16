@@ -1,5 +1,6 @@
 """CLI for TouchDesigner Linter."""
 
+import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
 
 app = typer.Typer(
     name="td-linter",
-    help="Validate TouchDesigner .toe.dir expanded projects.",
+    help="Validate TouchDesigner .toe or .toe.dir projects.",
     add_completion=False,
 )
 console = Console()
@@ -36,6 +37,36 @@ def _validate_toe_dir(path: Path) -> None:
         console.print(
             f"[yellow]Warning:[/yellow] Path does not end with .toe.dir: {path}"
         )
+
+
+def _validate_path(path: Path) -> tuple[bool, bool]:
+    """
+    Validate that path is a valid .toe file or .toe.dir directory.
+
+    Returns:
+        Tuple of (is_toe_file, needs_expand).
+        - is_toe_file: True if path is a .toe file
+        - needs_expand: True if file needs to be expanded before linting
+
+    """
+    if not path.exists():
+        console.print(f"[red]Error:[/red] Path not found: {path}")
+        raise typer.Exit(1)
+
+    if path.is_file() and path.suffix == ".toe":
+        return True, True
+
+    if path.is_dir():
+        if not path.name.endswith(".toe.dir"):
+            console.print(
+                f"[yellow]Warning:[/yellow] Path does not end with .toe.dir: {path}"
+            )
+        return False, False
+
+    console.print(
+        f"[red]Error:[/red] Path must be a .toe file or .toe.dir directory: {path}"
+    )
+    raise typer.Exit(1)
 
 
 def _apply_select_patterns(
@@ -75,7 +106,7 @@ def _apply_ignore_patterns(
 
 @app.command()
 def lint(
-    path: Path = typer.Argument(..., help="Path to .toe.dir directory"),
+    path: Path = typer.Argument(..., help="Path to .toe file or .toe.dir directory"),
     config: Path | None = typer.Option(
         None, "--config", "-c", help="Configuration file path"
     ),
@@ -112,59 +143,128 @@ def lint(
         "--no-embedded",
         help="Skip validation of embedded GLSL/Python code",
     ),
+    keep_files_after_expand: bool = typer.Option(
+        False,
+        "--keep-files-after-expand",
+        help="Keep expanded .toe.dir after linting (for debugging)",
+    ),
+    td_path: Path | None = typer.Option(
+        None,
+        "--td-path",
+        help="Path to TouchDesigner installation (or set TOUCHDESIGNER_PATH env var)",
+    ),
 ) -> None:
-    """Validate a .toe.dir project."""
-    _validate_toe_dir(path)
+    """Validate a .toe file or .toe.dir project.
+
+    When given a .toe file, automatically expands it using toeexpand,
+    runs the linter, and cleans up the expanded directory (unless
+    --keep-files-after-expand is specified).
+
+    TouchDesigner must be installed for .toe file support. Set the
+    TOUCHDESIGNER_PATH environment variable or use --td-path to specify
+    the installation directory.
+    """
+    _, needs_expand = _validate_path(path)
+    toe_dir: Path | None = None
+    cleanup_needed = False
+
+    # Handle .toe file expansion
+    if needs_expand:
+        from td_linter.td_tools import (
+            TouchDesignerNotFoundError,
+            ToeExpandError,
+            expand_toe,
+        )
+
+        if verbose:
+            console.print(f"[dim]Expanding: {path}[/dim]")
+
+        try:
+            toe_dir = expand_toe(path, td_path=td_path)
+            cleanup_needed = not keep_files_after_expand
+            if verbose:
+                console.print(f"[dim]Expanded to: {toe_dir}[/dim]")
+        except TouchDesignerNotFoundError as e:
+            console.print(f"[red]Error:[/red] {e}")
+            raise typer.Exit(1) from e
+        except ToeExpandError as e:
+            console.print(f"[red]Error expanding .toe file:[/red] {e}")
+            raise typer.Exit(1) from e
+        except FileNotFoundError as e:
+            console.print(f"[red]Error:[/red] {e}")
+            raise typer.Exit(1) from e
+
+        lint_path = toe_dir
+    else:
+        lint_path = path
 
     if verbose:
-        console.print(f"[dim]Linting: {path}[/dim]")
+        console.print(f"[dim]Linting: {lint_path}[/dim]")
 
     # Import here to avoid circular imports and speed up --help
     from td_linter.linter import run_lint
     from td_linter.rules.registry import get_registry
 
-    # Load configuration
     try:
-        registry = get_registry(config)
-    except Exception as e:
-        console.print(f"[red]Error loading config:[/red] {e}")
-        raise typer.Exit(1) from e
+        # Load configuration
+        try:
+            registry = get_registry(config)
+        except Exception as e:
+            console.print(f"[red]Error loading config:[/red] {e}")
+            raise typer.Exit(1) from e
 
-    # Apply CLI overrides for select/ignore
-    enabled_rules = (
-        _apply_select_patterns(registry, select, verbose)
-        if select
-        else registry.enabled()
-    )
+        # Apply CLI overrides for select/ignore
+        enabled_rules = (
+            _apply_select_patterns(registry, select, verbose)
+            if select
+            else registry.enabled()
+        )
 
-    if ignore:
-        enabled_rules = _apply_ignore_patterns(registry, enabled_rules, ignore, verbose)
+        if ignore:
+            enabled_rules = _apply_ignore_patterns(
+                registry, enabled_rules, ignore, verbose
+            )
 
-    if verbose:
-        console.print(f"[dim]Running {len(enabled_rules)} rules[/dim]")
+        if verbose:
+            console.print(f"[dim]Running {len(enabled_rules)} rules[/dim]")
 
-    violations = run_lint(
-        path,
-        validate_expressions=validate_expressions,
-        validate_embedded=not no_embedded,
-        rules=enabled_rules,
-        config=registry.config,
-    )
+        violations = run_lint(
+            lint_path,
+            validate_expressions=validate_expressions,
+            validate_embedded=not no_embedded,
+            rules=enabled_rules,
+            config=registry.config,
+        )
 
-    # Format and output results
-    formatter = get_formatter(output_format, no_color=no_color)
-    project_path = str(path) if not quiet or violations else None
-    output = formatter.format(violations, project_path=project_path)
+        # Format and output results
+        formatter = get_formatter(output_format, no_color=no_color)
+        project_path = str(path) if not quiet or violations else None
+        output = formatter.format(violations, project_path=project_path)
 
-    if output:
-        console.print(output, highlight=False)
+        if output:
+            console.print(output, highlight=False)
 
-    # Determine exit code
-    has_errors = any(v.severity == "error" for v in violations)
-    has_warnings = any(v.severity == "warning" for v in violations)
+        # Determine exit code
+        has_errors = any(v.severity == "error" for v in violations)
+        has_warnings = any(v.severity == "warning" for v in violations)
 
-    if has_errors or (fail_on_warning and has_warnings):
-        raise typer.Exit(1)
+        exit_code = 1 if (has_errors or (fail_on_warning and has_warnings)) else 0
+
+    finally:
+        # Clean up expanded directory if needed
+        if cleanup_needed and toe_dir and toe_dir.exists():
+            if verbose:
+                console.print(f"[dim]Cleaning up: {toe_dir}[/dim]")
+            shutil.rmtree(toe_dir)
+            # Also remove the .toc file if it exists
+            toc_file = toe_dir.parent / f"{path.name}.toc"
+            if toc_file.exists():
+                toc_file.unlink()
+        elif keep_files_after_expand and toe_dir:
+            console.print(f"[dim]Keeping expanded files at: {toe_dir}[/dim]")
+
+    if exit_code != 0:
+        raise typer.Exit(exit_code)
 
 
 @app.command()
