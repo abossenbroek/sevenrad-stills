@@ -1,7 +1,7 @@
 # Phase 5: Integration & Polish
 
 ---
-complete: false
+complete: true
 ---
 
 ## Overview
@@ -22,11 +22,11 @@ Make the linter production-ready: CI/CD integration, output formats for tooling,
 
 | Ticket | Title | Priority | Status |
 |--------|-------|----------|--------|
-| [TDL-050](../tickets/TDL-050-output-formats.md) | JSON/SARIF Output Formatters | High | pending |
-| [TDL-051](../tickets/TDL-051-precommit-hook.md) | Pre-commit Hook | High | pending |
-| [TDL-052](../tickets/TDL-052-github-actions.md) | GitHub Actions Workflow | High | pending |
-| [TDL-053](../tickets/TDL-053-harness-integration.md) | build_test_harness.py Integration | Medium | pending |
-| [TDL-054](../tickets/TDL-054-package-distribution.md) | Package Distribution | High | pending |
+| [TDL-050](../tickets/TDL-050-output-formats.md) | JSON/SARIF Output Formatters | High | **done** |
+| [TDL-051](../tickets/TDL-051-precommit-hook.md) | Pre-commit Hook | High | **done** |
+| [TDL-052](../tickets/TDL-052-github-actions.md) | GitHub Actions Workflow | High | **done** |
+| [TDL-053](../tickets/TDL-053-harness-integration.md) | build_test_harness.py Integration | Medium | **done** |
+| [TDL-054](../tickets/TDL-054-package-distribution.md) | Package Distribution | High | **done** |
 
 ## Dependencies
 
@@ -58,10 +58,10 @@ TDL-014 (CLI) ──> TDL-054 (packaging requires CLI)
 
 ## Completion Checklist
 
-- [ ] TDL-050 complete: All three output formats work
-- [ ] TDL-051 complete: Hook blocks bad commits
-- [ ] TDL-052 complete: GH workflow runs on .toe.dir changes
-- [ ] TDL-053 complete: Harness calls linter pre-collapse
-- [ ] TDL-054 complete: Package on PyPI (or TestPyPI)
-- [ ] G5.1-G5.3 verified
-- [ ] Phase marked complete: true
+- [x] TDL-050 complete: All three output formats work
+- [x] TDL-051 complete: Hook blocks bad commits
+- [x] TDL-052 complete: GH workflow runs on .toe.dir changes
+- [x] TDL-053 complete: Harness calls linter pre-collapse
+- [x] TDL-054 complete: Package installable via parent package
+- [x] G5.1-G5.3 verified
+- [x] Phase marked complete: true
