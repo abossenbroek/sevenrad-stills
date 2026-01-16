@@ -398,22 +398,53 @@ rules:
       prefix: "op_"
 ```
 
+## Environment Variables
+
+### TOUCHDESIGNER_PATH
+
+Path to TouchDesigner installation directory containing `toeexpand` and `toecollapse`.
+
+```bash
+# macOS
+export TOUCHDESIGNER_PATH=/Applications/TouchDesigner.app/Contents/MacOS
+
+# Windows
+set TOUCHDESIGNER_PATH=C:\Program Files\Derivative\TouchDesigner\bin
+
+# Linux
+export TOUCHDESIGNER_PATH=/opt/TouchDesigner/bin
+```
+
+This is used when linting `.toe` files directly. td-linter will auto-discover TouchDesigner if this is not set.
+
+**Discovery order:**
+1. `--td-path` CLI option
+2. `TOUCHDESIGNER_PATH` environment variable
+3. Common installation locations (platform-specific)
+4. `toeexpand`/`toecollapse` in PATH
+
 ## CLI Overrides
 
 Configuration can be overridden via CLI:
 
 ```bash
 # Use specific config file
-td-linter lint project.toe.dir --config strict.yaml
+td-linter lint project.toe --config strict.yaml
+
+# Specify TouchDesigner path
+td-linter lint project.toe --td-path /path/to/TouchDesigner/bin
+
+# Keep expanded files for debugging
+td-linter lint project.toe --keep-files-after-expand
 
 # Override select (replaces config)
-td-linter lint project.toe.dir --select S,C
+td-linter lint project.toe --select S,C
 
 # Override ignore (adds to config)
-td-linter lint project.toe.dir --ignore F
+td-linter lint project.toe --ignore F
 
 # Combined
-td-linter lint project.toe.dir --select S,C,T --ignore C002
+td-linter lint project.toe --select S,C,T --ignore C002
 ```
 
 ## Validation Errors

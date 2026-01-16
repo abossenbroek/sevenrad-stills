@@ -1,11 +1,11 @@
 # td-linter Quickstart Guide
 
-This guide will help you get started with td-linter, a validation tool for TouchDesigner `.toe.dir` projects.
+This guide will help you get started with td-linter, a validation tool for TouchDesigner projects.
 
 ## System Requirements
 
 - **Python**: 3.10 or higher
-- **TouchDesigner**: Any version that supports `toeexpand`/`toecollapse`
+- **TouchDesigner**: Any version that supports `toeexpand`/`toecollapse` (required for direct `.toe` file linting)
 - **GLSL Validation** (optional): `glslangValidator` from the Vulkan SDK
 
 ### Installing glslangValidator
@@ -56,13 +56,70 @@ pip install sevenrad-stills[td-linter-all]
 td-linter version
 ```
 
-## Prerequisites
+## Basic Usage
 
-Before using td-linter, you need an expanded TouchDesigner project:
+td-linter can lint both binary `.toe` files and expanded `.toe.dir` directories.
 
-1. Open your `.toe` file in TouchDesigner
-2. Use `toeexpand` to export it as a `.toe.dir` directory
-3. The `.toe.dir` contains human-readable text files that td-linter validates
+### Linting .toe Files Directly (Recommended)
+
+The easiest way to use td-linter is to lint `.toe` files directly:
+
+```bash
+td-linter lint project.toe
+```
+
+This automatically:
+1. Finds your TouchDesigner installation
+2. Expands the `.toe` file to a temporary `.toe.dir` directory
+3. Validates the expanded project
+4. Cleans up the temporary files
+
+### TouchDesigner Path Discovery
+
+td-linter automatically finds TouchDesigner in this order:
+1. `--td-path` CLI option
+2. `TOUCHDESIGNER_PATH` environment variable
+3. Common installation locations:
+   - **macOS**: `/Applications/TouchDesigner*.app/Contents/MacOS/`
+   - **Windows**: `C:\Program Files\Derivative\TouchDesigner*\bin\`
+   - **Linux**: `/opt/TouchDesigner*/bin/`
+4. `toeexpand`/`toecollapse` in PATH
+
+### Specifying TouchDesigner Path
+
+If auto-discovery fails, specify the path explicitly:
+
+```bash
+# Via CLI option
+td-linter lint project.toe --td-path /Applications/TouchDesigner.app/Contents/MacOS
+
+# Via environment variable
+export TOUCHDESIGNER_PATH=/Applications/TouchDesigner.app/Contents/MacOS
+td-linter lint project.toe
+```
+
+### Debugging with --keep-files-after-expand
+
+To inspect the expanded files after linting (useful for debugging):
+
+```bash
+td-linter lint project.toe --keep-files-after-expand
+```
+
+This keeps the `.toe.dir` directory after linting completes. The path is printed to stdout.
+
+### Linting .toe.dir Directories
+
+You can also lint pre-expanded directories directly:
+
+```bash
+td-linter lint project.toe.dir
+```
+
+This is useful when:
+- You're working with version-controlled `.toe.dir` projects
+- TouchDesigner isn't installed on the current machine
+- You want to avoid repeated expand/collapse cycles
 
 ## Project Structure
 
@@ -99,6 +156,10 @@ myproject.toe.dir/
 Run td-linter on your project:
 
 ```bash
+# Lint a .toe file directly (recommended)
+td-linter lint path/to/your/project.toe
+
+# Or lint an expanded .toe.dir directory
 td-linter lint path/to/your/project.toe.dir
 ```
 
@@ -193,23 +254,32 @@ td-linter lint project.toe.dir --format sarif
 ## Common Options
 
 ```bash
+# Lint a .toe file directly
+td-linter lint project.toe
+
+# Keep expanded files for debugging
+td-linter lint project.toe --keep-files-after-expand
+
+# Specify TouchDesigner path
+td-linter lint project.toe --td-path /path/to/TouchDesigner/bin
+
 # Verbose output
-td-linter lint project.toe.dir --verbose
+td-linter lint project.toe --verbose
 
 # Quiet (errors only)
-td-linter lint project.toe.dir --quiet
+td-linter lint project.toe --quiet
 
 # Exit code 1 on warnings (for CI)
-td-linter lint project.toe.dir --fail-on-warning
+td-linter lint project.toe --fail-on-warning
 
 # Use specific config file
-td-linter lint project.toe.dir --config my-config.yaml
+td-linter lint project.toe --config my-config.yaml
 
 # Select only syntax rules
-td-linter lint project.toe.dir --select S
+td-linter lint project.toe --select S
 
 # Ignore performance rules
-td-linter lint project.toe.dir --ignore F
+td-linter lint project.toe --ignore F
 ```
 
 ## List Available Rules
@@ -241,13 +311,19 @@ Error: Path not found: project.toe.dir
 
 **Solution:** Check the path exists and is spelled correctly.
 
-### "Not a directory"
+### "TouchDesigner not found"
 
 ```
-Error: Not a directory: project.toe
+Error: TouchDesigner not found. Set TOUCHDESIGNER_PATH environment variable or use --td-path option.
 ```
 
-**Solution:** td-linter validates expanded `.toe.dir` directories, not binary `.toe` files. Use `toeexpand` first.
+**Solution:** td-linter needs TouchDesigner to expand `.toe` files. Either:
+1. Install TouchDesigner
+2. Set `TOUCHDESIGNER_PATH` environment variable to your TD installation
+3. Use `--td-path /path/to/TouchDesigner/bin`
+4. Add TouchDesigner's bin directory to your PATH
+
+See [TouchDesigner Path Discovery](#touchdesigner-path-discovery) for details.
 
 ### "glslangValidator not found"
 

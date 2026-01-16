@@ -7,13 +7,13 @@ This document describes the programmatic Python API for integrating td-linter in
 ```python
 from td_linter import lint, lint_and_check, Severity
 
-# Simple linting
-violations = lint("myproject.toe.dir")
+# Simple linting - works with .toe files or .toe.dir directories
+violations = lint("myproject.toe")
 for v in violations:
     print(f"{v.severity}: {v.message} at {v.path}")
 
 # Check with pass/fail status
-passed, violations = lint_and_check("myproject.toe.dir", fail_on_warning=True)
+passed, violations = lint_and_check("myproject.toe", fail_on_warning=True)
 if not passed:
     sys.exit(1)
 ```
@@ -22,7 +22,7 @@ if not passed:
 
 ### lint()
 
-Main function to lint a `.toe.dir` project.
+Main function to lint a TouchDesigner project. Accepts both `.toe` files and `.toe.dir` directories.
 
 ```python
 def lint(
@@ -32,6 +32,8 @@ def lint(
     ignore: list[str] | None = None,
     validate_expressions: bool = False,
     validate_embedded: bool = True,
+    td_path: str | Path | None = None,
+    keep_files_after_expand: bool = False,
 ) -> list[Violation]
 ```
 
@@ -39,30 +41,41 @@ def lint(
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `path` | `str \| Path` | required | Path to `.toe.dir` directory |
+| `path` | `str \| Path` | required | Path to `.toe` file or `.toe.dir` directory |
 | `config_path` | `str \| Path \| None` | `None` | Path to `td-linter.yaml` config |
 | `select` | `list[str] \| None` | `None` | Rule IDs or category codes to enable |
 | `ignore` | `list[str] \| None` | `None` | Rule IDs or category codes to disable |
 | `validate_expressions` | `bool` | `False` | Validate Python expressions in `.parm` files |
 | `validate_embedded` | `bool` | `True` | Validate embedded GLSL/Python code |
+| `td_path` | `str \| Path \| None` | `None` | Path to TouchDesigner bin directory (for `.toe` files) |
+| `keep_files_after_expand` | `bool` | `False` | Keep expanded `.toe.dir` after linting `.toe` files |
 
 **Returns:** `list[Violation]` - List of violations found
 
 **Raises:**
 - `FileNotFoundError` - If path does not exist
-- `ValueError` - If path is not a directory
+- `TouchDesignerNotFoundError` - If linting `.toe` file and TouchDesigner cannot be found
 
 **Example:**
 
 ```python
 from td_linter import lint
 
-# Basic usage
+# Lint a .toe file directly (auto-expands and cleans up)
+violations = lint("myproject.toe")
+
+# Lint with explicit TouchDesigner path
+violations = lint("myproject.toe", td_path="/Applications/TouchDesigner.app/Contents/MacOS")
+
+# Keep expanded files for debugging
+violations = lint("myproject.toe", keep_files_after_expand=True)
+
+# Lint a .toe.dir directory
 violations = lint("myproject.toe.dir")
 
 # With configuration
 violations = lint(
-    "myproject.toe.dir",
+    "myproject.toe",
     config_path="td-linter.yaml",
     select=["S", "C"],        # Only syntax and connection rules
     ignore=["F003"],          # Skip heavy texture chains rule
@@ -90,7 +103,7 @@ def lint_and_check(
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `path` | `str \| Path` | required | Path to `.toe.dir` directory |
+| `path` | `str \| Path` | required | Path to `.toe` file or `.toe.dir` directory |
 | `fail_on_warning` | `bool` | `False` | If True, warnings also cause failure |
 | `**kwargs` | | | Additional arguments passed to `lint()` |
 
@@ -115,6 +128,137 @@ if not passed:
 
 print("Linting passed!")
 ```
+
+## TouchDesigner Tools
+
+The `td_tools` module provides utilities for discovering TouchDesigner installations and working with `.toe` files.
+
+### find_touchdesigner()
+
+Find TouchDesigner installation directory containing `toeexpand`/`toecollapse`.
+
+```python
+from td_linter.td_tools import find_touchdesigner
+
+def find_touchdesigner(td_path: Path | None = None) -> Path | None
+```
+
+**Search order:**
+1. Explicit `td_path` argument (if provided)
+2. `TOUCHDESIGNER_PATH` environment variable
+3. Common installation locations for the current platform
+4. PATH lookup for `toeexpand` executable
+
+**Returns:** Path to directory containing toeexpand/toecollapse, or None if not found.
+
+**Example:**
+
+```python
+from td_linter.td_tools import find_touchdesigner
+
+# Auto-discover TouchDesigner
+td_dir = find_touchdesigner()
+if td_dir:
+    print(f"Found TouchDesigner at: {td_dir}")
+else:
+    print("TouchDesigner not found")
+
+# Use explicit path
+td_dir = find_touchdesigner(Path("/Applications/TouchDesigner.app"))
+```
+
+### expand_toe()
+
+Expand a `.toe` file to a `.toe.dir` directory.
+
+```python
+from td_linter.td_tools import expand_toe
+
+def expand_toe(
+    toe_path: Path,
+    output_dir: Path | None = None,
+    td_path: Path | None = None,
+    timeout: int = 60,
+) -> Path
+```
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `toe_path` | `Path` | required | Path to the `.toe` file to expand |
+| `output_dir` | `Path \| None` | `None` | Output directory (default: same as `.toe` file) |
+| `td_path` | `Path \| None` | `None` | Path to TouchDesigner bin directory |
+| `timeout` | `int` | `60` | Command timeout in seconds |
+
+**Returns:** Path to the expanded `.toe.dir` directory.
+
+**Raises:**
+- `TouchDesignerNotFoundError` - If TouchDesigner cannot be found
+- `ToeExpandError` - If expansion fails
+- `FileNotFoundError` - If toe_path doesn't exist
+
+**Example:**
+
+```python
+from td_linter.td_tools import expand_toe
+
+# Expand a .toe file
+toe_dir = expand_toe(Path("project.toe"))
+print(f"Expanded to: {toe_dir}")
+
+# Expand to specific location
+toe_dir = expand_toe(
+    Path("project.toe"),
+    output_dir=Path("/tmp"),
+    timeout=120,
+)
+```
+
+### collapse_toe()
+
+Collapse a `.toe.dir` directory back to a `.toe` file.
+
+```python
+from td_linter.td_tools import collapse_toe
+
+def collapse_toe(
+    toe_dir: Path,
+    td_path: Path | None = None,
+    timeout: int = 60,
+) -> Path
+```
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `toe_dir` | `Path` | required | Path to the `.toe.dir` directory |
+| `td_path` | `Path \| None` | `None` | Path to TouchDesigner bin directory |
+| `timeout` | `int` | `60` | Command timeout in seconds |
+
+**Returns:** Path to the collapsed `.toe` file.
+
+**Raises:**
+- `TouchDesignerNotFoundError` - If TouchDesigner cannot be found
+- `ToeCollapseError` - If collapse fails
+- `FileNotFoundError` - If toe_dir doesn't exist
+
+### Exception Classes
+
+```python
+from td_linter.td_tools import (
+    TouchDesignerNotFoundError,
+    ToeExpandError,
+    ToeCollapseError,
+)
+```
+
+| Exception | Description |
+|-----------|-------------|
+| `TouchDesignerNotFoundError` | TouchDesigner installation cannot be found |
+| `ToeExpandError` | `toeexpand` command failed |
+| `ToeCollapseError` | `toecollapse` command failed |
 
 ## Data Types
 
