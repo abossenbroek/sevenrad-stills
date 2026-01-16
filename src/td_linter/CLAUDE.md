@@ -195,9 +195,40 @@ class MyNewRule(LintRule):
 
 2. Register in `linter.py`
 
+## Adding Test Fixtures
+
+When adding third-party `.toe` files as regression fixtures:
+
+### Git LFS Tracking
+`.toe` files are tracked with git-lfs (configured in `.gitattributes`). Just `git add` normally.
+
+### Attribution Requirements
+Always include source attribution in:
+
+1. **Commit message**:
+   ```
+   Test fixture:
+   - Add <filename>.toe
+     Source: <url>
+     Author: <author name>
+   ```
+
+2. **CHANGELOG.md** under "Test Fixtures" section:
+   ```markdown
+   ### Test Fixtures
+
+   - Added `<filename>.toe` as regression fixture.
+     - Source: [Title](url)
+     - Author: <author name>
+   ```
+
+### Example
+See commit `f5a8cf3` for the `MakingSimpleParticleSystemsWithTOPS Marco Kornke.toe` fixture.
+
 ## Related Files
 
 - Fixtures: `docs/touchdesigner/fixtures/projects/`
 - Format docs: `docs/touchdesigner/reference/toe_dir_format.yaml`
 - Specification: `docs/touchdesigner/reference/linter_spec.md`
 - Tickets: `docs/touchdesigner/linter-tickets/`
+- Changelog: `CHANGELOG.md` (root)
