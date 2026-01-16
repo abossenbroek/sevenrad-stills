@@ -537,5 +537,60 @@ def version() -> None:
     console.print(f"td-linter {__version__}")
 
 
+@app.command()
+def lsp(
+    transport: str = typer.Option(
+        "stdio",
+        "--transport",
+        "-t",
+        help="Transport method: stdio, tcp, ws",
+    ),
+    host: str = typer.Option(
+        "127.0.0.1",
+        "--host",
+        help="Host address for TCP/WebSocket transport",
+    ),
+    port: int = typer.Option(
+        2087,
+        "--port",
+        "-p",
+        help="Port number for TCP/WebSocket transport",
+    ),
+) -> None:
+    """Start the Language Server Protocol server.
+
+    The LSP server provides real-time linting feedback in editors
+    that support the Language Server Protocol (VS Code, Neovim, etc.).
+
+    Example usage:
+        td-linter lsp  # Start on stdio (for editor integration)
+        td-linter lsp --transport tcp --port 2087  # TCP server
+    """
+    # Import here to handle optional dependency
+    try:
+        from td_linter.lsp import start_lsp_server
+    except ImportError as e:
+        console.print(
+            "[red]Error:[/red] pygls is required for LSP mode.\n"
+            "Install it with: pip install sevenrad-stills[td-linter-lsp]"
+        )
+        raise typer.Exit(1) from e
+
+    # Validate transport
+    valid_transports = {"stdio", "tcp", "ws"}
+    if transport not in valid_transports:
+        console.print(
+            f"[red]Error:[/red] Invalid transport '{transport}'. "
+            f"Options: {', '.join(valid_transports)}"
+        )
+        raise typer.Exit(1)
+
+    try:
+        start_lsp_server(transport=transport, host=host, port=port)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] LSP server failed: {e}")
+        raise typer.Exit(1) from e
+
+
 if __name__ == "__main__":
     app()
