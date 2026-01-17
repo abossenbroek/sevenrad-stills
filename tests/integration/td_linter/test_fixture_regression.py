@@ -42,6 +42,10 @@ TD_VERIFIED_FIXTURES = [
         "Rendering_1.toe",
         "Interactive Immersive HQ - Introduction to TouchDesigner book",
     ),
+    (
+        "Instancing.toe",
+        "Interactive Immersive HQ - Introduction to TouchDesigner book",
+    ),
 ]
 
 

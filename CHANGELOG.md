@@ -42,3 +42,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `Rendering_1.toe` as regression fixture.
   - Source: [Introduction to TouchDesigner](https://github.com/interactiveimmersivehq/Introduction-to-touchdesigner)
   - Author: Interactive Immersive HQ
+- Added `Instancing.toe` as regression fixture.
+  - Source: [Introduction to TouchDesigner](https://github.com/interactiveimmersivehq/Introduction-to-touchdesigner)
+  - Author: Interactive Immersive HQ
