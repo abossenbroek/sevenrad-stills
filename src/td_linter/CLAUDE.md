@@ -137,9 +137,14 @@ uv run td-linter lint project.toe --td-path /path/to/TouchDesigner/bin
 # Run unit tests
 uv run pytest tests/unit/td_linter/ -v
 
+# Run regression tests for TD-verified fixtures
+uv run pytest tests/integration/td_linter/test_fixture_regression.py -v -m "slow or integration"
+
 # Lint fixtures directly
 uv run td-linter lint docs/touchdesigner/fixtures/projects/reference_toe/example.toe.dir
 ```
+
+When adding new TD-verified fixtures, add them to `TD_VERIFIED_FIXTURES` in `tests/integration/td_linter/test_fixture_regression.py`.
 
 ## Operator Families
 
