@@ -46,6 +46,22 @@ TD_VERIFIED_FIXTURES = [
         "Instancing.toe",
         "Interactive Immersive HQ - Introduction to TouchDesigner book",
     ),
+    (
+        "Scripting_1.toe",
+        "Interactive Immersive HQ - Introduction to TouchDesigner book",
+    ),
+    (
+        "Perform_mode.toe",
+        "Interactive Immersive HQ - Introduction to TouchDesigner book",
+    ),
+    (
+        "Cooking_1.toe",
+        "Interactive Immersive HQ - Introduction to TouchDesigner book",
+    ),
+    (
+        "Basic_3D.toe",
+        "Interactive Immersive HQ - Introduction to TouchDesigner book",
+    ),
 ]
 
 
