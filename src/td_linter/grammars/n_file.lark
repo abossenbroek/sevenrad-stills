@@ -21,6 +21,7 @@ type_header: FAMILY ":" OP_TYPE
 directive: tile_directive
          | flags_directive
          | inputs_block
+         | extrainputs_block
          | exports_block
          | color_directive
          | dock_directive
@@ -39,6 +40,9 @@ comment_directive: "comment" ESCAPED_STRING
 inputs_block: "inputs" "{" input_entry* "}"
 input_entry: INT OPERATOR_REF
 
+extrainputs_block: "extrainputs" "{" extrainput_entry* "}"
+extrainput_entry: INT EXTRAINPUT_REF IDENTIFIER
+
 exports_block: "exports" "{" export_entry* "}"
 export_entry: OPERATOR_REF
 
@@ -53,6 +57,7 @@ view_value: SIGNED_NUMBER | ESCAPED_STRING | STAR
 FAMILY: "TOP" | "CHOP" | "SOP" | "DAT" | "COMP" | "MAT" | "POP"
 OP_TYPE: /[a-zA-Z_][a-zA-Z0-9_]*/
 OPERATOR_REF: /[a-zA-Z_][a-zA-Z0-9_\/]*/
+EXTRAINPUT_REF: /\.\.(?:\/[a-zA-Z_][a-zA-Z0-9_]*)*|[a-zA-Z_][a-zA-Z0-9_]*(?:\/[a-zA-Z_][a-zA-Z0-9_]*)*/
 IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_]*/
 SIGNED_INT: /-?[0-9]+/
 STAR: "*"

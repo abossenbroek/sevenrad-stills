@@ -84,6 +84,14 @@ class NFileTransformer(Transformer[Any, ParsedNFile]):
         """Extract a single input entry."""
         return (int(index), str(ref))
 
+    def extrainputs_block(self, _items: list[Any]) -> None:
+        """Handle extrainputs block (parameter/data references, not wire inputs)."""
+        pass
+
+    def extrainput_entry(self, items: list[Any]) -> None:
+        """Handle extrainput entry (ignored for now)."""
+        pass
+
     def exports_block(self, _items: list[Any]) -> None:
         """Handle exports block (ignored for now, just needs to parse)."""
         pass

@@ -30,6 +30,10 @@ TD_VERIFIED_FIXTURES = [
         "Marco Kornke - TOPs particle systems tutorial",
     ),
     ("VHS#tutorial.toe", "VHS effect tutorial"),
+    (
+        "3D Waveform.toe",
+        "Interactive Immersive HQ - Introduction to TouchDesigner book",
+    ),
 ]
 
 
