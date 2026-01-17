@@ -36,3 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `3D Waveform.toe` as regression fixture.
   - Source: [Introduction to TouchDesigner](https://github.com/interactiveimmersivehq/Introduction-to-touchdesigner)
   - Author: Interactive Immersive HQ
+- Added `Audio Responsive Geometry.toe` as regression fixture.
+  - Source: [Introduction to TouchDesigner](https://github.com/interactiveimmersivehq/Introduction-to-touchdesigner)
+  - Author: Interactive Immersive HQ

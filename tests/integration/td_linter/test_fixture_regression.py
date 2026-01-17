@@ -34,6 +34,10 @@ TD_VERIFIED_FIXTURES = [
         "3D Waveform.toe",
         "Interactive Immersive HQ - Introduction to TouchDesigner book",
     ),
+    (
+        "Audio Responsive Geometry.toe",
+        "Interactive Immersive HQ - Introduction to TouchDesigner book",
+    ),
 ]
 
 
