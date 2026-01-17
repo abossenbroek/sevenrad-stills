@@ -78,6 +78,14 @@ TD_VERIFIED_FIXTURES = [
         "Color Picker.toe",
         "Interactive Immersive HQ - Introduction to TouchDesigner book",
     ),
+    (
+        "01_Moving_particles_with_textures.toe",
+        "Interactive Immersive HQ - Introduction to TouchDesigner book",
+    ),
+    (
+        "Video Switcher.toe",
+        "Interactive Immersive HQ - Introduction to TouchDesigner book",
+    ),
 ]
 
 
