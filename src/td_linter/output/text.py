@@ -19,6 +19,73 @@ SEVERITY_COLORS = {
 }
 
 
+def _get_container_rollups(
+    violations: list["Violation"],
+) -> list[tuple[str, int, int]]:
+    """Find containers with multiple networks having errors inside.
+
+    Returns a list of (container_path, network_count, error_count) tuples.
+    Prefers showing sibling containers at a meaningful depth (like TD does).
+    """
+    # Count errors per unique path
+    error_paths: set[str] = set()
+    for v in violations:
+        if v.severity == "error":
+            error_paths.add(v.path)
+
+    if not error_paths:
+        return []
+
+    # For each potential container, count distinct child networks with errors
+    container_stats: dict[str, set[str]] = defaultdict(set)
+    for path in error_paths:
+        parts = path.split("/")
+        for i in range(1, len(parts)):
+            container = "/".join(parts[:i])
+            container_stats[container].add(path)
+
+    # Find containers with at least 3 networks with errors
+    candidates = [
+        (container, children)
+        for container, children in container_stats.items()
+        if len(children) >= 3
+    ]
+
+    if not candidates:
+        return []
+
+    # Group candidates by depth and find optimal depth level
+    # Prefer depth where we have multiple sibling containers, each with errors
+    by_depth: dict[int, list[tuple[str, set[str]]]] = defaultdict(list)
+    for container, children in candidates:
+        depth = container.count("/") + 1
+        by_depth[depth].append((container, children))
+
+    # Find the best depth: prefer depth 2 (like project1/EdgeBlend) if available
+    # This matches how TD shows container-level errors
+    best_depth = 2
+    if 2 not in by_depth:
+        # Fallback to lowest depth with containers
+        for depth in sorted(by_depth.keys()):
+            if depth >= 2:
+                best_depth = depth
+                break
+
+    # Select containers at the best depth
+    selected: list[tuple[str, int, int]] = []
+    for container, children in by_depth.get(best_depth, []):
+        error_count = sum(
+            1 for v in violations if v.severity == "error" and v.path in children
+        )
+        selected.append((container, len(children), error_count))
+
+    # Sort by error count descending
+    selected.sort(key=lambda x: -x[2])
+
+    # Limit to top 5 for readability
+    return selected[:5]
+
+
 class TextFormatter(OutputFormatter):
     """Human-readable colored text output.
 
@@ -71,13 +138,23 @@ class TextFormatter(OutputFormatter):
                 console.print(f"[green]OK:[/green] {project_path} passed validation")
             return output.getvalue()
 
+        # Show container-level rollups first (like TD's "X networks with errors inside")
+        rollups = _get_container_rollups(violations)
+        if rollups:
+            for container, network_count, error_count in rollups:
+                console.print(
+                    f"\n[bold red]/{container}[/bold red]: "
+                    f"{network_count} networks with errors inside ({error_count} total errors)"
+                )
+
         # Group by source file
         by_file: dict[str, list["Violation"]] = defaultdict(list)
         for v in violations:
             key = str(v.source_file) if v.source_file else v.path
             by_file[key].append(v)
 
-        # Output grouped violations
+        # Output grouped violations (individual errors)
+        console.print("\n[dim]─── Individual errors ───[/dim]")
         for filepath, file_violations in sorted(by_file.items()):
             console.print(f"\n[bold]{filepath}[/bold]")
             for v in file_violations:

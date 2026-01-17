@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### td-linter
 
+- **Container-level error rollups**: Error output now shows TD-style summaries like "/project1/EdgeBlend: 24 networks with errors inside (28 total errors)" before individual errors, making it easier to identify which containers have problems.
 - **Direct .toe file linting**: Run `td-linter lint project.toe` to lint binary .toe files directly. The linter automatically expands the file, validates it, and cleans up temporary files.
 - **TouchDesigner auto-discovery**: Automatically finds TouchDesigner installations on macOS, Windows, and Linux via common install locations, `TOUCHDESIGNER_PATH` env var, or PATH lookup.
 - **`--td-path` CLI option**: Explicitly specify TouchDesigner installation path.
