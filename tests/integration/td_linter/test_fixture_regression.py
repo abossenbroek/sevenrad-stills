@@ -62,6 +62,22 @@ TD_VERIFIED_FIXTURES = [
         "Basic_3D.toe",
         "Interactive Immersive HQ - Introduction to TouchDesigner book",
     ),
+    (
+        "common_chops.toe",
+        "Interactive Immersive HQ - Introduction to TouchDesigner book",
+    ),
+    (
+        "Phong.toe",
+        "Interactive Immersive HQ - Introduction to TouchDesigner book",
+    ),
+    (
+        "UI.toe",
+        "Interactive Immersive HQ - Introduction to TouchDesigner book",
+    ),
+    (
+        "Color Picker.toe",
+        "Interactive Immersive HQ - Introduction to TouchDesigner book",
+    ),
 ]
 
 

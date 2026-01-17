@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### td-linter
 
-- **`extrainputs` block parsing**: Grammar now parses `extrainputs` blocks in .n files. Fixes false positives where operators with `extrainputs` failed to parse, causing their references to be flagged as missing.
+- **`extrainputs` block parsing**: Grammar now parses `extrainputs` blocks in .n files, including multi-level parent references like `../..` and `../../..`. Fixes false positives where operators with `extrainputs` failed to parse, causing their references to be flagged as missing.
 - **GLSL false positives**: Updated shader preambles to GLSL 460 with extensions (`GL_GOOGLE_include_directive`, `GL_ARB_gpu_shader5`). Filtered false positives for scalar swizzles, include directives, and non-constant initializers.
 - **Python false positives**: Added missing TouchDesigner builtins (`OP`, `math`, `textDAT`, `tableDAT`, operator type classes).
 - **Binary header parsing**: Fixed `.text` file parsing to correctly handle 27-byte binary headers in TouchDesigner files.
@@ -45,6 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `Instancing.toe` as regression fixture.
   - Source: [Introduction to TouchDesigner](https://github.com/interactiveimmersivehq/Introduction-to-touchdesigner)
   - Author: Interactive Immersive HQ
-- Added `Scripting_1.toe`, `Perform_mode.toe`, `Cooking_1.toe`, `Basic_3D.toe` as regression fixtures.
+- Added `Scripting_1.toe`, `Perform_mode.toe`, `Cooking_1.toe`, `Basic_3D.toe`, `common_chops.toe`, `Phong.toe`, `UI.toe`, `Color Picker.toe` as regression fixtures.
   - Source: [Introduction to TouchDesigner](https://github.com/interactiveimmersivehq/Introduction-to-touchdesigner)
   - Author: Interactive Immersive HQ
