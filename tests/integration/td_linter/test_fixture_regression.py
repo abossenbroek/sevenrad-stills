@@ -38,6 +38,10 @@ TD_VERIFIED_FIXTURES = [
         "Audio Responsive Geometry.toe",
         "Interactive Immersive HQ - Introduction to TouchDesigner book",
     ),
+    (
+        "Rendering_1.toe",
+        "Interactive Immersive HQ - Introduction to TouchDesigner book",
+    ),
 ]
 
 
