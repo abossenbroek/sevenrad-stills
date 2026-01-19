@@ -38,6 +38,7 @@ TD_VERIFIED_FIXTURES = [
     ("3D Waveform.toe", "Interactive Immersive HQ - Introduction to TouchDesigner"),
     ("Audio Responsive Geometry.toe", "Interactive Immersive HQ - Introduction to TouchDesigner"),
     ("Basic_2D_add.toe", "Interactive Immersive HQ - Introduction to TouchDesigner"),
+    ("Basic_2D_buffers.toe", "Interactive Immersive HQ - Introduction to TouchDesigner"),
     ("Basic_2D_composite.toe", "Interactive Immersive HQ - Introduction to TouchDesigner"),
     ("Basic_2D_multi.toe", "Interactive Immersive HQ - Introduction to TouchDesigner"),
     ("Basic_2D_transform.toe", "Interactive Immersive HQ - Introduction to TouchDesigner"),

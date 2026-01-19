@@ -2,6 +2,7 @@
 
 from collections import defaultdict
 from io import StringIO
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from rich.console import Console
@@ -10,6 +11,38 @@ from td_linter.output.base import OutputFormatter
 
 if TYPE_CHECKING:
     from td_linter.rules.base import Violation
+
+
+def _extract_node_name(violation: "Violation") -> tuple[str, str | None]:
+    """Extract node name and container from violation path.
+
+    Returns (node_name, container_path) where container_path is the parent path
+    within the TD project (e.g., "project1" for "project1/chopexec1").
+    """
+    if violation.source_file:
+        path = Path(violation.source_file)
+        node_name = path.stem  # e.g., "chopexec1" from "chopexec1.text"
+
+        # Find parent within .toe.dir
+        parts = path.parts
+        toe_dir_idx = None
+        for i, part in enumerate(parts):
+            if part.endswith(".toe.dir"):
+                toe_dir_idx = i
+                break
+
+        if toe_dir_idx is not None and toe_dir_idx + 1 < len(parts) - 1:
+            # Get container path (parts between .toe.dir and the file)
+            container_parts = parts[toe_dir_idx + 1 : -1]
+            container = "/".join(container_parts)
+            return node_name, container
+
+        return node_name, None
+
+    # Fallback: extract from path string
+    if "/" in violation.path:
+        return violation.path.rsplit("/", 1)[-1], None
+    return violation.path, None
 
 
 SEVERITY_COLORS = {
@@ -156,14 +189,42 @@ class TextFormatter(OutputFormatter):
         # Output grouped violations (individual errors)
         console.print("\n[dim]─── Individual errors ───[/dim]")
         for filepath, file_violations in sorted(by_file.items()):
-            console.print(f"\n[bold]{filepath}[/bold]")
+            # Determine if we should show node-centric or file-centric header
+            first_v = file_violations[0]
+            node_name, container = _extract_node_name(first_v)
+            language = first_v.context.get("language", "") if first_v.context else ""
+
+            # Show node-centric header for embedded code (Python/GLSL)
+            if language and node_name:
+                lang_str = f" ({language})"
+                container_str = f" in /{container}" if container else ""
+                console.print(
+                    f"\n[cyan]Node:[/cyan] [bold]{node_name}[/bold]{lang_str}{container_str}"
+                )
+                console.print(f"  [dim]{filepath}[/dim]")
+            else:
+                console.print(f"\n[bold]{filepath}[/bold]")
+
             for v in file_violations:
                 color = SEVERITY_COLORS.get(v.severity, "white")
                 line_str = f":{v.line}" if v.line else ""
+
                 console.print(
                     f"  [{color}]{v.severity.upper()}[/{color}] "
                     f"{v.rule}{line_str}: {v.message}"
                 )
+
+                # Show source line with caret if available (LLVM-style)
+                if v.context:
+                    source_line = v.context.get("source_line")
+                    if source_line is not None:
+                        # Show the source line
+                        console.print(f"    [dim]│[/dim] {source_line}")
+                        # Show caret pointing to error position
+                        raw_offset = v.context.get("offset") or v.context.get("column")
+                        if isinstance(raw_offset, int) and raw_offset > 0:
+                            caret_pos = " " * (raw_offset - 1) + "^"
+                            console.print(f"    [dim]│[/dim] [{color}]{caret_pos}[/{color}]")
 
         # Summary
         counts = {"error": 0, "warning": 0, "info": 0}

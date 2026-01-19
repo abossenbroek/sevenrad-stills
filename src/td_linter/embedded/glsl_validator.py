@@ -116,6 +116,8 @@ FILTERED_PATTERNS = [
     re.compile(r"use of undeclared", re.IGNORECASE),
     re.compile(r"unknown variable", re.IGNORECASE),
     re.compile(r"redefinition", re.IGNORECASE),  # Preamble may declare same vars
+    re.compile(r"redeclaring", re.IGNORECASE),  # Preamble fragColor vs user's array
+    re.compile(r"overlapping use of location", re.IGNORECASE),  # MRT fragColor arrays
     re.compile(r"local_size", re.IGNORECASE),  # Layout qualifier conflict
     re.compile(r"cannot change previously set", re.IGNORECASE),  # Preamble conflict
     re.compile(r"compilation terminated", re.IGNORECASE),  # Follow-on error

@@ -77,6 +77,13 @@ class PythonValidator:
         try:
             tree = ast.parse(content, filename=file_path_str)
         except SyntaxError as e:
+            # Extract the source line for better error display
+            source_line = None
+            if e.lineno is not None:
+                lines = content.split("\n")
+                if 1 <= e.lineno <= len(lines):
+                    source_line = lines[e.lineno - 1]
+
             yield Violation(
                 rule="python-syntax-error",
                 message=f"Syntax error: {e.msg}",
@@ -84,7 +91,11 @@ class PythonValidator:
                 severity="error",
                 source_file=source_file,
                 line=e.lineno,
-                context={"offset": e.offset},
+                context={
+                    "offset": e.offset,
+                    "source_line": source_line,
+                    "language": "Python",
+                },
             )
             return
 
@@ -95,7 +106,13 @@ class PythonValidator:
                 all_globals = all_globals | extra_globals
 
             undefined = self.find_undefined_names(tree, all_globals)
+            lines = content.split("\n")
             for undef in undefined:
+                # Extract source line for better error display
+                source_line = None
+                if 1 <= undef.line <= len(lines):
+                    source_line = lines[undef.line - 1]
+
                 yield Violation(
                     rule="python-undefined-name",
                     message=f"Undefined name: '{undef.name}'",
@@ -103,7 +120,12 @@ class PythonValidator:
                     severity="warning",
                     source_file=source_file,
                     line=undef.line,
-                    context={"name": undef.name, "column": undef.column},
+                    context={
+                        "name": undef.name,
+                        "column": undef.column,
+                        "source_line": source_line,
+                        "language": "Python",
+                    },
                 )
 
         # Check for missing callbacks
