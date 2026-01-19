@@ -5,6 +5,9 @@ If the linter reports errors on these files, it's a false positive in our linter
 
 Run these tests to ensure linter changes don't introduce false positives:
     uv run pytest tests/integration/td_linter/test_fixture_regression.py -v
+
+CI Note: Tests prefer pre-expanded .toe.dir directories (from fixtures-expanded.zip)
+         to avoid needing TouchDesigner in CI. Local runs with TD can use .toe files.
 """
 
 from pathlib import Path
@@ -19,6 +22,28 @@ runner = CliRunner()
 FIXTURE_DIR = (
     Path(__file__).parent.parent.parent.parent / "docs/touchdesigner/fixtures/projects"
 )
+
+
+def get_fixture_target(fixture_name: str) -> Path | None:
+    """Get the target path for a fixture, preferring .toe.dir over .toe.
+
+    This allows CI to use pre-expanded directories while local development
+    can use .toe files directly (with TouchDesigner available).
+
+    Returns:
+        Path to .toe.dir if it exists, else .toe if it exists, else None.
+    """
+    # Prefer .toe.dir (for CI where fixtures-expanded.zip is extracted)
+    toe_dir = FIXTURE_DIR / (fixture_name + ".dir")
+    if toe_dir.exists():
+        return toe_dir
+
+    # Fall back to .toe (for local development with TouchDesigner)
+    toe_file = FIXTURE_DIR / fixture_name
+    if toe_file.exists():
+        return toe_file
+
+    return None
 
 # TD-verified fixtures: These open successfully in TouchDesigner
 # Add new fixtures here after verifying they open in TD
@@ -113,11 +138,11 @@ class TestTDVerifiedFixtures:
     )
     def test_fixture_passes_lint(self, fixture_name: str, source: str) -> None:
         """TD-verified fixture should pass linting with no violations."""
-        toe_file = FIXTURE_DIR / fixture_name
-        if not toe_file.exists():
+        target = get_fixture_target(fixture_name)
+        if target is None:
             pytest.skip(f"Fixture not found: {fixture_name}")
 
-        result = runner.invoke(app, ["lint", str(toe_file)])
+        result = runner.invoke(app, ["lint", str(target)])
 
         assert result.exit_code == 0, (
             f"Linter reported errors on TD-verified fixture '{fixture_name}' "
@@ -133,11 +158,11 @@ class TestTDVerifiedFixtures:
     )
     def test_fixture_no_parse_errors(self, fixture_name: str, source: str) -> None:
         """TD-verified fixture should have no parse errors."""
-        toe_file = FIXTURE_DIR / fixture_name
-        if not toe_file.exists():
+        target = get_fixture_target(fixture_name)
+        if target is None:
             pytest.skip(f"Fixture not found: {fixture_name}")
 
-        result = runner.invoke(app, ["lint", str(toe_file), "--format", "json"])
+        result = runner.invoke(app, ["lint", str(target), "--format", "json"])
 
         # Even if exit code is non-zero, check specifically for parse errors
         if "parse-error" in result.output.lower():
@@ -150,11 +175,10 @@ class TestTDVerifiedFixtures:
 
 
 def test_all_verified_fixtures_exist() -> None:
-    """Verify all listed fixtures actually exist."""
+    """Verify all listed fixtures actually exist (as .toe or .toe.dir)."""
     missing = []
     for fixture_name, _ in TD_VERIFIED_FIXTURES:
-        toe_file = FIXTURE_DIR / fixture_name
-        if not toe_file.exists():
+        if get_fixture_target(fixture_name) is None:
             missing.append(fixture_name)
 
     if missing:

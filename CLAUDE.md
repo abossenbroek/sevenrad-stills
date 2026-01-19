@@ -15,12 +15,25 @@ Photo/video processing toolkit with TouchDesigner integration.
 # Run td-linter on a .toe file
 uv run td-linter lint project.toe
 
-# Run tests
+# Run tests (or: make test)
 uv run pytest tests/unit/td_linter/ -v
 
-# Run regression tests for TD-verified fixtures
+# Run regression tests (or: make test-regression)
 uv run pytest tests/integration/td_linter/test_fixture_regression.py -v -m "slow or integration"
+
+# Expand fixtures for CI (requires TouchDesigner)
+make expand-fixtures
 ```
+
+## Makefile Targets
+
+| Target | Description |
+|--------|-------------|
+| `make test` | Run unit tests (excludes integration) |
+| `make test-regression` | Run TD linter regression tests |
+| `make expand-fixtures` | Expand .toe → .toe.dir (requires TD) |
+| `make clean-fixtures` | Remove expanded .toe.dir directories |
+| `make docs` | Serve documentation locally |
 
 ## Slash Commands
 
@@ -40,6 +53,7 @@ uv run pytest tests/integration/td_linter/test_fixture_regression.py -v -m "slow
 
 ### Binary Files
 - `.toe` files tracked with git-lfs (see `.gitattributes`)
+- `fixtures-expanded.zip` tracked with git-lfs (pre-expanded fixtures for CI)
 
 ## Component Documentation
 

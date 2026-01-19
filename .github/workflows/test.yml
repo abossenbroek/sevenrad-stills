@@ -80,7 +80,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          lfs: true  # Need .toe fixtures
+          lfs: true  # Need fixtures-expanded.zip
+
+      - name: Extract pre-expanded fixture directories
+        run: |
+          cd docs/touchdesigner/fixtures/projects
+          if [ -f fixtures-expanded.zip ]; then
+            unzip -o fixtures-expanded.zip
+            echo "Extracted $(ls -d *.toe.dir 2>/dev/null | wc -l) .toe.dir directories"
+          else
+            echo "WARNING: fixtures-expanded.zip not found - tests may fail"
+          fi
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v6

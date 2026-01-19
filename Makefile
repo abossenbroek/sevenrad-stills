@@ -1,7 +1,16 @@
 .PHONY: help docs docs-install docs-serve docs-build docs-clean docs-check-images
+.PHONY: test test-regression expand-fixtures clean-fixtures
 
 help:
 	@echo "Available targets:"
+	@echo ""
+	@echo "Testing:"
+	@echo "  make test               - Run unit tests (excludes integration tests)"
+	@echo "  make test-regression    - Run TD linter regression tests"
+	@echo "  make expand-fixtures    - Expand .toe files to .toe.dir (requires TouchDesigner)"
+	@echo "  make clean-fixtures     - Remove expanded .toe.dir directories"
+	@echo ""
+	@echo "Documentation:"
 	@echo "  make docs-install       - Install Jekyll dependencies"
 	@echo "  make docs-serve         - Build and serve docs locally (with live reload)"
 	@echo "  make docs-build         - Build docs without serving"
@@ -59,3 +68,36 @@ docs-check-images:
 	done
 	@echo ""
 	@echo "✅ Image check complete"
+
+# ============================================================================
+# Testing
+# ============================================================================
+
+test:
+	@echo "Running unit tests..."
+	uv run pytest -m "not integration" -v
+
+test-regression:
+	@echo "Running TD linter regression tests..."
+	uv run pytest tests/integration/td_linter/test_fixture_regression.py -v -m "slow or integration"
+
+# ============================================================================
+# TouchDesigner Fixtures
+# ============================================================================
+
+FIXTURES_DIR := docs/touchdesigner/fixtures/projects
+FIXTURES_ZIP := $(FIXTURES_DIR)/fixtures-expanded.zip
+
+expand-fixtures:
+	@echo "Expanding .toe fixtures (requires TouchDesigner)..."
+	python scripts/expand_fixtures.py
+	@echo ""
+	@echo "To commit the expanded fixtures:"
+	@echo "  git add $(FIXTURES_ZIP)"
+
+clean-fixtures:
+	@echo "Removing expanded .toe.dir directories..."
+	@find $(FIXTURES_DIR) -type d -name "*.toe.dir" -exec rm -rf {} + 2>/dev/null || true
+	@find $(FIXTURES_DIR) -name "*.toe.toc" -delete 2>/dev/null || true
+	@rm -f $(FIXTURES_ZIP) 2>/dev/null || true
+	@echo "Cleaned fixture directories"

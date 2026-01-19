@@ -233,4 +233,7 @@ docs/_site/
 tutorials/
 
 # TouchDesigner binaries are tracked with git-lfs (see .gitattributes)
+# Expanded .toe directories (use fixtures-expanded.zip instead for CI)
+*.toe.dir/
+*.toe.toc
 *.toc
