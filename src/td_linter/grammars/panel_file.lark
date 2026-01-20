@@ -1,0 +1,32 @@
+// Lark grammar for TouchDesigner .panel (panel UI state) files
+//
+// Example:
+//   1
+//   3
+//   6
+//   u 0.54
+//   v 0.720528
+//   trueu 0.54
+//   truev 0.720528
+//   screenw 400
+//   screenh 300
+
+// Mixed positional header integers and named key-value pairs
+start: header_line header_line header_line named_entry*
+
+header_line: SIGNED_INT _NL
+
+named_entry: KEY NUMBER _NL
+
+// Known keys
+KEY: "u" | "v" | "trueu" | "truev" | "screenw" | "screenh"
+
+// Newline as significant token
+_NL: /\r?\n/
+
+%import common.SIGNED_INT
+%import common.NUMBER
+
+// Only ignore spaces/tabs within lines
+%ignore / +/
+%ignore /\t+/

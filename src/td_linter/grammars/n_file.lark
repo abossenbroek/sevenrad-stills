@@ -54,7 +54,7 @@ view_directive: "view" view_value*
 view_value: SIGNED_NUMBER | ESCAPED_STRING | STAR
 
 // Terminals
-FAMILY: "TOP" | "CHOP" | "SOP" | "DAT" | "COMP" | "MAT" | "POP"
+FAMILY: "TOP" | "CHOP" | "SOP" | "DAT" | "COMP" | "MAT" | "POP" | "PANEL"
 OP_TYPE: /[a-zA-Z_][a-zA-Z0-9_]*/
 OPERATOR_REF: /[a-zA-Z_][a-zA-Z0-9_\/]*/
 // Matches: .., ../.. , ../../.., ../name, ../../name/child, name, name/child

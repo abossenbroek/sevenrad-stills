@@ -1,0 +1,41 @@
+// Lark grammar for TouchDesigner .start (runtime config) files
+//
+// Example:
+//   cookrate 60
+//   clock -f 1 -s 1 -o 0 -w 0
+//   realtime on
+//   viewers off
+//   #expectednodes 66 33707
+//   resetaudioondevicechange off
+
+// Line-oriented format with settings and comments
+start: line*
+
+line: setting _NL
+    | comment _NL
+    | _NL
+
+setting: SETTING_NAME setting_value+
+
+comment: COMMENT
+
+setting_value: FLAG_VALUE
+             | ON_OFF
+             | NUMBER
+
+// Terminals
+SETTING_NAME: /[a-zA-Z_][a-zA-Z0-9_]*/
+FLAG_VALUE: /-[a-z]/ /[ \t]+/ SIGNED_INT
+ON_OFF: "on" | "off"
+COMMENT: /#[^\r\n]*/
+
+// Newline as significant token
+_NL: /\r?\n/
+
+%import common.INT
+%import common.NUMBER
+%import common.SIGNED_INT
+
+// Only ignore spaces/tabs within lines
+%ignore / +/
+%ignore /\t+/

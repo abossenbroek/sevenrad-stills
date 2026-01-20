@@ -7,6 +7,8 @@
 //   tx 49 6531 absTime.frame*.6
 //   ty 32 0
 //   autoexportroot 17 "" me.parent()
+//   file 17 `opfullpath("../..")`
+//   speed 0 $FPS
 //   ?
 
 // Line-oriented format with explicit newline handling
@@ -18,22 +20,38 @@ param_line: PARAM_NAME MODE param_value expression?
 
 param_value: SIGNED_NUMBER
            | ESCAPED_STRING
+           | URL
            | PATH_REF
            | GLOB_PATTERN
+           | BACKTICK_EXPR
+           | BRACKET_REF
+           | TD_VARIABLE
            | IDENTIFIER
 
-expression: EXPRESSION_TEXT
+expression: ESCAPED_STRING
+          | BACKTICK_EXPR
+          | EXPRESSION_TEXT
 
-// Terminals
+// Terminals - order matters for precedence!
+// URLs (http/https) - use .1 priority to match before IDENTIFIER
+URL.1: /https?:\/\/[^\s"]+/
 DELIMITER: "?"
 PARAM_NAME: /[a-zA-Z_][a-zA-Z0-9_]*/
 MODE: /[0-9]+/
-// Paths can be relative (./foo) or absolute (/foo/bar)
-PATH_REF: /\.\/[a-zA-Z0-9_\/.-]+/ | /\/[a-zA-Z0-9_\/.-]+/
-// Glob patterns like ?* or *foo
-GLOB_PATTERN: /[?*][a-zA-Z0-9_?*]+/
+// Paths can be relative (./foo, ../foo, ../../foo, .., ../..) or absolute (/foo/bar)
+PATH_REF: /\.\.(?:\/\.\.)*(?:\/[a-zA-Z0-9_.-]+)*/ | /\.\/[a-zA-Z0-9_\/.-]+/ | /\/[a-zA-Z0-9_\/.-]+/
+// Glob patterns like *, ?*, *foo, ?foo
+GLOB_PATTERN: /[?*][a-zA-Z0-9_?*]*/
+// Backtick expressions: `opfullpath("../..")`
+BACKTICK_EXPR: /`[^`]+`/
+// TD variables: $FPS, $OPD, $TOUCH_ROOT, etc.
+TD_VARIABLE: /\$[A-Z_][A-Z0-9_]*/
+// Bracket references: [rgba], [channel], etc.
+BRACKET_REF: /\[[a-zA-Z0-9_]+\]/
 IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_]*/
-EXPRESSION_TEXT: /[^\n?]+/
+// Expression text can contain quoted strings (which may have ? inside)
+// Pattern: match quoted strings or non-special chars
+EXPRESSION_TEXT: /(?:"[^"]*"|'[^']*'|[^\n?`"'])+/
 
 // Newline as significant token (not ignored)
 _NL: /\r?\n/
