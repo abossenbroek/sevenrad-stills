@@ -4,10 +4,14 @@ on:
   push:
     paths:
       - '**/*.toe.dir/**'
+      - 'docs/touchdesigner/fixtures/projects/fixtures-expanded.zip'
+      - 'src/td_linter/**'
     branches: [main, develop, feature/*]
   pull_request:
     paths:
       - '**/*.toe.dir/**'
+      - 'docs/touchdesigner/fixtures/projects/fixtures-expanded.zip'
+      - 'src/td_linter/**'
     branches: [main, develop]
   workflow_dispatch:  # Allow manual trigger
 
@@ -19,6 +23,16 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          lfs: true  # Need fixtures-expanded.zip
+
+      - name: Extract pre-expanded fixtures
+        run: |
+          cd docs/touchdesigner/fixtures/projects
+          if [ -f fixtures-expanded.zip ]; then
+            unzip -o fixtures-expanded.zip
+            echo "Extracted $(ls -d *.toe.dir 2>/dev/null | wc -l) .toe.dir directories"
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -47,10 +61,12 @@ jobs:
           echo '{"$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json", "version": "2.1.0", "runs": []}' > results.sarif
 
           EXIT_CODE=0
+          HAS_RESULTS=false
 
           # Find all .toe.dir directories and lint each
           for dir in $(find . -name '*.toe.dir' -type d 2>/dev/null); do
             echo "Linting: $dir"
+            HAS_RESULTS=true
 
             # Run linter and capture output
             if OUTPUT=$(td-linter lint "$dir" --format sarif 2>&1); then
@@ -68,12 +84,18 @@ jobs:
             fi
           done
 
+          if [ "$HAS_RESULTS" = "false" ]; then
+            echo "No .toe.dir directories found to lint"
+          fi
+
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+          echo "has_results=$HAS_RESULTS" >> $GITHUB_OUTPUT
         continue-on-error: true
 
       - name: Upload SARIF to GitHub
         uses: github/codeql-action/upload-sarif@v4
-        if: always()
+        # Only upload if we have results (at least one run)
+        if: always() && hashFiles('results.sarif') != '' && steps.lint.outputs.has_results == 'true'
         with:
           sarif_file: results.sarif
           category: td-linter
