@@ -1,0 +1,83 @@
+name: TouchDesigner Lint
+
+on:
+  push:
+    paths:
+      - '**/*.toe.dir/**'
+      - 'docs/touchdesigner/fixtures/projects/fixtures-expanded.zip'
+      - 'src/td_linter/**'
+    branches: [main, develop, feature/*]
+  pull_request:
+    paths:
+      - '**/*.toe.dir/**'
+      - 'docs/touchdesigner/fixtures/projects/fixtures-expanded.zip'
+      - 'src/td_linter/**'
+    branches: [main, develop]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  lint:
+    name: Lint TouchDesigner Projects
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          lfs: true  # Need fixtures-expanded.zip
+
+      - name: Extract pre-expanded fixtures
+        run: |
+          cd docs/touchdesigner/fixtures/projects
+          if [ -f fixtures-expanded.zip ]; then
+            unzip -o fixtures-expanded.zip
+            echo "Extracted $(ls -d *.toe.dir 2>/dev/null | wc -l) .toe.dir directories"
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+
+      - name: Install td-linter
+        run: |
+          uv venv
+          uv pip install -e ".[dev]"
+
+      - name: Install glslang
+        run: sudo apt-get install -y glslang-tools
+
+      - name: Find and lint .toe.dir projects
+        run: |
+          source .venv/bin/activate
+
+          EXIT_CODE=0
+          COUNT=0
+
+          # Find all .toe.dir directories and lint each (handle spaces in names)
+          while IFS= read -r -d '' dir; do
+            echo "::group::Linting: $dir"
+            COUNT=$((COUNT + 1))
+
+            if td-linter lint "$dir"; then
+              echo "OK"
+            else
+              echo "::error::Lint violations in $dir"
+              EXIT_CODE=1
+            fi
+            echo "::endgroup::"
+          done < <(find . -name '*.toe.dir' -type d -print0 2>/dev/null)
+
+          echo ""
+          echo "Linted $COUNT .toe.dir projects"
+
+          if [ "$COUNT" -eq 0 ]; then
+            echo "::warning::No .toe.dir directories found to lint"
+          fi
+
+          exit $EXIT_CODE

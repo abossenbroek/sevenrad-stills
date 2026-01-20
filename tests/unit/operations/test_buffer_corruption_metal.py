@@ -1,8 +1,4 @@
 """
-import pytest
-
-pytestmark = pytest.mark.gpu
-
 Unit tests for optimized Metal buffer corruption implementation (v2).
 
 Tests verify:
@@ -25,6 +21,8 @@ from sevenrad_stills.operations.buffer_corruption import (  # noqa: E402
 from sevenrad_stills.operations.buffer_corruption_metal import (  # noqa: E402
     BufferCorruptionMetalOperation,
 )
+
+pytestmark = pytest.mark.gpu
 
 
 @pytest.fixture

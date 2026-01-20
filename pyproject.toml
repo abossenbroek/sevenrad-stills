@@ -23,6 +23,11 @@ dependencies = [
     "click~=8.1",
     "taichi~=1.7",
     "scipy>=1.16.2",
+    # TouchDesigner Linter dependencies
+    "lark>=1.1.0",
+    "networkx>=3.2",
+    "typer[all]>=0.12.0",
+    "pyflakes>=3.0.0",
 ]
 
 [project.optional-dependencies]
@@ -34,15 +39,34 @@ dev = [
     "pre-commit~=4.0",
     "types-click~=7.1",
     "types-pyyaml~=6.0",
+    "jsonschema>=4.21.0",
+]
+# td-linter optional features
+td-linter-watch = [
+    "watchdog>=3.0.0",
+]
+td-linter-lsp = [
+    "pygls>=1.2.0",
+]
+td-linter-all = [
+    "watchdog>=3.0.0",
+    "pygls>=1.2.0",
 ]
 
 [project.scripts]
 sevenrad = "sevenrad_stills.cli.commands:cli"
+td-linter = "td_linter.cli:app"
+
+[project.entry-points."td_linter.rules"]
+# Plugin entry point group for custom td-linter rules
+# Users can register plugins using this group in their pyproject.toml:
+#   [project.entry-points."td_linter.rules"]
+#   my_rules = "my_package.rules:MyCustomRule"
 
 [tool.ruff]
 target-version = "py312"
 line-length = 88
-src = ["src/sevenrad_stills", "tests"]
+src = ["src/sevenrad_stills", "src/td_linter", "tests"]
 
 [tool.ruff.lint]
 select = [
@@ -75,10 +99,14 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "ANN", "PLR2004", "S108"]  # Allow assert, annotations, magic values, and /tmp in tests
+"tests/*" = ["S101", "ANN", "PLR2004", "S108", "PT004"]  # Allow assert, annotations, magic values, /tmp, and fixtures without return
 "tests/unit/operations/test_*_performance.py" = ["S101", "ANN", "PLR2004", "S108", "T201"]  # Allow print in performance tests
 "tests/unit/operations/test_downscale_metal.py" = ["ARG002"]  # Fixtures used for side effects (skip checks)
 "tests/unit/operations/test_adapters.py" = ["ARG002"]  # Mock methods may have unused params
+"tests/unit/operations/test_chromatic_aberration_gpu.py" = ["T201"]  # Allow print in performance tests
+"tests/unit/operations/test_compression_artifact_gpu.py" = ["T201"]  # Allow print in performance tests
+"tests/unit/operations/test_slc_off_gpu.py" = ["T201", "E501"]  # Allow print and long lines in performance tests
+"tests/unit/operations/test_blur_gaussian_mlx_performance.py" = ["E501"]  # Allow long lines in performance output
 "src/sevenrad_stills/cli/commands.py" = ["PLR0913"]  # Click commands have many options
 "src/sevenrad_stills/pipeline/executor.py" = ["PLR0913"]  # Multiprocessing worker function needs many arguments
 "src/sevenrad_stills/pipeline/protocols.py" = ["ANN401", "PLR0913", "E501"]  # Protocols use Any for Taichi fields, many args for apply_to_field
@@ -87,9 +115,26 @@ ignore = [
 "src/sevenrad_stills/operations/*_taichi.py" = ["ANN201", "ANN401", "PLR0913", "PLR0915", "C901", "PLR0912", "PLR2004", "SIM114", "PLR5501", "E501"]  # Taichi kernels have complex logic, magic values for pattern codes, long lines
 "tests/unit/pipeline/test_buffer_pool.py" = ["ARG001", "ARG002"]  # Fixtures used for side effects
 "tests/unit/pipeline/test_taichi_executor.py" = ["ARG001", "ARG002", "SIM117"]  # Fixtures used for side effects, nested with for mock contexts
-"src/sevenrad_stills/operations/*_metal.py" = ["ANN201", "PLR0913"]  # Metal operations have special signatures
+"src/sevenrad_stills/operations/*_metal.py" = ["ANN201", "PLR0913", "PLR0912"]  # Metal operations have special signatures and branches
 "src/sevenrad_stills/operations/*_mlx.py" = ["ANN201", "PLR0913"]  # MLX operations have special signatures
 "src/sevenrad_stills/operations/buffer_corruption_metal.py" = ["PLR0915", "PLR2004", "T201", "RUF001", "RUF002", "RUF003", "E501", "ANN401"]  # Metal GPU implementation uses debug prints, unicode chars, and PyObjC Any types
+# td-linter package ignores
+"src/td_linter/cli.py" = ["B008", "ARG001", "PLR0913"]  # Typer uses function calls in defaults, unused config/format args for future use, many CLI options
+"src/td_linter/parsers/n_parser.py" = ["ANN401", "ARG002"]  # Lark transformers use Any types, unused items param in start()
+"src/td_linter/parsers/parm_parser.py" = ["ANN401", "ARG002", "PLR2004", "SIM105"]  # Lark transformers use Any, magic values for param indices
+"src/td_linter/rules/no_invalid_cycles.py" = ["SIM110"]  # Keep explicit loop for readability
+"src/td_linter/rules/type_compatibility.py" = ["B007", "SIM103"]  # Loop var for future use, explicit return for clarity
+"src/td_linter/graph/builder.py" = ["SIM108"]  # Keep explicit if/else for readability
+"src/td_linter/embedded/glsl_validator.py" = ["S603"]  # subprocess calls to glslangValidator are trusted
+"src/td_linter/embedded/python_validator.py" = ["C901", "PLR0912", "PLR2004"]  # AST walker has necessary branches for all node types, magic value 2 for header lines
+"src/td_linter/embedded/language_detector.py" = ["PLR2004"]  # Magic value 2 for text header line count
+"src/td_linter/linter.py" = ["S112"]  # try-except-continue intentionally skips unparseable .parm files
+"tests/unit/td_linter/parsers/test_n_parser_gate.py" = ["E501"]  # Test data contains real TD file content with long view directives
+"tests/unit/td_linter/embedded/*" = ["N802"]  # Test function names match TD API names like absTime
+# TouchDesigner scripts - CLI scripts that legitimately use print, subprocess, and temp paths
+"docs/touchdesigner/scripts/build_test_harness.py" = ["T201", "S603"]  # CLI script uses print output and trusted subprocess calls
+"docs/touchdesigner/scripts/td_test_runner.py" = ["T201", "S603", "S108", "E501", "PLR0912", "PLR0915", "PLR0913", "C901", "SIM102", "ARG001"]  # CLI orchestrator script
+"docs/touchdesigner/scripts/validate_glsl.py" = ["T201", "S603", "S607", "E501", "ANN201", "D103", "PLR2004"]  # CLI script for GLSL validation
 
 [tool.pytest.ini_options]
 markers = [
@@ -126,9 +171,19 @@ module = [
     "skimage.*",
     "colour_demosaicing.*",
     "taichi.*",
+    "networkx.*",
+    "lark.*",
 ]
 ignore_missing_imports = true
 follow_imports = "skip"
+
+# Skip mypy for td_linter parsers (Lark's type system is incompatible with mypy strict mode)
+[[tool.mypy.overrides]]
+module = [
+    "td_linter.parsers.n_parser",
+    "td_linter.parsers.parm_parser",
+]
+ignore_errors = true
 
 # Skip mypy for Taichi GPU code (Taichi's type system is incompatible with mypy)
 [[tool.mypy.overrides]]

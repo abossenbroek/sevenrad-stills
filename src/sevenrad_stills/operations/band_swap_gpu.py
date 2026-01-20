@@ -144,7 +144,7 @@ class BandSwapGPUOperation(BaseImageOperation):
         """Initialize the GPU-accelerated band swap operation."""
         super().__init__("band_swap_gpu")
 
-    def validate_params(self, params: dict[str, Any]) -> None:  # noqa: C901
+    def validate_params(self, params: dict[str, Any]) -> None:
         """
         Validate parameters for band swap operation.
 

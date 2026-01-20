@@ -35,7 +35,7 @@ PATTERN_GBRG = 3
 
 
 @ti.func  # type: ignore[misc]
-def safe_get_channel(  # type: ignore[valid-type]  # noqa: ANN201, PLR0913
+def safe_get_channel(  # type: ignore[valid-type]
     field: ti.template(), i: ti.i32, j: ti.i32, c: ti.i32, h: ti.i32, w: ti.i32
 ):
     """Safely get field channel value with bounds checking."""
@@ -45,7 +45,7 @@ def safe_get_channel(  # type: ignore[valid-type]  # noqa: ANN201, PLR0913
 
 
 @ti.kernel  # type: ignore[misc]
-def bayer_filter_fast(  # type: ignore[valid-type]  # noqa: ANN201, C901, PLR0912, PLR0915
+def bayer_filter_fast(  # type: ignore[valid-type]
     rgb_in: ti.template(),
     rgb_out: ti.template(),
     pattern_id: ti.i32,

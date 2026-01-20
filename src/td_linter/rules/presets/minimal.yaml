@@ -1,0 +1,76 @@
+# Minimal preset - only critical rules (crash prevention)
+# For fast linting with only essential checks
+
+version: "1.0.0"
+
+rules:
+  # Syntax rules (S) - enabled for crash prevention
+  S001:
+    enabled: true
+    severity: error
+  S002:
+    enabled: true
+    severity: error
+  S003:
+    enabled: true
+    severity: error
+
+  # Connection rules (C) - cycles can cause crashes
+  C001:
+    enabled: true
+    severity: error
+  C002:
+    enabled: false
+    severity: warning
+
+  # Type rules (T) - disabled (runtime error, not crash)
+  T001:
+    enabled: false
+    severity: error
+
+  # Reference rules (R) - disabled
+  R001:
+    enabled: false
+    severity: error
+  R002:
+    enabled: false
+    severity: warning
+
+  # GLSL rules (G) - disabled
+  G001:
+    enabled: false
+    severity: error
+  G002:
+    enabled: false
+    severity: warning
+  G003:
+    enabled: false
+    severity: warning
+
+  # Python rules (P) - disabled
+  P001:
+    enabled: false
+    severity: error
+  P002:
+    enabled: false
+    severity: warning
+  P003:
+    enabled: false
+    severity: info
+
+  # Performance rules (F) - disabled
+  F001:
+    enabled: false
+    severity: warning
+  F002:
+    enabled: false
+    severity: warning
+  F003:
+    enabled: false
+    severity: warning
+  F004:
+    enabled: false
+    severity: warning
+  F005:
+    enabled: false
+    severity: info

@@ -1,0 +1,115 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/sevenrad/td-linter/schemas/td-linter-rules.schema.json",
+  "title": "td-linter Configuration",
+  "description": "Configuration schema for td-linter TouchDesigner project validator",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Configuration schema version (semver)"
+    },
+    "extends": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["recommended", "strict", "minimal", "pedantic"],
+          "description": "Single preset to extend"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["recommended", "strict", "minimal", "pedantic"]
+          },
+          "description": "List of presets to extend (merged in order)"
+        }
+      ],
+      "description": "Preset configuration(s) to extend"
+    },
+    "select": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[SCTRPGF](\\d{3})?$"
+      },
+      "description": "Category codes or rule IDs to enable (e.g., ['S', 'C001'])"
+    },
+    "ignore": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[SCTRPGF](\\d{3})?$"
+      },
+      "description": "Category codes or rule IDs to disable (e.g., ['F', 'C002'])"
+    },
+    "rules": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/ruleConfig"
+      },
+      "description": "Per-rule configuration overrides"
+    },
+    "plugins": {
+      "type": "array",
+      "description": "Plugin configurations for loading custom rules",
+      "items": {
+        "$ref": "#/$defs/pluginConfig"
+      }
+    }
+  },
+  "$defs": {
+    "severity": {
+      "type": "string",
+      "enum": ["error", "warning", "info"],
+      "description": "Severity level for the rule"
+    },
+    "ruleConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether the rule is enabled"
+        },
+        "severity": {
+          "$ref": "#/$defs/severity"
+        },
+        "options": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Rule-specific options"
+        }
+      },
+      "additionalProperties": false
+    },
+    "pluginConfig": {
+      "type": "object",
+      "description": "Configuration for loading a plugin",
+      "oneOf": [
+        {
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Path to a .py file containing LintRule subclasses"
+            }
+          },
+          "required": ["path"],
+          "additionalProperties": false
+        },
+        {
+          "properties": {
+            "module": {
+              "type": "string",
+              "description": "Python module name to import (e.g., 'my_company.td_rules')"
+            }
+          },
+          "required": ["module"],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

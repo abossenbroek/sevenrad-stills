@@ -1,0 +1,5 @@
+TOP:moviefilein
+tile 50 240 130 72
+flags =  picked on current on viewer 1 parlanguage 0
+color 0.67 0.67 0.67 
+end

@@ -84,7 +84,7 @@ class MultiCompressMetalOperation(BaseImageOperation):
         """Initialize Metal multi-compress operation."""
         super().__init__("multi_compress_metal")
 
-    def validate_params(self, params: dict[str, Any]) -> None:  # noqa: C901, PLR0912
+    def validate_params(self, params: dict[str, Any]) -> None:  # noqa: C901
         """
         Validate multi-compress operation parameters.
 

@@ -1,12 +1,8 @@
 """
-import pytest
-
-pytestmark = pytest.mark.gpu
-
 Unit tests for optimized Taichi/GPU buffer corruption implementation (v2).
 
 Tests verify:
-- Visual output matches CPU implementation (determin istically)
+- Visual output matches CPU implementation (deterministically)
 - All corruption types work correctly
 - Reproducibility with seeds
 - Performance improvements over v1
@@ -25,6 +21,8 @@ from sevenrad_stills.operations.buffer_corruption import (  # noqa: E402
 from sevenrad_stills.operations.buffer_corruption_gpu import (  # noqa: E402
     BufferCorruptionGPUOperation,
 )
+
+pytestmark = pytest.mark.gpu
 
 
 @pytest.fixture

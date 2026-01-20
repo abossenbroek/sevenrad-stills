@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/sevenrad/td-linter/schemas/td-linter-output.schema.json",
+  "title": "td-linter JSON Output",
+  "description": "Schema for td-linter JSON output format",
+  "type": "object",
+  "required": ["version", "violations", "summary"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema version",
+      "const": "1.0.0"
+    },
+    "project": {
+      "type": "string",
+      "description": "Optional project path that was linted"
+    },
+    "violations": {
+      "type": "array",
+      "description": "List of lint violations found",
+      "items": {
+        "type": "object",
+        "required": ["rule", "message", "path", "severity"],
+        "properties": {
+          "rule": {
+            "type": "string",
+            "description": "Rule ID (e.g., 'C001' or 'no-invalid-cycles')"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable violation message"
+          },
+          "path": {
+            "type": "string",
+            "description": "Operator path within the project"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["error", "warning", "info"],
+            "description": "Violation severity level"
+          },
+          "line": {
+            "type": ["integer", "null"],
+            "description": "Line number in source file (if applicable)"
+          },
+          "source_file": {
+            "type": ["string", "null"],
+            "description": "Path to the source file containing the violation"
+          },
+          "context": {
+            "type": ["object", "null"],
+            "description": "Additional context about the violation"
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "description": "Summary of violation counts",
+      "required": ["total", "errors", "warnings", "info"],
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of violations"
+        },
+        "errors": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of error-level violations"
+        },
+        "warnings": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of warning-level violations"
+        },
+        "info": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of info-level violations"
+        }
+      }
+    }
+  }
+}

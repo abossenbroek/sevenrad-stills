@@ -70,7 +70,7 @@ class MultiCompressGPUOperation(BaseImageOperation):
         """Initialize GPU multi-compress operation."""
         super().__init__("multi_compress_gpu")
 
-    def validate_params(self, params: dict[str, Any]) -> None:  # noqa: C901, PLR0912
+    def validate_params(self, params: dict[str, Any]) -> None:
         """
         Validate multi-compress operation parameters.
 
