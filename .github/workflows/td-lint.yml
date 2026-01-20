@@ -63,8 +63,8 @@ jobs:
           EXIT_CODE=0
           HAS_RESULTS=false
 
-          # Find all .toe.dir directories and lint each
-          for dir in $(find . -name '*.toe.dir' -type d 2>/dev/null); do
+          # Find all .toe.dir directories and lint each (handle spaces in names)
+          while IFS= read -r -d '' dir; do
             echo "Linting: $dir"
             HAS_RESULTS=true
 
@@ -82,7 +82,7 @@ jobs:
               jq --argjson run "$RUN" '.runs += [$run]' results.sarif > results.sarif.tmp
               mv results.sarif.tmp results.sarif
             fi
-          done
+          done < <(find . -name '*.toe.dir' -type d -print0 2>/dev/null)
 
           if [ "$HAS_RESULTS" = "false" ]; then
             echo "No .toe.dir directories found to lint"
@@ -94,8 +94,8 @@ jobs:
 
       - name: Upload SARIF to GitHub
         uses: github/codeql-action/upload-sarif@v4
-        # Only upload if we have results (at least one run)
-        if: always() && hashFiles('results.sarif') != '' && steps.lint.outputs.has_results == 'true'
+        # Only upload if we found and linted .toe.dir directories
+        if: steps.lint.outputs.has_results == 'true'
         with:
           sarif_file: results.sarif
           category: td-linter
