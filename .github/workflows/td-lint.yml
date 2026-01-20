@@ -53,55 +53,31 @@ jobs:
         run: sudo apt-get install -y glslang-tools
 
       - name: Find and lint .toe.dir projects
-        id: lint
         run: |
           source .venv/bin/activate
 
-          # Initialize SARIF output
-          echo '{"$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json", "version": "2.1.0", "runs": []}' > results.sarif
-
           EXIT_CODE=0
-          HAS_RESULTS=false
+          COUNT=0
 
           # Find all .toe.dir directories and lint each (handle spaces in names)
           while IFS= read -r -d '' dir; do
-            echo "Linting: $dir"
-            HAS_RESULTS=true
+            echo "::group::Linting: $dir"
+            COUNT=$((COUNT + 1))
 
-            # Run linter and capture output
-            if OUTPUT=$(td-linter lint "$dir" --format sarif 2>&1); then
-              echo "  OK"
+            if td-linter lint "$dir"; then
+              echo "OK"
             else
-              echo "  Found violations"
+              echo "::error::Lint violations in $dir"
               EXIT_CODE=1
             fi
-
-            # Append run to results if output is valid SARIF
-            if echo "$OUTPUT" | jq -e '.runs[0]' > /dev/null 2>&1; then
-              RUN=$(echo "$OUTPUT" | jq '.runs[0]')
-              jq --argjson run "$RUN" '.runs += [$run]' results.sarif > results.sarif.tmp
-              mv results.sarif.tmp results.sarif
-            fi
+            echo "::endgroup::"
           done < <(find . -name '*.toe.dir' -type d -print0 2>/dev/null)
 
-          if [ "$HAS_RESULTS" = "false" ]; then
-            echo "No .toe.dir directories found to lint"
+          echo ""
+          echo "Linted $COUNT .toe.dir projects"
+
+          if [ "$COUNT" -eq 0 ]; then
+            echo "::warning::No .toe.dir directories found to lint"
           fi
 
-          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
-          echo "has_results=$HAS_RESULTS" >> $GITHUB_OUTPUT
-        continue-on-error: true
-
-      - name: Upload SARIF to GitHub
-        uses: github/codeql-action/upload-sarif@v4
-        # Only upload if we found and linted .toe.dir directories
-        if: steps.lint.outputs.has_results == 'true'
-        with:
-          sarif_file: results.sarif
-          category: td-linter
-
-      - name: Fail if lint errors
-        if: steps.lint.outputs.exit_code == '1'
-        run: |
-          echo "Linting failed with errors"
-          exit 1
+          exit $EXIT_CODE
