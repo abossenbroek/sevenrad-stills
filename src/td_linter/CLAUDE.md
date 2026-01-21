@@ -84,12 +84,24 @@ inputs
 {
 0 	in2
 }
+extrainputs
+{
+0	./local/variables
+		name
+1	../ui/lib/colors
+		parameter data name
+}
 exports
 {
-null1
+./parentoverride
 }
+dict 80049541000000
+tags 0 1 TDExtension
+color 0.56 0.56 0.56
 end
 ```
+
+Supported directives: `tile`, `flags`, `inputs`, `extrainputs`, `exports`, `color`, `dock`, `dict`, `tags`, `view`, `comment`, `v`
 
 ### .parm files (Parameters)
 ```
@@ -98,13 +110,43 @@ type 0 hermite
 rough 0 0.25
 tx 49 6531 absTime.frame*.6
 autoexportroot 17 "" me.parent()
+rate 49 30 $FPS
+color 0 [rgba]
+shader 17 "" `op('shader').text`
 ?
 ```
 
 Mode flags: 0=constant, 17=string expr, 32=numeric, 49=expression
 
+Supported value types: numbers, strings, expressions, TD variables (`$FPS`), bracket refs (`[rgba]`), backtick expressions, paths (`../foo`)
+
 ### .toc files (Manifest)
 One path per line, special entries start with `.` (`.build`, `.start`, etc.)
+
+### .build files (Version Info)
+```
+2023.11760
+```
+
+### .start files (Runtime Config)
+```
+perform 0
+alwaysontop 0
+windowborders 1
+perfmode 0
+windowx 0
+windowy 0
+```
+
+### .panel files (Panel State)
+```
+w 1920
+h 1080
+alpha 1
+```
+
+### .text files (Embedded Code)
+Binary header (27 bytes) followed by text content (Python, GLSL, etc.)
 
 ## Commands
 
