@@ -2,6 +2,7 @@
 Pipeline executor for YAML-based image processing workflows.
 
 Orchestrates video download, segmentation, and image operations.
+Supports both legacy PIL-based execution and Taichi GPU pipeline execution.
 """
 
 import multiprocessing
@@ -14,8 +15,15 @@ from sevenrad_stills.download.downloader import VideoDownloader
 from sevenrad_stills.download.metadata import VideoInfo
 from sevenrad_stills.extraction.extractor import FrameExtractor
 from sevenrad_stills.extraction.strategies import create_extraction_strategy
-from sevenrad_stills.operations import get_operation
+from sevenrad_stills.operations import (
+    BackendNotAvailableError,
+    get_backend_implementation,
+    get_operation,
+    has_taichi_operation,
+)
+from sevenrad_stills.operations.backend import BackendType
 from sevenrad_stills.pipeline.models import ImageOperationStep, PipelineConfig
+from sevenrad_stills.pipeline.taichi_executor import TaichiArch, TaichiPipelineExecutor
 from sevenrad_stills.settings.models import (
     AppSettings,
     DownloadSettings,
@@ -33,6 +41,7 @@ def _process_single_frame(
     params: dict[str, object],
     output_path: Path,
     repeat: int = 1,
+    backend: str = "cpu",
 ) -> Path:
     """
     Process a single frame with an operation.
@@ -45,18 +54,22 @@ def _process_single_frame(
         params: Operation parameters
         output_path: Output file path
         repeat: Number of times to repeat the operation
+        backend: Compute backend to use (cpu, gpu, metal)
 
     Returns:
         Path to processed image
+
+    Raises:
+        BackendNotAvailableError: If requested backend not available
 
     """
     # Import here to avoid circular dependencies in multiprocessing
     from PIL import Image
 
-    from sevenrad_stills.operations import get_operation
+    from sevenrad_stills.operations import get_backend_implementation
 
-    # Get operation and process
-    operation = get_operation(operation_name)
+    # Get operation for specified backend
+    operation = get_backend_implementation(operation_name, backend)  # type: ignore[arg-type]
     image: Image.Image = Image.open(frame_path)
 
     # Apply operation with repeat support
@@ -110,6 +123,87 @@ class PipelineExecutor:
         self.logger.debug(
             "Parallel processing: %s (workers: %d)", self.parallel, self.max_workers
         )
+
+        # Taichi executor (lazily initialized)
+        self._taichi_executor: TaichiPipelineExecutor | None = None
+        self._use_taichi = self._should_use_taichi()
+
+    def _should_use_taichi(self) -> bool:
+        """
+        Determine whether to use Taichi pipeline execution.
+
+        Returns:
+            True if Taichi execution should be used, False for legacy execution.
+
+        """
+        mode = self.config.execution_mode
+
+        if mode == "legacy":
+            self.logger.info("Using legacy PIL-based execution (explicit)")
+            return False
+
+        if mode == "taichi":
+            # Check all operations have Taichi implementations
+            missing_ops = [
+                step.operation
+                for step in self.config.steps
+                if not has_taichi_operation(step.operation)
+            ]
+            if missing_ops:
+                msg = (
+                    f"Taichi mode requested but these operations lack "
+                    f"Taichi implementations: {', '.join(set(missing_ops))}"
+                )
+                raise PipelineError(msg)
+            self.logger.info("Using Taichi GPU pipeline (explicit)")
+            return True
+
+        # mode == "auto"
+        # Check if all operations support Taichi
+        all_taichi = all(
+            has_taichi_operation(step.operation) for step in self.config.steps
+        )
+
+        if all_taichi:
+            self.logger.info(
+                "Using Taichi GPU pipeline (auto-detected: all ops support Taichi)"
+            )
+            return True
+
+        # Some operations don't have Taichi implementations
+        legacy_ops = [
+            step.operation
+            for step in self.config.steps
+            if not has_taichi_operation(step.operation)
+        ]
+        self.logger.info(
+            "Using legacy PIL-based execution (auto-detected: %s lack Taichi support)",
+            ", ".join(set(legacy_ops)),
+        )
+        return False
+
+    def _get_taichi_executor(self) -> TaichiPipelineExecutor:
+        """
+        Get or create the Taichi pipeline executor.
+
+        Returns:
+            Initialized TaichiPipelineExecutor instance.
+
+        """
+        if self._taichi_executor is None:
+            # Map backend to Taichi architecture
+            arch_map = {
+                "cpu": TaichiArch.CPU,
+                "gpu": TaichiArch.CUDA,
+                "metal": TaichiArch.METAL,
+            }
+            arch = arch_map.get(self.config.backend, TaichiArch.METAL)
+
+            self._taichi_executor = TaichiPipelineExecutor(
+                arch=arch,
+                debug=self.config.debug,
+            )
+        return self._taichi_executor
 
     def execute(self) -> dict[str, list[Path]]:
         """
@@ -214,6 +308,84 @@ class PipelineExecutor:
         """
         Process frames through all pipeline steps.
 
+        Routes to Taichi or legacy execution based on configuration.
+
+        Args:
+            frame_paths: Input frame paths
+
+        Returns:
+            Dictionary mapping step names to output paths
+
+        """
+        if self._use_taichi:
+            return self._process_frames_taichi(frame_paths)
+        return self._process_frames_legacy(frame_paths)
+
+    def _process_frames_taichi(self, frame_paths: list[Path]) -> dict[str, list[Path]]:
+        """
+        Process frames using Taichi end-to-end GPU pipeline.
+
+        Processes each frame through all steps on GPU with minimal transfers.
+
+        Args:
+            frame_paths: Input frame paths
+
+        Returns:
+            Dictionary mapping step names to output paths
+
+        """
+        results: dict[str, list[Path]] = {}
+        executor = self._get_taichi_executor()
+
+        # Warmup all operations
+        executor.warmup(self.config.steps)
+
+        # Prepare output directory (final step output)
+        output_dir = self.config.output.final_dir
+        ensure_directory(output_dir)
+
+        output_paths: list[Path] = []
+
+        for frame_idx, frame_path in enumerate(frame_paths):
+            self.logger.debug(
+                "Processing frame %d/%d via Taichi: %s",
+                frame_idx + 1,
+                len(frame_paths),
+                frame_path.name,
+            )
+
+            # Load frame
+            image = Image.open(frame_path)
+
+            # Process through entire pipeline on GPU
+            result = executor.process_image(image, self.config.steps)
+
+            # Generate output filename
+            output_filename = f"final_{frame_path.stem}_taichi.jpg"
+            output_path = output_dir / output_filename
+
+            # Save result
+            result.save(output_path, "JPEG", quality=95)
+            output_paths.append(output_path)
+
+        # For Taichi mode, all steps are executed together
+        # Return final results under "final" key
+        results["final"] = output_paths
+
+        self.logger.info(
+            "Taichi pipeline processed %d frames through %d steps",
+            len(frame_paths),
+            len(self.config.steps),
+        )
+
+        return results
+
+    def _process_frames_legacy(self, frame_paths: list[Path]) -> dict[str, list[Path]]:
+        """
+        Process frames using legacy PIL-based execution.
+
+        Processes frames step by step with CPU/GPU operations.
+
         Args:
             frame_paths: Input frame paths
 
@@ -282,9 +454,22 @@ class PipelineExecutor:
         Returns:
             List of output file paths
 
+        Raises:
+            BackendNotAvailableError: If requested backend not available
+            PipelineError: If operation fails
+
         """
         output_paths: list[Path] = []
-        operation = get_operation(step.operation)
+
+        # Get operation for configured backend
+        try:
+            operation = get_backend_implementation(step.operation, self.config.backend)
+        except BackendNotAvailableError as e:
+            msg = (
+                f"Cannot execute step '{step.name}': {e}. "
+                f"Please use a different backend or implement the missing variant."
+            )
+            raise PipelineError(msg) from e
 
         for frame_path in frame_paths:
             # Load image
@@ -335,10 +520,22 @@ class PipelineExecutor:
             List of output file paths (in original order)
 
         """
+        # Validate backend availability before parallel processing
+        try:
+            # Test that operation exists for this backend
+            _ = get_backend_implementation(step.operation, self.config.backend)
+        except BackendNotAvailableError as e:
+            msg = (
+                f"Cannot execute step '{step.name}': {e}. "
+                f"Please use a different backend or implement the missing variant."
+            )
+            raise PipelineError(msg) from e
+
         self.logger.info(
-            "Processing %d frames in parallel (workers: %d)",
+            "Processing %d frames in parallel (workers: %d, backend: %s)",
             len(frame_paths),
             self.max_workers,
+            self.config.backend,
         )
 
         # Prepare tasks for parallel processing
@@ -347,7 +544,14 @@ class PipelineExecutor:
             output_filename = f"{step.name}_{frame_path.stem}_step{step_idx:02d}.jpg"
             output_path = output_dir / output_filename
             tasks.append(
-                (frame_path, step.operation, step.params, output_path, step.repeat)
+                (
+                    frame_path,
+                    step.operation,
+                    step.params,
+                    output_path,
+                    step.repeat,
+                    self.config.backend,
+                )
             )
 
         # Process in parallel

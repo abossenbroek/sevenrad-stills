@@ -1,0 +1,616 @@
+# TouchDesigner toeexpand/toecollapse Workflow Reference
+# ======================================================
+# Comprehensive documentation of the .toe.dir text format and tooling
+# Based on hands-on learnings from the 7rad sevenrad-stills project
+
+meta:
+  version: "1.0"
+  last_updated: "2026-01-14"
+  touchdesigner_version: "2023.x+"
+  description: |
+    This reference documents the toeexpand/toecollapse workflow for version-controlling
+    TouchDesigner projects. The .toe.dir format converts binary .toe files into
+    human-readable text files suitable for git.
+
+# =============================================================================
+# COMMAND LINE TOOLS
+# =============================================================================
+commands:
+  location: "/Applications/TouchDesigner.app/Contents/MacOS/"
+
+  toeexpand:
+    description: "Expands a binary .toe file into a text-based directory structure"
+    syntax: "toeexpand <project.toe>"
+    outputs:
+      - "project.toe.dir/  (directory with text files)"
+      - "project.toe.toc   (manifest file listing all contents)"
+    example: |
+      cd /Applications/TouchDesigner.app/Contents/MacOS/
+      ./toeexpand /path/to/my_project.toe
+      # Creates: my_project.toe.dir/ and my_project.toe.toc
+
+  toecollapse:
+    description: "Collapses a .toe.dir back into a binary .toe file"
+    syntax: "toecollapse <project.toe.dir>"
+    outputs:
+      - "project.toe (binary TouchDesigner project file)"
+    requirements:
+      - "project.toe.dir must exist"
+      - "project.toe.toc must exist in same directory (CRITICAL!)"
+    example: |
+      cd /Applications/TouchDesigner.app/Contents/MacOS/
+      ./toecollapse /path/to/my_project.toe.dir
+      # Reads: my_project.toe.dir/ AND my_project.toe.toc
+      # Creates: my_project.toe
+
+# =============================================================================
+# TOC MANIFEST FILE
+# =============================================================================
+toc_file:
+  description: |
+    The .toc (Table of Contents) file is a plain text manifest listing all files
+    to include when collapsing back to .toe format. Without it, toecollapse fails.
+
+  format: "One relative file path per line, sorted alphabetically"
+
+  generation:
+    command: |
+      find project.toe.dir -type f | \
+        grep -v '.DS_Store' | \
+        sed 's|project.toe.dir/||' | \
+        sort > project.toe.toc
+
+    alternative_with_exclusions: |
+      find project.toe.dir -type f \
+        -not -name '.DS_Store' \
+        -not -name '*.pyc' | \
+        sed 's|project.toe.dir/||' | \
+        sort > project.toe.toc
+
+  example_content: |
+    .application
+    .build
+    .grps
+    .parm
+    .root
+    .start
+    container1.n
+    container1.parm
+    container1/constant1.n
+    container1/constant1.parm
+    container1/null1.n
+    container1/null1.parm
+
+  critical_notes:
+    - "Must be regenerated after ANY file additions, deletions, or renames"
+    - "Missing .toc causes toecollapse to fail silently or with cryptic errors"
+    - "Stale .toc causes files to be missing from the rebuilt .toe"
+    - "Exclude .DS_Store and other OS/editor artifacts"
+
+# =============================================================================
+# ROOT METADATA FILES
+# =============================================================================
+root_metadata:
+  description: "Files in the root of .toe.dir that define project-level settings"
+
+  files:
+    .build:
+      purpose: "TouchDesigner version information"
+      example: |
+        App 21760
+        BuildDate Sep 14 2023
+      notes: "Created automatically by toeexpand, generally don't edit"
+
+    .start:
+      purpose: "Project startup settings"
+      format: |
+        cookrate <fps>
+        realtime <0|1>
+      example: |
+        cookrate 60
+        realtime 1
+      parameters:
+        cookrate: "Frames per second (e.g., 30, 60)"
+        realtime: "1 = realtime mode on, 0 = off"
+
+    .root:
+      purpose: "Root container terminator"
+      content: "end"
+      notes: "Always just contains 'end' - do not modify"
+
+    .grps:
+      purpose: "Group definitions"
+      typical_content: |
+        -2
+        0
+      notes: "Usually left at defaults"
+
+    .parm:
+      purpose: "Global project parameters"
+      typical_content: |
+        ?
+        ?
+      notes: "? characters are delimiters for empty/default values"
+
+    .application:
+      purpose: "Window layout and UI state"
+      notes: "Contains editor window positions, can be large"
+
+# =============================================================================
+# OPERATOR FILE CONVENTIONS
+# =============================================================================
+operator_files:
+  description: |
+    Each operator (node) in TouchDesigner is represented by 2-3 files
+    with the same base name and different extensions.
+
+  extensions:
+    ".n":
+      purpose: "Node definition - type, position, connections, appearance"
+      required: true
+
+    ".parm":
+      purpose: "Parameter values for the operator"
+      required: true
+
+    ".text":
+      purpose: "Text content (for DATs, GLSL shaders, etc.)"
+      required: "Only for operators with text content"
+
+# =============================================================================
+# NODE DEFINITION FILE FORMAT (.n)
+# =============================================================================
+node_file_format:
+  extension: ".n"
+
+  structure:
+    line_1: "TYPE:subtype"
+    line_2: "tile x y width height"
+    remaining: "Key-value pairs and blocks until 'end'"
+
+  template: |
+    TYPE:subtype
+    tile <x> <y> <width> <height>
+    flags =  viewer <0|1> parlanguage <0|1>
+    inputs
+    {
+    <index>   <input_operator_name>
+    }
+    color <r> <g> <b>
+    view <view_settings>
+    end
+
+  common_types:
+    TOPs:
+      - "TOP:constanttop"
+      - "TOP:nulltop"
+      - "TOP:glsltop"
+      - "TOP:compositetop"
+      - "TOP:leveltop"
+      - "TOP:blurtop"
+      - "TOP:feedbacktop"
+      - "TOP:rampot"
+      - "TOP:noisetop"
+      - "TOP:selecttop"
+      - "TOP:transformtop"
+      - "TOP:moviefilein"
+
+    CHOPs:
+      - "CHOP:nullchop"
+      - "CHOP:constantchop"
+      - "CHOP:noisechop"
+      - "CHOP:aborb"
+      - "CHOP:selectchop"
+      - "CHOP:mathchop"
+      - "CHOP:lagchop"
+
+    DATs:
+      - "DAT:textdat"
+      - "DAT:executedat"
+      - "DAT:tabledat"
+      - "DAT:chopexecutedat"
+      - "DAT:scriptdat"
+
+    SOPs:
+      - "SOP:rectanglesop"
+      - "SOP:circlesop"
+      - "SOP:transformsop"
+      - "SOP:mergesop"
+
+    COMPs:
+      - "COMP:base"
+      - "COMP:geometrycomp"
+      - "COMP:camcomp"
+      - "COMP:lightcomp"
+
+  examples:
+    null_top: |
+      TOP:nulltop
+      tile 500 200 120 120
+      flags =  viewer 1 parlanguage 0
+      inputs
+      {
+      0   input_top
+      }
+      color 0.545 0.545 0.545
+      end
+
+    glsl_top: |
+      TOP:glsltop
+      tile 300 200 120 120
+      flags =  viewer 1 parlanguage 0
+      inputs
+      {
+      0   noise1
+      1   ramp1
+      }
+      color 0.545 0.545 0.545
+      end
+
+    execute_dat: |
+      DAT:executedat
+      tile 100 400 120 120
+      flags =  viewer 0 parlanguage 0
+      color 0.545 0.545 0.545
+      end
+
+# =============================================================================
+# PARAMETER FILE FORMAT (.parm)
+# =============================================================================
+parameter_file_format:
+  extension: ".parm"
+
+  structure: |
+    Parameters are stored in a specific format with ? as section delimiters.
+    Each parameter line follows: <paramname> <flags> <value>
+
+  format: |
+    ?
+    <paramname> <flags> <value>
+    <paramname> <flags> <value>
+    ...
+    ?
+
+  common_flags:
+    "0": "Default/constant value"
+    "1": "Expression mode"
+    "2": "Export mode"
+
+  examples:
+    constant_top: |
+      ?
+      resolutionw 0 1920
+      resolutionh 0 1080
+      colorr 0 0.5
+      colorg 0 0.5
+      colorb 0 0.5
+      ?
+
+    execute_dat: |
+      ?
+      start 0 on
+      language 0 python
+      ?
+
+    glsl_top_with_uniforms: |
+      ?
+      resolutionw 0 1920
+      resolutionh 0 1080
+      uniname0 0 uIntensity
+      univalue0 0 1.0
+      uniname1 0 uSpeed
+      univalue1 0 0.5
+      ?
+
+# =============================================================================
+# TEXT CONTENT FILE FORMAT (.text)
+# =============================================================================
+text_file_format:
+  extension: ".text"
+
+  structure: |
+    First line is a format indicator (usually "2")
+    Remaining lines are the actual text content
+
+  format_indicator:
+    "2": "Standard text format for Python/GLSL"
+
+  examples:
+    python_dat: |
+      2
+      # This is a Python Execute DAT
+
+      def onStart():
+          print("Project started")
+          op('null1').cook(force=True)
+
+      def onFrameStart(frame):
+          pass
+
+    glsl_pixel_shader: |
+      2
+      // GLSL Pixel Shader
+      out vec4 fragColor;
+
+      uniform float uTime;
+      uniform float uIntensity;
+
+      void main()
+      {
+          vec2 uv = vUV.st;
+          vec4 color = texture(sTD2DInputs[0], uv);
+          fragColor = TDOutputSwizzle(color * uIntensity);
+      }
+
+# =============================================================================
+# GLSL TOP ASSOCIATED FILES
+# =============================================================================
+glsl_top_files:
+  description: |
+    When you create a GLSL TOP in TouchDesigner, it automatically generates
+    several associated operator files for the shader components.
+
+  auto_generated_files:
+    pixel_shader:
+      files:
+        - "{name}_pixel.n"
+        - "{name}_pixel.parm"
+        - "{name}_pixel.text"
+      purpose: "Fragment/pixel shader code"
+      text_content: "GLSL fragment shader source"
+
+    compute_shader:
+      files:
+        - "{name}_compute.n"
+        - "{name}_compute.parm"
+        - "{name}_compute.text"
+      purpose: "Compute shader code (if used)"
+      text_content: "GLSL compute shader source"
+
+    info:
+      files:
+        - "{name}_info.n"
+        - "{name}_info.parm"
+      purpose: "Shader compilation info and errors"
+      notes: "Read-only, generated by TD"
+
+  example_structure:
+    - "glsl1.n           # Main GLSL TOP node"
+    - "glsl1.parm        # GLSL TOP parameters"
+    - "glsl1_pixel.n     # Pixel shader DAT node"
+    - "glsl1_pixel.parm  # Pixel shader DAT params"
+    - "glsl1_pixel.text  # Actual GLSL code"
+    - "glsl1_compute.n   # Compute shader DAT node"
+    - "glsl1_compute.parm"
+    - "glsl1_compute.text"
+    - "glsl1_info.n      # Info DAT node"
+    - "glsl1_info.parm"
+
+# =============================================================================
+# RECOMMENDED WORKFLOW
+# =============================================================================
+workflow:
+  description: |
+    The recommended workflow prioritizes using TouchDesigner's GUI for initial
+    creation, then using toeexpand/toecollapse for version control and automation.
+
+  initial_setup:
+    steps:
+      - step: 1
+        action: "Create project in TouchDesigner GUI"
+        reason: "More reliable than manual .toe.dir creation"
+
+      - step: 2
+        action: "Build your network (operators, connections)"
+        reason: "GUI handles all the complex file relationships"
+
+      - step: 3
+        action: "Save the project as .toe"
+        reason: "Creates valid binary file"
+
+      - step: 4
+        action: "Run toeexpand on the .toe file"
+        command: "./toeexpand /path/to/project.toe"
+        reason: "Generates .toe.dir and .toc for version control"
+
+  editing_workflow:
+    steps:
+      - step: 1
+        action: "Edit .text files for Python/GLSL code"
+        files: "*.text files in .toe.dir"
+
+      - step: 2
+        action: "Regenerate .toc manifest"
+        command: |
+          find project.toe.dir -type f | \
+            grep -v '.DS_Store' | \
+            sed 's|project.toe.dir/||' | \
+            sort > project.toe.toc
+
+      - step: 3
+        action: "Rebuild .toe with toecollapse"
+        command: "./toecollapse /path/to/project.toe.dir"
+
+      - step: 4
+        action: "Test in TouchDesigner"
+        reason: "Verify changes work correctly"
+
+  version_control:
+    commit_these:
+      - "project.toe.dir/  (entire directory)"
+      - "project.toe.toc   (manifest file)"
+
+    ignore_these:
+      - "project.toe       (binary, can be regenerated)"
+      - ".DS_Store         (macOS artifacts)"
+      - "*.pyc             (Python bytecode)"
+
+    gitignore_example: |
+      # TouchDesigner
+      *.toe
+      .DS_Store
+      **/.DS_Store
+      *.pyc
+      __pycache__/
+
+# =============================================================================
+# COMMON PITFALLS AND SOLUTIONS
+# =============================================================================
+pitfalls:
+  manual_toe_dir_creation:
+    problem: "Creating .toe.dir manually from scratch is error-prone"
+    symptoms:
+      - "toecollapse fails with cryptic errors"
+      - "TouchDesigner crashes when opening the .toe"
+      - "Operators don't connect properly"
+    solution: "Always start by creating in TD GUI, then toeexpand"
+
+  stale_toc_file:
+    problem: ".toc file not updated after adding/removing files"
+    symptoms:
+      - "New files missing from rebuilt .toe"
+      - "Deleted files cause errors"
+      - "Changes don't appear in TD"
+    solution: "Always regenerate .toc after any file changes"
+    command: |
+      find project.toe.dir -type f | \
+        grep -v '.DS_Store' | \
+        sed 's|project.toe.dir/||' | \
+        sort > project.toe.toc
+
+  missing_toc_file:
+    problem: ".toc file doesn't exist when running toecollapse"
+    symptoms:
+      - "toecollapse fails immediately"
+      - "Error message about missing manifest"
+    solution: "Generate .toc before running toecollapse"
+
+  ds_store_contamination:
+    problem: ".DS_Store files included in .toc"
+    symptoms:
+      - "toecollapse may fail or produce corrupt .toe"
+      - "Extra unwanted files in project"
+    solution: "Filter out .DS_Store when generating .toc"
+
+  template_container_cleanup:
+    problem: "/local and /perform containers from TD templates"
+    symptoms:
+      - "Unnecessary containers clutter the project"
+      - "Confusion about which containers are project-specific"
+    solution: "Delete unwanted template containers in TD before toeexpand"
+
+  input_connection_errors:
+    problem: "Inputs reference non-existent operators"
+    symptoms:
+      - "Broken connections when opening in TD"
+      - "Error messages about missing operators"
+    solution: |
+      Ensure all operators referenced in 'inputs' blocks exist.
+      Check operator names match exactly (case-sensitive).
+
+  wrong_text_file_format:
+    problem: "Missing format indicator on first line of .text files"
+    symptoms:
+      - "Text content not recognized"
+      - "Empty DATs when opening in TD"
+    solution: "Ensure .text files start with '2' on the first line"
+
+# =============================================================================
+# QUICK REFERENCE COMMANDS
+# =============================================================================
+quick_reference:
+  expand_project: |
+    /Applications/TouchDesigner.app/Contents/MacOS/toeexpand project.toe
+
+  collapse_project: |
+    /Applications/TouchDesigner.app/Contents/MacOS/toecollapse project.toe.dir
+
+  regenerate_toc: |
+    find project.toe.dir -type f | \
+      grep -v '.DS_Store' | \
+      sed 's|project.toe.dir/||' | \
+      sort > project.toe.toc
+
+  full_rebuild_cycle: |
+    # Edit .text files, then:
+    cd /path/to/project/
+    find project.toe.dir -type f | grep -v '.DS_Store' | sed 's|project.toe.dir/||' | sort > project.toe.toc
+    /Applications/TouchDesigner.app/Contents/MacOS/toecollapse project.toe.dir
+    open project.toe  # Opens in TouchDesigner
+
+# =============================================================================
+# EXAMPLE: MINIMAL PROJECT STRUCTURE
+# =============================================================================
+example_minimal_project:
+  description: "Minimum viable .toe.dir structure"
+
+  file_tree: |
+    my_project.toe.dir/
+    ├── .application
+    ├── .build
+    ├── .grps
+    ├── .parm
+    ├── .root
+    ├── .start
+    ├── constant1.n
+    ├── constant1.parm
+    ├── null1.n
+    └── null1.parm
+
+    my_project.toe.toc
+
+  toc_contents: |
+    .application
+    .build
+    .grps
+    .parm
+    .root
+    .start
+    constant1.n
+    constant1.parm
+    null1.n
+    null1.parm
+
+  file_contents:
+    ".start": |
+      cookrate 60
+      realtime 1
+
+    ".root": |
+      end
+
+    ".grps": |
+      -2
+      0
+
+    ".parm": |
+      ?
+      ?
+
+    "constant1.n": |
+      TOP:constanttop
+      tile 100 200 120 120
+      flags =  viewer 1 parlanguage 0
+      color 0.545 0.545 0.545
+      end
+
+    "constant1.parm": |
+      ?
+      resolutionw 0 1920
+      resolutionh 0 1080
+      ?
+
+    "null1.n": |
+      TOP:nulltop
+      tile 300 200 120 120
+      flags =  viewer 1 parlanguage 0
+      inputs
+      {
+      0   constant1
+      }
+      color 0.545 0.545 0.545
+      end
+
+    "null1.parm": |
+      ?
+      ?

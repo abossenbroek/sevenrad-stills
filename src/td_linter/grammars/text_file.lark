@@ -1,0 +1,24 @@
+// Lark grammar for TouchDesigner .text (embedded code) files
+//
+// Format:
+//   - First line: header byte (usually a single digit)
+//   - Optional: binary/special line (may contain non-printable chars)
+//   - Rest: text content (GLSL, Python, etc.)
+//
+// Example:
+//   2
+//   [optional binary line]
+//   // GLSL or Python code
+//   ...
+
+// The .text format is essentially: header_byte + raw_content
+// We capture the header and raw content, parser strips binary prefix
+start: HEADER_BYTE _NL REST_OF_FILE
+
+HEADER_BYTE: /[0-9]+/
+
+// Content captures everything after the header line (including any binary prefix)
+// Must match at least one character to avoid zero-width terminal issue
+REST_OF_FILE: /[\s\S]+/
+
+_NL: /\r?\n/

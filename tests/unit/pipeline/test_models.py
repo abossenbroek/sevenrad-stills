@@ -116,3 +116,97 @@ class TestPipelineConfig:
                 segment=SegmentConfig(start=10.0, end=30.0, interval=1.0),
                 pipeline={"steps": []},
             )
+
+    def test_execution_mode_default_is_auto(self) -> None:
+        """Test execution_mode defaults to 'auto'."""
+        config = PipelineConfig(
+            source=SourceConfig(youtube_url="https://youtube.com/watch?v=test"),
+            segment=SegmentConfig(start=10.0, end=30.0, interval=1.0),
+            pipeline={
+                "steps": [
+                    ImageOperationStep(
+                        name="saturate", operation="saturation", params={}
+                    )
+                ]
+            },
+        )
+        assert config.execution_mode == "auto"
+
+    def test_execution_mode_accepts_legacy(self) -> None:
+        """Test execution_mode accepts 'legacy' value."""
+        config = PipelineConfig(
+            source=SourceConfig(youtube_url="https://youtube.com/watch?v=test"),
+            segment=SegmentConfig(start=10.0, end=30.0, interval=1.0),
+            pipeline={
+                "steps": [
+                    ImageOperationStep(
+                        name="saturate", operation="saturation", params={}
+                    )
+                ]
+            },
+            execution_mode="legacy",
+        )
+        assert config.execution_mode == "legacy"
+
+    def test_execution_mode_accepts_taichi(self) -> None:
+        """Test execution_mode accepts 'taichi' value."""
+        config = PipelineConfig(
+            source=SourceConfig(youtube_url="https://youtube.com/watch?v=test"),
+            segment=SegmentConfig(start=10.0, end=30.0, interval=1.0),
+            pipeline={
+                "steps": [
+                    ImageOperationStep(
+                        name="saturate", operation="saturation", params={}
+                    )
+                ]
+            },
+            execution_mode="taichi",
+        )
+        assert config.execution_mode == "taichi"
+
+    def test_execution_mode_rejects_invalid(self) -> None:
+        """Test execution_mode rejects invalid values."""
+        with pytest.raises(ValidationError):
+            PipelineConfig(
+                source=SourceConfig(youtube_url="https://youtube.com/watch?v=test"),
+                segment=SegmentConfig(start=10.0, end=30.0, interval=1.0),
+                pipeline={
+                    "steps": [
+                        ImageOperationStep(
+                            name="saturate", operation="saturation", params={}
+                        )
+                    ]
+                },
+                execution_mode="invalid",  # type: ignore[arg-type]
+            )
+
+    def test_debug_default_is_false(self) -> None:
+        """Test debug defaults to False."""
+        config = PipelineConfig(
+            source=SourceConfig(youtube_url="https://youtube.com/watch?v=test"),
+            segment=SegmentConfig(start=10.0, end=30.0, interval=1.0),
+            pipeline={
+                "steps": [
+                    ImageOperationStep(
+                        name="saturate", operation="saturation", params={}
+                    )
+                ]
+            },
+        )
+        assert config.debug is False
+
+    def test_debug_can_be_enabled(self) -> None:
+        """Test debug can be set to True."""
+        config = PipelineConfig(
+            source=SourceConfig(youtube_url="https://youtube.com/watch?v=test"),
+            segment=SegmentConfig(start=10.0, end=30.0, interval=1.0),
+            pipeline={
+                "steps": [
+                    ImageOperationStep(
+                        name="saturate", operation="saturation", params={}
+                    )
+                ]
+            },
+            debug=True,
+        )
+        assert config.debug is True

@@ -1,0 +1,145 @@
+# Backend Comparison Test: All 16 Operations on Metal
+# Uses dramatic parameter values to showcase visual effects
+# Video: 3 seconds @ 15fps = 45 frames
+# Note: blur_gaussian will use MLX backend (registered as part of Metal ecosystem)
+
+source:
+  youtube_url: "https://www.youtube.com/watch?v=MzJaP-7N9I0"
+
+segment:
+  start: 192.0     # 3:12
+  end: 195.0       # 3:15
+  interval: 0.0667  # 15 fps
+
+backend: "metal"
+
+pipeline:
+  steps:
+    # 1. Saturation - Heavy desaturation (grayscale)
+    - name: "s1"
+      operation: "saturation"
+      params:
+        mode: "fixed"
+        value: 0.0
+
+    # 2. Chromatic Aberration - Large color fringing
+    - name: "s2"
+      operation: "chromatic_aberration"
+      params:
+        shift_x: 7
+        shift_y: 3
+
+    # 3. Noise - Heavy Gaussian noise
+    - name: "s3"
+      operation: "noise"
+      params:
+        mode: "gaussian"
+        amount: 0.4
+        seed: 42
+
+    # 4. Gaussian Blur - Heavy blur (uses MLX backend)
+    - name: "s4"
+      operation: "blur_gaussian"
+      params:
+        sigma: 8.0
+
+    # 5. Motion Blur - Large kernel directional blur
+    - name: "s5"
+      operation: "motion_blur"
+      params:
+        kernel_size: 25
+        angle: 45
+
+    # 6. Compression - Low quality JPEG
+    - name: "s6"
+      operation: "compression"
+      params:
+        quality: 15
+        subsampling: 2
+
+    # 7. Downscale - Extreme pixelation
+    - name: "s7"
+      operation: "downscale"
+      params:
+        scale: 0.1
+        upscale: true
+        downscale_method: "nearest"
+        upscale_method: "nearest"
+
+    # 8. Salt & Pepper - Heavy cosmic ray noise
+    - name: "s8"
+      operation: "salt_pepper"
+      params:
+        amount: 0.3
+        salt_vs_pepper: 0.5
+        seed: 42
+
+    # 9. Band Swap - Multiple channel corruption tiles
+    - name: "s9"
+      operation: "band_swap"
+      params:
+        tile_count: 10
+        permutation: "BGR"
+        seed: 42
+
+    # 10. Buffer Corruption - Severe memory glitches
+    - name: "s10"
+      operation: "buffer_corruption"
+      params:
+        tile_count: 8
+        corruption_type: "xor"
+        severity: 0.9
+        seed: 42
+
+    # 11. SLC Off - Large satellite scan gaps
+    - name: "s11"
+      operation: "slc_off"
+      params:
+        gap_width: 0.25
+        scan_period: 16
+        fill_mode: "black"
+        seed: 42
+
+    # 12. Corduroy - Heavy detector striping
+    - name: "s12"
+      operation: "corduroy"
+      params:
+        strength: 0.8
+        orientation: "vertical"
+        density: 0.9
+        seed: 42
+
+    # 13. Bayer Filter - Sensor mosaic pattern
+    - name: "s13"
+      operation: "bayer_filter"
+      params:
+        pattern: "RGGB"
+
+    # 14. Circular Blur - Large bokeh effect
+    - name: "s14"
+      operation: "blur_circular"
+      params:
+        radius: 20
+
+    # 15. Compression Artifact - Severe localized JPEG failure
+    - name: "s15"
+      operation: "compression_artifact"
+      params:
+        tile_count: 15
+        quality: 2
+        seed: 42
+
+    # 16. Multi Compress - Many compression generations
+    - name: "s16"
+      operation: "multi_compress"
+      params:
+        iterations: 20
+        quality_start: 50
+        quality_end: 5
+        decay: "exponential"
+        subsampling: 2
+
+output:
+  base_dir: "./output/all-effects-metal"
+  intermediate_dir: "./output/all-effects-metal/intermediate"
+  final_dir: "./output/all-effects-metal/final"

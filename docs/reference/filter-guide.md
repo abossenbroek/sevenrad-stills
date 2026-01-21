@@ -13,12 +13,54 @@ This guide provides recommended parameter ranges for achieving specific visual d
 
 ## Table of Contents
 
-1. [JPEG Compression Artifacts](#jpeg-compression-artifacts)
-2. [Multi-Generation Compression](#multi-generation-compression)
-3. [Resolution Downscaling & Pixelation](#resolution-downscaling--pixelation)
-4. [Motion Blur](#motion-blur)
-5. [Combining Effects](#combining-effects)
-6. [Using the Repeat Parameter](#using-the-repeat-parameter)
+1. [Backend Configuration](#backend-configuration)
+2. [JPEG Compression Artifacts](#jpeg-compression-artifacts)
+3. [Multi-Generation Compression](#multi-generation-compression)
+4. [Resolution Downscaling & Pixelation](#resolution-downscaling--pixelation)
+5. [Motion Blur](#motion-blur)
+6. [Combining Effects](#combining-effects)
+7. [Using the Repeat Parameter](#using-the-repeat-parameter)
+
+---
+
+## Backend Configuration
+
+Sevenrad Stills supports three compute backends for accelerated image processing:
+
+- **CPU**: Pure Python/NumPy (universal compatibility, slower)
+- **GPU**: Taichi GPU acceleration (cross-platform, good performance)
+- **Metal**: Native Apple Metal shaders (macOS only, best performance)
+
+Configure the backend globally in your pipeline YAML:
+
+```yaml
+backend: "metal"  # Options: cpu, gpu, metal (default: cpu)
+```
+
+### Backend Support Matrix
+
+| Operation             | CPU | GPU | Metal | Notes                          |
+|-----------------------|-----|-----|-------|--------------------------------|
+| band_swap             | ✓   | ✓   | -     | Metal coming soon              |
+| bayer_filter          | ✓   | ✓   | ✓     |                                |
+| blur_circular         | ✓   | ✓   | -     | Metal coming soon              |
+| blur_gaussian         | ✓   | ✓   | -     | Metal coming soon              |
+| buffer_corruption     | ✓   | ✓   | -     | Metal needs wrapper class      |
+| chromatic_aberration  | ✓   | ✓   | -     | Metal coming soon              |
+| compression           | ✓   | ✓   | ✓     | **Recommended: Metal on macOS**|
+| compression_artifact  | ✓   | ✓   | ✓     | **Recommended: Metal on macOS**|
+| corduroy              | ✓   | ✓   | ✓     |                                |
+| downscale             | ✓   | ✓   | ✓     | **Recommended: Metal on macOS**|
+| motion_blur           | ✓   | ✓   | ✓     |                                |
+| multi_compress        | ✓   | -   | -     | CPU only (iterative JPEG)      |
+| noise                 | ✓   | ✓   | ✓     |                                |
+| salt_pepper           | ✓   | ✓   | ✓     |                                |
+| saturation            | ✓   | ✓   | ✓     | **Recommended: Metal on macOS**|
+| slc_off               | ✓   | ✓   | ✓     |                                |
+
+**See [BACKEND_CONFIGURATION.md](../BACKEND_CONFIGURATION.md)** for complete backend documentation, performance benchmarks, and troubleshooting.
+
+**See [BACKEND_TODO.md](../BACKEND_TODO.md)** for missing implementations and contribution guidelines.
 
 ---
 

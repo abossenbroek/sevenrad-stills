@@ -109,6 +109,23 @@ class PipelineConfig(BaseModel):
 
     source: SourceConfig = Field(description="Video source configuration")
     segment: SegmentConfig = Field(description="Video segment selection")
+    backend: Literal["cpu", "gpu", "metal"] = Field(
+        default="cpu",
+        description="Compute backend for image operations (cpu, gpu, metal)",
+    )
+    execution_mode: Literal["legacy", "taichi", "auto"] = Field(
+        default="auto",
+        description=(
+            "Pipeline execution mode:\n"
+            "- legacy: Use PIL-based sequential execution\n"
+            "- taichi: Use Taichi GPU pipeline (requires compatible operations)\n"
+            "- auto: Use taichi when all operations support it, else legacy"
+        ),
+    )
+    debug: bool = Field(
+        default=False,
+        description="Enable debug mode with ti.sync() after each GPU operation",
+    )
     pipeline: dict[str, list[ImageOperationStep]] = Field(
         description="Pipeline steps configuration"
     )

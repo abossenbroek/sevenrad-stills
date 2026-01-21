@@ -224,5 +224,16 @@ __marimo__/
 *.png
 *.gif
 output/
+!src/td_linter/output/
+!tests/unit/td_linter/output/
 temp/
 docs/_site/
+
+# Tutorial pipeline outputs (regenerate locally using YAML configs)
+tutorials/
+
+# TouchDesigner binaries are tracked with git-lfs (see .gitattributes)
+# Expanded .toe directories (use fixtures-expanded.zip instead for CI)
+*.toe.dir/
+*.toe.toc
+*.toc

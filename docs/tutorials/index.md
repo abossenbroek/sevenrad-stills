@@ -16,3 +16,4 @@ Each tutorial processes video segments to create transformed image sequences, ex
 - **[Degradr Effects](degradr-effects)** - Blur, noise, chromatic aberration, and sensor artifacts for analog and digital aesthetics
 - **[Satellite Malfunctions](satellite-malfunctions)** - Realistic remote sensing failures from cosmic ray hits to the historic Landsat 7 SLC-Off
 - **[Saturation Variations](saturation-variations)** - Color saturation adjustments from grayscale to hyper-saturated for mood and artistic effects
+- **[GPU Acceleration](gpu-acceleration)** - Taichi-powered GPU pipeline for 10-15x faster processing with zero-copy architecture

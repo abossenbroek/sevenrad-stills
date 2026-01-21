@@ -1,0 +1,46 @@
+{
+  "version": "1.0",
+  "description": "Hello World brightness shader sweep test - validates basic shader loading and parameter binding",
+  "tests": [
+    {
+      "name": "brightness_0.0",
+      "description": "Full black (minimum brightness)",
+      "shader": "glsl/effects/hello_brightness.frag",
+      "params": {
+        "uBrightness": 0.0
+      }
+    },
+    {
+      "name": "brightness_0.5",
+      "description": "Half brightness",
+      "shader": "glsl/effects/hello_brightness.frag",
+      "params": {
+        "uBrightness": 0.5
+      }
+    },
+    {
+      "name": "brightness_1.0",
+      "description": "Default brightness (passthrough)",
+      "shader": "glsl/effects/hello_brightness.frag",
+      "params": {
+        "uBrightness": 1.0
+      }
+    },
+    {
+      "name": "brightness_1.5",
+      "description": "150% brightness (boosted)",
+      "shader": "glsl/effects/hello_brightness.frag",
+      "params": {
+        "uBrightness": 1.5
+      }
+    },
+    {
+      "name": "brightness_2.0",
+      "description": "Maximum brightness (double)",
+      "shader": "glsl/effects/hello_brightness.frag",
+      "params": {
+        "uBrightness": 2.0
+      }
+    }
+  ]
+}

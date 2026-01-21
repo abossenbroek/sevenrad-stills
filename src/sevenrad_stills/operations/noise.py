@@ -118,12 +118,24 @@ class NoiseOperation(BaseImageOperation):
             if mode == "gaussian":
                 noise = rng.normal(loc=0, scale=amount, size=img_array.shape)
             elif mode == "row":
-                num_channels = 1 if img_array.ndim == 2 else img_array.shape[2]  # noqa: PLR2004
-                row_noise = rng.uniform(-amount, amount, size=(h, 1, num_channels))
+                if img_array.ndim == 2:  # noqa: PLR2004
+                    # Grayscale: shape (h, 1) broadcasts to (h, w)
+                    row_noise = rng.uniform(-amount, amount, size=(h, 1))
+                else:
+                    # RGB: shape (h, 1, 3) broadcasts to (h, w, 3)
+                    row_noise = rng.uniform(
+                        -amount, amount, size=(h, 1, img_array.shape[2])
+                    )
                 noise = np.broadcast_to(row_noise, img_array.shape)
             else:  # column
-                num_channels = 1 if img_array.ndim == 2 else img_array.shape[2]  # noqa: PLR2004
-                col_noise = rng.uniform(-amount, amount, size=(1, w, num_channels))
+                if img_array.ndim == 2:  # noqa: PLR2004
+                    # Grayscale: shape (1, w) broadcasts to (h, w)
+                    col_noise = rng.uniform(-amount, amount, size=(1, w))
+                else:
+                    # RGB: shape (1, w, 3) broadcasts to (h, w, 3)
+                    col_noise = rng.uniform(
+                        -amount, amount, size=(1, w, img_array.shape[2])
+                    )
                 noise = np.broadcast_to(col_noise, img_array.shape)
 
             output_array = np.clip(img_array + noise, 0.0, 1.0)

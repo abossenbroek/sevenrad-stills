@@ -12,6 +12,7 @@ This project uses modern Python practices and is structured for scalability and 
 - Generate stills from video frames
 - Apply algorithmic transformations to create unique imagery
 - Non-destructive image editing with incremental versioning
+- **Multi-backend support**: Choose between CPU, GPU (Taichi), or Metal (macOS) acceleration for image operations
 
 ## Installation
 
@@ -87,10 +88,115 @@ pytest tests/integration/ -v -s
 ├── src/
 │   └── sevenrad_stills/      # Main package
 ├── tests/                    # Test files
+├── docs/                     # Documentation
+│   ├── BACKEND_CONFIGURATION.md  # Backend selection guide
+│   ├── BACKEND_TODO.md           # Missing implementations
+│   └── reference/
+│       └── filter-guide.md       # Complete operation reference
 ├── pyproject.toml            # Project configuration
 ├── .mise.toml                # Tool version management
 └── .pre-commit-config.yaml   # Pre-commit hooks
 ```
+
+## Backend Configuration
+
+Sevenrad Stills supports three compute backends for image operations:
+
+- **CPU** (default): Pure Python/NumPy implementations - universal compatibility
+- **GPU**: Taichi-accelerated implementations - cross-platform GPU support
+- **Metal**: Native Metal shaders - macOS only, maximum performance
+
+### Selecting a Backend
+
+Configure the backend in your YAML pipeline file:
+
+```yaml
+source:
+  youtube_url: "https://www.youtube.com/watch?v=example"
+
+# Choose your backend (cpu, gpu, or metal)
+backend: "gpu"  # or "cpu" or "metal"
+
+segment:
+  start: 0.0
+  end: 3.0
+  interval: 0.5
+
+pipeline:
+  steps:
+    - name: "saturation_boost"
+      operation: "saturation"
+      params:
+        mode: "fixed"
+        value: 1.5
+```
+
+### Backend Support Matrix
+
+| Operation             | CPU | GPU | Metal | Notes                          |
+|-----------------------|-----|-----|-------|--------------------------------|
+| band_swap             | ✅  | ✅  | ❌    | Metal coming soon              |
+| bayer_filter          | ✅  | ✅  | ✅    |                                |
+| blur_circular         | ✅  | ✅  | ❌    | Metal coming soon              |
+| blur_gaussian         | ✅  | ✅  | ❌    | Metal coming soon              |
+| buffer_corruption     | ✅  | ✅  | ❌    | Metal needs wrapper class      |
+| chromatic_aberration  | ✅  | ✅  | ❌    | Metal coming soon              |
+| compression           | ✅  | ✅  | ✅    |                                |
+| compression_artifact  | ✅  | ✅  | ✅    |                                |
+| corduroy              | ✅  | ✅  | ✅    |                                |
+| downscale             | ✅  | ✅  | ⚠️    | Metal has runtime issues       |
+| motion_blur           | ✅  | ✅  | ⚠️    | Metal has runtime issues       |
+| multi_compress        | ✅  | ✅  | ✅    |                                |
+| noise                 | ✅  | ✅  | ✅    |                                |
+| salt_pepper           | ✅  | ✅  | ✅    |                                |
+| saturation            | ✅  | ✅  | ✅    |                                |
+| slc_off               | ✅  | ✅  | ⚠️    | Metal has runtime issues       |
+
+**Legend:**
+- ✅ = Fully working
+- ⚠️ = Implemented but has runtime errors
+- ❌ = Not yet implemented
+
+### Known Issues
+
+**Metal Backend Issues** (pre-existing bugs, not related to backend configuration):
+- `slc_off`: Runtime error - "converting to a C array"
+- `motion_blur`: MLX library error - `module 'mlx.core' has no attribute 'flip'`
+- `downscale`: Runtime error - "argument 0 must be None or objc.NULL"
+
+**Workaround**: Use GPU backend for these operations until Metal implementations are fixed.
+
+### What Remains To Be Implemented
+
+**GPU Backend**: ✅ 16/16 operations (100% complete!)
+
+**Metal Backend**: 7/16 operations need work
+- 4 not yet implemented: `band_swap`, `blur_circular`, `blur_gaussian`, `chromatic_aberration`
+- 3 have runtime bugs: `slc_off`, `motion_blur`, `downscale`
+
+See [docs/BACKEND_TODO.md](docs/BACKEND_TODO.md) for detailed implementation roadmap and contribution guidelines.
+
+### When to Use Each Backend
+
+**CPU**:
+- Small images (< 1000x1000)
+- Single-frame processing
+- Operations without GPU/Metal support
+- Maximum compatibility
+
+**GPU (Taichi)**:
+- Medium to large images (1000x1000+)
+- Batch processing
+- Cross-platform deployment
+- Good balance of speed and compatibility
+
+**Metal (macOS)**:
+- Large images (2000x2000+)
+- macOS-only deployment
+- Maximum performance
+- Apple Silicon or Intel Mac
+
+For detailed information, see [docs/BACKEND_CONFIGURATION.md](docs/BACKEND_CONFIGURATION.md).
 
 ## Artistic Context
 

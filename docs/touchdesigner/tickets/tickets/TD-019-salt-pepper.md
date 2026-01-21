@@ -1,0 +1,45 @@
+# TD-019: salt_pepper Effect
+
+---
+id: TD-019
+status: pending
+priority: medium
+phase: 6
+depends_on: [TD-015]
+blocks: []
+complexity: simple
+shader_type: fragment
+passes: 1
+---
+
+## Description
+
+Implement dedicated salt and pepper noise effect with dual threshold.
+
+## Taichi Reference
+
+`src/sevenrad_stills/operations/salt_pepper_taichi.py`
+
+**Note**: Also consult Max/MSP implementation for additional clarity on algorithm behavior.
+
+## Acceptance Criteria
+
+- [ ] `salt_pepper.frag` shader created
+- [ ] Separate salt/pepper probability controls
+- [ ] .tox operator packaged with help
+- [ ] Video-first demo included
+- [ ] Unit render tests passing
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| Amount | Float | 0.05 | Overall noise probability |
+| Saltvspepperratio | Float | 0.5 | Ratio of salt (white) to pepper (black), 0=all pepper, 1=all salt |
+| Seed | Int | 42 | Random seed |
+| Animatenoise | Toggle | Off | Per-frame variation |
+
+## Files
+
+- `touchdesigner/glsl/effects/salt_pepper.frag` (create)
+- `touchdesigner/tox/operators/sr_salt_pepper.tox` (create)

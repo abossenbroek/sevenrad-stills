@@ -1,0 +1,22 @@
+// Lark grammar for TouchDesigner .build (version/build metadata) files
+//
+// Example:
+//   version 099
+//   build 2025.32050
+//   time Wed Jan 14 15:43:59 2026
+//   osname macOS
+//   osversion 15.6.1
+
+// Line-oriented format with key-value pairs
+start: (entry _NL)* entry?
+
+entry: KEY REST_OF_LINE
+
+// Known keys (extensible)
+KEY: "version" | "build" | "time" | "osname" | "osversion"
+
+// Rest of line as value (handles spaces in timestamps)
+REST_OF_LINE: /[^\r\n]+/
+
+// Newline as significant token
+_NL: /\r?\n/
