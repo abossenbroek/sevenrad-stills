@@ -109,6 +109,14 @@ class NFileTransformer(Transformer[Any, ParsedNFile]):
         """Extract dock reference."""
         self._dock = str(name)
 
+    def dict_directive(self, items: list[Any]) -> None:
+        """Handle dict directive (hex-encoded data)."""
+        pass
+
+    def tags_directive(self, items: list[Any]) -> None:
+        """Handle tags directive."""
+        pass
+
     @v_args(inline=True)
     def comment_directive(self, text: Any) -> None:
         """Extract comment text."""

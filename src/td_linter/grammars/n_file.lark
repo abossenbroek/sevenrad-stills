@@ -25,6 +25,8 @@ directive: tile_directive
          | exports_block
          | color_directive
          | dock_directive
+         | dict_directive
+         | tags_directive
          | view_directive
          | comment_directive
          | v_directive
@@ -41,7 +43,7 @@ inputs_block: "inputs" "{" input_entry* "}"
 input_entry: INT OPERATOR_REF
 
 extrainputs_block: "extrainputs" "{" extrainput_entry* "}"
-extrainput_entry: INT EXTRAINPUT_REF IDENTIFIER
+extrainput_entry: INT EXTRAINPUT_REF IDENTIFIER+
 
 exports_block: "exports" "{" export_entry* "}"
 export_entry: OPERATOR_REF
@@ -50,18 +52,24 @@ color_directive: "color" NUMBER NUMBER NUMBER NUMBER?
 
 dock_directive: "dock" IDENTIFIER
 
+dict_directive: "dict" HEX_STRING
+
+tags_directive: "tags" INT INT IDENTIFIER
+
 view_directive: "view" view_value*
 view_value: SIGNED_NUMBER | ESCAPED_STRING | STAR
 
 // Terminals
 FAMILY: "TOP" | "CHOP" | "SOP" | "DAT" | "COMP" | "MAT" | "POP" | "PANEL"
 OP_TYPE: /[a-zA-Z_][a-zA-Z0-9_]*/
-OPERATOR_REF: /[a-zA-Z_][a-zA-Z0-9_\/]*/
-// Matches: .., ../.. , ../../.., ../name, ../../name/child, name, name/child
-EXTRAINPUT_REF: /(?:\.\.(?:\/\.\.)*(?:\/[a-zA-Z_][a-zA-Z0-9_]*)*)|[a-zA-Z_][a-zA-Z0-9_]*(?:\/[a-zA-Z_][a-zA-Z0-9_]*)*/
+// Matches: name, name/child, ./name, ./name/child
+OPERATOR_REF: /(?:\.(?:\/[a-zA-Z_][a-zA-Z0-9_]*)+)|[a-zA-Z_][a-zA-Z0-9_\/]*/
+// Matches: .., ../.. , ../../.., ../name, ../../name/child, ./name, ./name/child, name, name/child
+EXTRAINPUT_REF: /(?:\.\.(?:\/\.\.)*(?:\/[a-zA-Z_][a-zA-Z0-9_]*)*)|(?:\.(?:\/[a-zA-Z_][a-zA-Z0-9_]*)+)|[a-zA-Z_][a-zA-Z0-9_]*(?:\/[a-zA-Z_][a-zA-Z0-9_]*)*/
 IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_]*/
 SIGNED_INT: /-?[0-9]+/
 STAR: "*"
+HEX_STRING: /[0-9A-Fa-f]+/
 END: "end"
 
 %import common.INT
