@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bank A/B Switching - SevenRad Effect Controller</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #fff;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #ff6b35;
+            margin-bottom: 10px;
+            font-size: 28px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .keyboard-hint {
+            text-align: center;
+            background: rgba(255, 107, 53, 0.1);
+            border: 1px solid #ff6b35;
+            padding: 12px;
+            margin-bottom: 30px;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        .keyboard-hint kbd {
+            background: #ff6b35;
+            color: #000;
+            padding: 4px 12px;
+            border-radius: 3px;
+            font-weight: bold;
+            margin: 0 5px;
+            display: inline-block;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .banks-container {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .bank-view {
+            background: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            /* CSS Animation suggestion for bank switching:
+               transition: transform 0.3s ease, opacity 0.3s ease;
+               When switching: transform: translateX(-20px); opacity: 0;
+               Then animate back to: transform: translateX(0); opacity: 1;
+            */
+        }
+
+        .bank-view.active {
+            border-color: #ff6b35;
+            box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
+        }
+
+        .bank-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #333;
+        }
+
+        .bank-title {
+            font-size: 20px;
+            color: #ff6b35;
+            font-weight: bold;
+        }
+
+        .bank-button {
+            background: #2a2a2a;
+            border: 2px solid #444;
+            color: #888;
+            padding: 8px 20px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .bank-button.active {
+            background: #ff6b35;
+            color: #000;
+            border-color: #ff6b35;
+            box-shadow: 0 0 15px rgba(255, 107, 53, 0.5);
+        }
+
+        .pad-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        .pad {
+            background: linear-gradient(145deg, #2a2a2a, #1f1f1f);
+            border: 2px solid #333;
+            border-radius: 6px;
+            padding: 15px 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-height: 90px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .pad:hover {
+            border-color: #ff6b35;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .pad.empty {
+            background: linear-gradient(145deg, #1a1a1a, #151515);
+            border-style: dashed;
+            border-color: #2a2a2a;
+            opacity: 0.5;
+        }
+
+        .pad.utility {
+            background: linear-gradient(145deg, #2a3a2a, #1f2f1f);
+            border-color: #4a8;
+        }
+
+        .pad.utility:hover {
+            border-color: #6fa;
+        }
+
+        .pad-number {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .pad-name {
+            font-size: 13px;
+            font-weight: bold;
+            color: #ff6b35;
+            margin-bottom: 4px;
+        }
+
+        .pad.empty .pad-name,
+        .pad.utility .pad-name {
+            color: #888;
+        }
+
+        .pad.utility .pad-name {
+            color: #6fa;
+        }
+
+        .pad-category {
+            font-size: 10px;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .transition-indicator {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .arrow {
+            font-size: 48px;
+            color: #ff6b35;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+
+        .transition-label {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            color: #ff6b35;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        .bank-description {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #333;
+            font-size: 12px;
+            color: #888;
+            font-style: italic;
+        }
+
+        .legend {
+            margin-top: 40px;
+            padding: 20px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 4px;
+        }
+
+        .legend h3 {
+            color: #ff6b35;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .legend-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+        }
+
+        .legend-color {
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
+            border: 2px solid #333;
+        }
+
+        .legend-color.effect {
+            background: linear-gradient(145deg, #2a2a2a, #1f1f1f);
+            border-color: #ff6b35;
+        }
+
+        .legend-color.utility {
+            background: linear-gradient(145deg, #2a3a2a, #1f2f1f);
+            border-color: #6fa;
+        }
+
+        .legend-color.empty {
+            background: linear-gradient(145deg, #1a1a1a, #151515);
+            border-color: #2a2a2a;
+            border-style: dashed;
+        }
+
+        @media (max-width: 1200px) {
+            .banks-container {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+
+            .transition-indicator {
+                flex-direction: row;
+                justify-content: center;
+            }
+
+            .transition-label {
+                writing-mode: horizontal-tb;
+            }
+
+            .arrow {
+                transform: rotate(90deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Bank A/B Switching</h1>
+        <p class="subtitle">SevenRad Effect Controller - Dual Bank Layout</p>
+
+        <div class="keyboard-hint">
+            Press <kbd>B</kbd> to toggle between banks | <kbd>1</kbd>-<kbd>9</kbd>, <kbd>0</kbd>, <kbd>Q</kbd>-<kbd>U</kbd> to trigger pads
+        </div>
+
+        <div class="banks-container">
+            <!-- Bank A (Active) -->
+            <div class="bank-view active">
+                <div class="bank-header">
+                    <div class="bank-title">BANK A</div>
+                    <button class="bank-button active">BANK A</button>
+                </div>
+
+                <div class="pad-grid">
+                    <!-- Row 1 -->
+                    <div class="pad">
+                        <div class="pad-number">PAD 1</div>
+                        <div class="pad-name">Glitch</div>
+                        <div class="pad-category">Distortion</div>
+                    </div>
+                    <div class="pad">
+                        <div class="pad-number">PAD 2</div>
+                        <div class="pad-name">ChromaShift</div>
+                        <div class="pad-category">Color</div>
+                    </div>
+                    <div class="pad">
+                        <div class="pad-number">PAD 3</div>
+                        <div class="pad-name">PixelSort</div>
+                        <div class="pad-category">Glitch</div>
+                    </div>
+                    <div class="pad">
+                        <div class="pad-number">PAD 4</div>
+                        <div class="pad-name">Datamosh</div>
+                        <div class="pad-category">Compression</div>
+                    </div>
+
+                    <!-- Row 2 -->
+                    <div class="pad">
+                        <div class="pad-number">PAD 5</div>
+                        <div class="pad-name">VHS</div>
+                        <div class="pad-category">Analog</div>
+                    </div>
+                    <div class="pad">
+                        <div class="pad-number">PAD 6</div>
+                        <div class="pad-name">Scanlines</div>
+                        <div class="pad-category">Retro</div>
+                    </div>
+                    <div class="pad">
+                        <div class="pad-number">PAD 7</div>
+                        <div class="pad-name">Mirror</div>
+                        <div class="pad-category">Transform</div>
+                    </div>
+                    <div class="pad">
+                        <div class="pad-number">PAD 8</div>
+                        <div class="pad-name">Kaleidoscope</div>
+                        <div class="pad-category">Transform</div>
+                    </div>
+
+                    <!-- Row 3 -->
+                    <div class="pad">
+                        <div class="pad-number">PAD 9</div>
+                        <div class="pad-name">EdgeDetect</div>
+                        <div class="pad-category">Filter</div>
+                    </div>
+                    <div class="pad">
+                        <div class="pad-number">PAD 10</div>
+                        <div class="pad-name">Posterize</div>
+                        <div class="pad-category">Color</div>
+                    </div>
+                    <div class="pad">
+                        <div class="pad-number">PAD 11</div>
+                        <div class="pad-name">Blur</div>
+                        <div class="pad-category">Filter</div>
+                    </div>
+                    <div class="pad">
+                        <div class="pad-number">PAD 12</div>
+                        <div class="pad-name">Sharpen</div>
+                        <div class="pad-category">Filter</div>
+                    </div>
+
+                    <!-- Row 4 -->
+                    <div class="pad">
+                        <div class="pad-number">PAD 13</div>
+                        <div class="pad-name">Invert</div>
+                        <div class="pad-category">Color</div>
+                    </div>
+                    <div class="pad">
+                        <div class="pad-number">PAD 14</div>
+                        <div class="pad-name">Noise</div>
+                        <div class="pad-category">Distortion</div>
+                    </div>
+                    <div class="pad">
+                        <div class="pad-number">PAD 15</div>
+                        <div class="pad-name">Dither</div>
+                        <div class="pad-category">Retro</div>
+                    </div>
+                    <div class="pad">
+                        <div class="pad-number">PAD 16</div>
+                        <div class="pad-name">Vignette</div>
+                        <div class="pad-category">Film</div>
+                    </div>
+                </div>
+
+                <div class="bank-description">
+                    Primary effects bank - 16 core image processing effects
+                </div>
+            </div>
+
+            <!-- Transition Indicator -->
+            <div class="transition-indicator">
+                <div class="arrow">⟷</div>
+                <div class="transition-label">BANK SWITCH</div>
+            </div>
+
+            <!-- Bank B -->
+            <div class="bank-view">
+                <div class="bank-header">
+                    <div class="bank-title">BANK B</div>
+                    <button class="bank-button">BANK B</button>
+                </div>
+
+                <div class="pad-grid">
+                    <!-- Row 1 - Additional Effect + Utilities -->
+                    <div class="pad">
+                        <div class="pad-number">PAD 1</div>
+                        <div class="pad-name">MultiCompress</div>
+                        <div class="pad-category">Compression</div>
+                    </div>
+                    <div class="pad utility">
+                        <div class="pad-number">PAD 2</div>
+                        <div class="pad-name">Save Preset</div>
+                        <div class="pad-category">Utility</div>
+                    </div>
+                    <div class="pad utility">
+                        <div class="pad-number">PAD 3</div>
+                        <div class="pad-name">Load Preset</div>
+                        <div class="pad-category">Utility</div>
+                    </div>
+                    <div class="pad utility">
+                        <div class="pad-number">PAD 4</div>
+                        <div class="pad-name">Clear All</div>
+                        <div class="pad-category">Utility</div>
+                    </div>
+
+                    <!-- Row 2 - Favorites/Duplicates -->
+                    <div class="pad">
+                        <div class="pad-number">PAD 5</div>
+                        <div class="pad-name">Glitch</div>
+                        <div class="pad-category">Favorite</div>
+                    </div>
+                    <div class="pad">
+                        <div class="pad-number">PAD 6</div>
+                        <div class="pad-name">ChromaShift</div>
+                        <div class="pad-category">Favorite</div>
+                    </div>
+                    <div class="pad">
+                        <div class="pad-number">PAD 7</div>
+                        <div class="pad-name">PixelSort</div>
+                        <div class="pad-category">Favorite</div>
+                    </div>
+                    <div class="pad">
+                        <div class="pad-number">PAD 8</div>
+                        <div class="pad-name">Datamosh</div>
+                        <div class="pad-category">Favorite</div>
+                    </div>
+
+                    <!-- Row 3 - More Favorites -->
+                    <div class="pad">
+                        <div class="pad-number">PAD 9</div>
+                        <div class="pad-name">VHS</div>
+                        <div class="pad-category">Favorite</div>
+                    </div>
+                    <div class="pad">
+                        <div class="pad-number">PAD 10</div>
+                        <div class="pad-name">Kaleidoscope</div>
+                        <div class="pad-category">Favorite</div>
+                    </div>
+                    <div class="pad empty">
+                        <div class="pad-number">PAD 11</div>
+                        <div class="pad-name">Empty</div>
+                        <div class="pad-category">—</div>
+                    </div>
+                    <div class="pad empty">
+                        <div class="pad-number">PAD 12</div>
+                        <div class="pad-name">Empty</div>
+                        <div class="pad-category">—</div>
+                    </div>
+
+                    <!-- Row 4 - Empty Slots -->
+                    <div class="pad empty">
+                        <div class="pad-number">PAD 13</div>
+                        <div class="pad-name">Empty</div>
+                        <div class="pad-category">—</div>
+                    </div>
+                    <div class="pad empty">
+                        <div class="pad-number">PAD 14</div>
+                        <div class="pad-name">Empty</div>
+                        <div class="pad-category">—</div>
+                    </div>
+                    <div class="pad empty">
+                        <div class="pad-number">PAD 15</div>
+                        <div class="pad-name">Empty</div>
+                        <div class="pad-category">—</div>
+                    </div>
+                    <div class="pad empty">
+                        <div class="pad-number">PAD 16</div>
+                        <div class="pad-name">Empty</div>
+                        <div class="pad-category">—</div>
+                    </div>
+                </div>
+
+                <div class="bank-description">
+                    Extended bank - Additional effect (17th slot) + utility functions + favorites
+                </div>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="legend">
+            <h3>Legend</h3>
+            <div class="legend-items">
+                <div class="legend-item">
+                    <div class="legend-color effect"></div>
+                    <div>Effect Pad (Standard effects from configured list)</div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color utility"></div>
+                    <div>Utility Pad (Save/Load presets, Clear functions)</div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color empty"></div>
+                    <div>Empty Slot (Available for custom mappings)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Future JavaScript for interactive demo -->
+    <script>
+        // Placeholder for interactive bank switching demo
+        // document.addEventListener('keydown', (e) => {
+        //     if (e.key.toLowerCase() === 'b') {
+        //         // Toggle between banks with CSS transition
+        //         // Add fade out -> swap content -> fade in animation
+        //     }
+        // });
+    </script>
+</body>
+</html>

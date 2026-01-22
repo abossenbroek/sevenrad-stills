@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frame Timeline / Step Sequencer - SevenRad</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            overflow-x: hidden;
+        }
+
+        /* Timeline Header */
+        .timeline-header {
+            background: #1a1a1a;
+            border-bottom: 2px solid #ff6b35;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .header-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .frame-info {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ff6b35;
+            letter-spacing: 1px;
+        }
+
+        .transport-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            background: #2a2a2a;
+            border: 2px solid #404040;
+            color: #e0e0e0;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            border-color: #ff6b35;
+            background: #3a3a3a;
+        }
+
+        .btn:active {
+            background: #ff6b35;
+            color: #0a0a0a;
+        }
+
+        .btn.active {
+            background: #ff6b35;
+            color: #0a0a0a;
+            border-color: #ff6b35;
+        }
+
+        .btn-play {
+            background: #2a4a2a;
+            border-color: #4a8a4a;
+        }
+
+        .btn-play:hover {
+            border-color: #6aca6a;
+        }
+
+        .btn-stop {
+            background: #4a2a2a;
+            border-color: #8a4a4a;
+        }
+
+        .btn-stop:hover {
+            border-color: #ca6a6a;
+        }
+
+        select {
+            background: #2a2a2a;
+            border: 2px solid #404040;
+            color: #e0e0e0;
+            padding: 10px 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        select:hover {
+            border-color: #ff6b35;
+        }
+
+        .position-indicator {
+            background: #2a2a2a;
+            padding: 10px 20px;
+            border: 2px solid #404040;
+            font-size: 14px;
+            letter-spacing: 1px;
+        }
+
+        /* Frame Thumbnails */
+        .thumbnails-container {
+            background: #151515;
+            border-bottom: 2px solid #404040;
+            padding: 15px 20px;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+
+        .thumbnails-scroll {
+            display: flex;
+            gap: 8px;
+            min-width: min-content;
+        }
+
+        .thumbnail-item {
+            flex-shrink: 0;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .thumbnail {
+            width: 40px;
+            height: 30px;
+            background: #2a2a2a;
+            border: 2px solid #404040;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .thumbnail-item:hover .thumbnail {
+            border-color: #ff6b35;
+        }
+
+        .thumbnail-item.current .thumbnail {
+            border-color: #ff6b35;
+            border-width: 3px;
+            background: #3a2a2a;
+        }
+
+        .thumbnail-item.selected .thumbnail {
+            background: #3a3a3a;
+            border-color: #808080;
+        }
+
+        .frame-number {
+            font-size: 10px;
+            color: #808080;
+        }
+
+        .thumbnail-item.current .frame-number {
+            color: #ff6b35;
+            font-weight: bold;
+        }
+
+        /* Step Sequencer Grid */
+        .sequencer-container {
+            padding: 20px;
+            overflow-x: auto;
+        }
+
+        .sequencer-controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .control-label {
+            color: #808080;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .zoom-slider {
+            width: 150px;
+            height: 6px;
+            background: #2a2a2a;
+            border: 1px solid #404040;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        .zoom-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #ff6b35;
+            cursor: pointer;
+        }
+
+        .zoom-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: #ff6b35;
+            cursor: pointer;
+            border: none;
+        }
+
+        /* Effect Grid */
+        .effect-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            background: #0a0a0a;
+            border: 2px solid #404040;
+            min-width: min-content;
+        }
+
+        .effect-row {
+            display: flex;
+            gap: 0;
+        }
+
+        .effect-label {
+            background: #1a1a1a;
+            padding: 12px 15px;
+            min-width: 200px;
+            border-right: 2px solid #404040;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            letter-spacing: 0.5px;
+        }
+
+        .effect-name {
+            color: #e0e0e0;
+        }
+
+        .effect-multiplier {
+            color: #ff6b35;
+            font-weight: bold;
+        }
+
+        .effect-steps {
+            display: flex;
+            flex: 1;
+        }
+
+        .step-cell {
+            width: 44px;
+            height: 44px;
+            background: #2a2a2a;
+            border: 1px solid #404040;
+            cursor: pointer;
+            transition: all 0.1s;
+            position: relative;
+        }
+
+        .step-cell:hover {
+            background: #3a3a3a;
+            border-color: #606060;
+        }
+
+        .step-cell.active {
+            background: #ff6b35;
+            border-color: #ff8855;
+        }
+
+        .step-cell.active:hover {
+            background: #ff8855;
+        }
+
+        /* Every 4th step marker */
+        .step-cell:nth-child(4n+1) {
+            border-left-width: 2px;
+            border-left-color: #505050;
+        }
+
+        /* Frame number markers (every 5th frame) */
+        .frame-markers {
+            display: flex;
+            margin-left: 202px;
+            margin-bottom: 5px;
+        }
+
+        .frame-marker {
+            width: 44px;
+            text-align: center;
+            font-size: 10px;
+            color: #606060;
+        }
+
+        .frame-marker:nth-child(5n) {
+            color: #ff6b35;
+            font-weight: bold;
+        }
+
+        /* Legend */
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: #1a1a1a;
+            border: 1px solid #404040;
+            display: flex;
+            gap: 30px;
+            font-size: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-box {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #404040;
+        }
+
+        .legend-box.active {
+            background: #ff6b35;
+        }
+
+        .legend-box.inactive {
+            background: #2a2a2a;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            height: 12px;
+            background: #1a1a1a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #404040;
+            border: 2px solid #1a1a1a;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #606060;
+        }
+    </style>
+</head>
+<body>
+    <!-- Timeline Header -->
+    <div class="timeline-header">
+        <div class="header-section">
+            <div class="frame-info">45 FRAMES (3s @ 15fps)</div>
+        </div>
+
+        <div class="header-section">
+            <div class="transport-controls">
+                <button class="btn btn-play">▶ PLAY</button>
+                <button class="btn">|| PAUSE</button>
+                <button class="btn btn-stop">■ STOP</button>
+            </div>
+
+            <button class="btn">⟲ LOOP</button>
+
+            <select>
+                <option>1x Speed</option>
+                <option>2x Speed</option>
+                <option>4x Speed</option>
+                <option>8x Speed</option>
+            </select>
+        </div>
+
+        <div class="header-section">
+            <div class="position-indicator">FRAME 12/45</div>
+        </div>
+    </div>
+
+    <!-- Frame Thumbnails -->
+    <div class="thumbnails-container">
+        <div class="thumbnails-scroll" id="thumbnails">
+            <!-- Generated by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Step Sequencer -->
+    <div class="sequencer-container">
+        <!-- Controls -->
+        <div class="sequencer-controls">
+            <div class="control-group">
+                <span class="control-label">Zoom:</span>
+                <input type="range" class="zoom-slider" min="1" max="100" value="100">
+                <button class="btn">FIT ALL</button>
+                <button class="btn">ZOOM SELECTION</button>
+            </div>
+
+            <div class="control-group">
+                <span class="control-label">Bulk:</span>
+                <button class="btn">SELECT ALL</button>
+                <button class="btn">CLEAR ALL</button>
+                <button class="btn">EVERY 2ND</button>
+                <button class="btn">INVERT</button>
+            </div>
+        </div>
+
+        <!-- Frame Markers -->
+        <div class="frame-markers" id="markers">
+            <!-- Generated by JavaScript -->
+        </div>
+
+        <!-- Effect Grid -->
+        <div class="effect-grid" id="effectGrid">
+            <!-- Generated by JavaScript -->
+        </div>
+
+        <!-- Legend -->
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-box active"></div>
+                <span>Effect Applied</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box inactive"></div>
+                <span>Effect Not Applied</span>
+            </div>
+            <div class="legend-item">
+                <span style="color: #ff6b35;">●</span>
+                <span>Click cells to toggle | Shift+Click to select range</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const TOTAL_FRAMES = 45;
+        const CURRENT_FRAME = 12;
+        const EFFECTS = [
+            { name: 'Saturation', multiplier: 4, pattern: [1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+            { name: 'BlurGaussian', multiplier: 2, pattern: [0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+            { name: 'Compression', multiplier: 1, pattern: [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1] },
+            { name: 'Noise', multiplier: 3, pattern: [0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] },
+            { name: 'BufferCorruption', multiplier: 5, pattern: [1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] }
+        ];
+
+        // Generate thumbnails
+        const thumbnailsContainer = document.getElementById('thumbnails');
+        for (let i = 1; i <= TOTAL_FRAMES; i++) {
+            const item = document.createElement('div');
+            item.className = 'thumbnail-item' + (i === CURRENT_FRAME ? ' current' : '') + (i >= 8 && i <= 12 ? ' selected' : '');
+            item.innerHTML = `
+                <div class="thumbnail">F${i}</div>
+                <div class="frame-number">${i}</div>
+            `;
+            thumbnailsContainer.appendChild(item);
+        }
+
+        // Generate frame markers
+        const markersContainer = document.getElementById('markers');
+        for (let i = 1; i <= TOTAL_FRAMES; i++) {
+            const marker = document.createElement('div');
+            marker.className = 'frame-marker';
+            marker.textContent = i % 5 === 0 ? i : '';
+            markersContainer.appendChild(marker);
+        }
+
+        // Generate effect grid
+        const gridContainer = document.getElementById('effectGrid');
+        EFFECTS.forEach(effect => {
+            const row = document.createElement('div');
+            row.className = 'effect-row';
+
+            const label = document.createElement('div');
+            label.className = 'effect-label';
+            label.innerHTML = `
+                <span class="effect-name">${effect.name}</span>
+                <span class="effect-multiplier">×${effect.multiplier}</span>
+            `;
+            row.appendChild(label);
+
+            const steps = document.createElement('div');
+            steps.className = 'effect-steps';
+
+            effect.pattern.forEach((active, index) => {
+                const cell = document.createElement('div');
+                cell.className = 'step-cell' + (active ? ' active' : '');
+                cell.dataset.frame = index + 1;
+                cell.dataset.effect = effect.name;
+
+                cell.addEventListener('click', () => {
+                    cell.classList.toggle('active');
+                });
+
+                steps.appendChild(cell);
+            });
+
+            row.appendChild(steps);
+            gridContainer.appendChild(row);
+        });
+
+        // Scroll to current frame
+        const currentThumbnail = thumbnailsContainer.querySelector('.current');
+        if (currentThumbnail) {
+            currentThumbnail.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+    </script>
+</body>
+</html>
